@@ -1,0 +1,3 @@
+DevPilot AI is a private document intelligence platform.
+This file is used to test Celery asynchronous document processing.
+The expected flow is uploaded, queued, processing, and indexed.

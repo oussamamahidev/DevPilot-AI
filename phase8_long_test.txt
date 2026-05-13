@@ -1,0 +1,37 @@
+DevPilot AI is a private document intelligence platform.
+
+It allows users to upload private documents, process them asynchronously, and prepare them for intelligent retrieval.
+
+The platform uses FastAPI for the backend API, PostgreSQL for metadata, Redis and Celery for asynchronous processing, and Qdrant for vector search in future phases.
+
+The goal of Phase 8 is to clean extracted text and split it into chunks.
+
+Chunking is important because large documents cannot be sent entirely to a language model. Instead, the document is divided into smaller pieces.
+
+Each chunk should have content, chunk_index, token_count, and metadata.
+
+The metadata should include start_char and end_char if implemented.
+
+The first chunk should start with chunk_index zero.
+
+The next chunks should continue with increasing indexes.
+
+Overlap is useful because it preserves context between neighboring chunks.
+
+DevPilot AI should save chunks in the PostgreSQL chunks table.
+
+Later, in Phase 9, these chunks will be converted into embeddings and stored in Qdrant.
+
+This file is intentionally repeated to create enough text for multiple chunks.
+
+DevPilot AI is a private document intelligence platform.
+
+It allows users to upload private documents, process them asynchronously, and prepare them for intelligent retrieval.
+
+The platform uses FastAPI for the backend API, PostgreSQL for metadata, Redis and Celery for asynchronous processing, and Qdrant for vector search in future phases.
+
+The goal of Phase 8 is to clean extracted text and split it into chunks.
+
+Chunking is important because large documents cannot be sent entirely to a language model.
+
+DevPilot AI should save chunks in the PostgreSQL chunks table.

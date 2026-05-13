@@ -1,0 +1,1 @@
+This is a Celery document processing test for DevPilot AI.

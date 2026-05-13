@@ -1,0 +1,1 @@
+DevPilot AI is an Agentic RAG platform for private document intelligence. It uses FastAPI, PostgreSQL, Qdrant, Redis, Celery, and Ollama.
