@@ -143,7 +143,7 @@ def test_workspace_member_can_search_retrieval(
     document_id = uuid4()
     calls: list[dict[str, object]] = []
 
-    async def fake_retrieve_semantic(**kwargs: object) -> list[dict[str, object]]:
+    async def fake_retrieve_chunks(**kwargs: object) -> list[dict[str, object]]:
         calls.append(kwargs)
         return [
             {
@@ -153,24 +153,27 @@ def test_workspace_member_can_search_retrieval(
                 "content": "DevPilot AI content",
                 "chunk_index": 0,
                 "score": 0.88,
+                "retrieval_strategy": "hybrid",
                 "metadata": {"start_char": 0, "end_char": 19},
             }
         ]
 
-    monkeypatch.setattr(retrieval_routes, "retrieve_semantic", fake_retrieve_semantic)
+    monkeypatch.setattr(retrieval_routes, "retrieve_chunks", fake_retrieve_chunks)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace.id}/retrieval/search",
         headers=auth_headers(user),
-        json={"query": "What is DevPilot AI?", "top_k": 3},
+        json={"query": "What is DevPilot AI?", "top_k": 3, "strategy": "hybrid"},
     )
 
     assert response.status_code == 200
     assert response.json()[0]["chunk_id"] == str(chunk_id)
     assert response.json()[0]["score"] == 0.88
+    assert response.json()[0]["retrieval_strategy"] == "hybrid"
     assert calls[0]["workspace_id"] == workspace.id
     assert calls[0]["query"] == "What is DevPilot AI?"
     assert calls[0]["top_k"] == 3
+    assert calls[0]["strategy"] == "hybrid"
 
 
 def test_non_member_cannot_search_workspace_retrieval(
@@ -185,11 +188,11 @@ def test_non_member_cannot_search_workspace_retrieval(
     workspace = make_workspace(state, owner)
     calls: list[dict[str, object]] = []
 
-    async def fake_retrieve_semantic(**kwargs: object) -> list[dict[str, object]]:
+    async def fake_retrieve_chunks(**kwargs: object) -> list[dict[str, object]]:
         calls.append(kwargs)
         return []
 
-    monkeypatch.setattr(retrieval_routes, "retrieve_semantic", fake_retrieve_semantic)
+    monkeypatch.setattr(retrieval_routes, "retrieve_chunks", fake_retrieve_chunks)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace.id}/retrieval/search",

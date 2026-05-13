@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import date, datetime
+import re
 from time import perf_counter
 from typing import Any
 from uuid import UUID
@@ -11,7 +12,8 @@ from app.core.config import settings
 from app.providers.base import LLMResponse
 from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT, OllamaLLMProvider
 from app.services.evaluation_service import EvaluationResult, evaluate_answer
-from app.services.retrieval_service import retrieve_semantic
+from app.services.reranking_service import rerank
+from app.services.retrieval_service import retrieve_chunks
 
 
 INSUFFICIENT_CONTEXT_ANSWER = "I could not find this information in the uploaded documents."
@@ -21,6 +23,7 @@ AgentRunLogger = Callable[
     None,
 ]
 Retriever = Callable[..., Awaitable[list[dict[str, Any]]]]
+Reranker = Callable[..., Awaitable[list[dict[str, Any]]]]
 Evaluator = Callable[..., Awaitable[EvaluationResult]]
 LLMProviderFactory = Callable[[], Any]
 
@@ -30,6 +33,7 @@ class AgenticRAGResult:
     query_type: str
     retrieval_strategy: str
     rewritten_query: str
+    candidate_chunks: list[dict[str, Any]]
     retrieved_chunks: list[dict[str, Any]]
     generated_answer: str
     final_answer: str
@@ -44,10 +48,15 @@ class RouterAgent:
     async def run(self, question: str) -> dict[str, str]:
         normalized = question.strip().lower()
 
-        if any(term in normalized for term in ("summarize", "summary", "overview", "tldr")):
+        if _looks_like_exact_term_query(normalized):
+            query_type = "unknown"
+            retrieval_strategy = "keyword"
+        elif any(term in normalized for term in ("summarize", "summary", "overview", "tldr")):
             query_type = "summary_question"
+            retrieval_strategy = "hybrid"
         elif any(term in normalized for term in ("compare", "comparison", "difference", " vs ")):
             query_type = "comparison_question"
+            retrieval_strategy = "hybrid"
         elif any(
             term in normalized
             for term in (
@@ -63,17 +72,23 @@ class RouterAgent:
                 "postgres",
                 "qdrant",
                 "redis",
+                "technical",
+                "technologies",
+                "technology",
             )
         ):
             query_type = "technical_question"
+            retrieval_strategy = "hybrid"
         elif normalized.startswith(("what", "who", "when", "where", "which", "why", "how", "list")):
             query_type = "factual_question"
+            retrieval_strategy = "hybrid"
         else:
             query_type = "unknown"
+            retrieval_strategy = "semantic"
 
         return {
             "query_type": query_type,
-            "retrieval_strategy": "semantic",
+            "retrieval_strategy": retrieval_strategy,
         }
 
 
@@ -105,7 +120,7 @@ class QueryRewriterAgent:
 class RetrievalAgent:
     agent_type = "retrieval"
 
-    def __init__(self, retriever: Retriever = retrieve_semantic) -> None:
+    def __init__(self, retriever: Retriever = retrieve_chunks) -> None:
         self.retriever = retriever
 
     async def run(
@@ -117,18 +132,41 @@ class RetrievalAgent:
         retrieval_strategy: str,
         top_k: int | None = None,
     ) -> dict[str, object]:
-        if retrieval_strategy != "semantic":
-            retrieval_strategy = "semantic"
-
         chunks = await self.retriever(
             db=db,
             workspace_id=workspace_id,
             query=query,
             top_k=top_k or settings.rag_top_k,
+            strategy=retrieval_strategy,
         )
         return {
             "retrieval_strategy": retrieval_strategy,
             "chunks": chunks,
+        }
+
+
+class RerankerAgent:
+    agent_type = "reranker"
+
+    def __init__(self, reranker: Reranker = rerank) -> None:
+        self.reranker = reranker
+
+    async def run(
+        self,
+        *,
+        query: str,
+        contexts: list[dict[str, Any]],
+        top_k: int,
+    ) -> dict[str, object]:
+        reranked_contexts = await self.reranker(
+            query=query,
+            contexts=contexts,
+            top_k=top_k,
+        )
+        return {
+            "chunks": reranked_contexts,
+            "input_count": len(contexts),
+            "top_k": top_k,
         }
 
 
@@ -191,17 +229,34 @@ class CorrectorAgent:
         *,
         answer: str,
         evaluation: EvaluationResult,
+        contexts: list[dict[str, Any]],
     ) -> dict[str, object]:
-        needs_correction = (
-            evaluation["faithfulness"] < 0.7
-            or evaluation["relevance"] < 0.7
+        should_replace, reason = _should_replace_with_insufficient_context(
+            answer=answer,
+            evaluation=evaluation,
+            contexts=contexts,
         )
-        if not needs_correction:
+        if not should_replace:
+            corrected_evaluation = evaluation
+            if (
+                evaluation["relevance"] < 0.7
+                and evaluation["faithfulness"] >= 0.7
+                and evaluation["context_precision"] >= 0.8
+                and evaluation["hallucination_score"] <= 0.3
+                and contexts
+            ):
+                corrected_evaluation = {
+                    **evaluation,
+                    "explanation": (
+                        f"{evaluation['explanation']} Corrector kept the original answer because "
+                        "the retrieved context is strong and hallucination risk is low."
+                    ),
+                }
             return {
                 "answer": answer,
                 "correction_applied": False,
-                "reason": "Evaluation scores met thresholds.",
-                "evaluation": evaluation,
+                "reason": reason,
+                "evaluation": corrected_evaluation,
             }
 
         final_answer = answer if _says_information_not_found(answer) else INSUFFICIENT_CONTEXT_ANSWER
@@ -218,7 +273,7 @@ class CorrectorAgent:
         return {
             "answer": final_answer,
             "correction_applied": final_answer != answer,
-            "reason": "Evaluation scores were below thresholds.",
+            "reason": reason,
             "evaluation": corrected_evaluation,
         }
 
@@ -227,7 +282,8 @@ class AgenticRAGWorkflow:
     def __init__(
         self,
         *,
-        retriever: Retriever = retrieve_semantic,
+        retriever: Retriever = retrieve_chunks,
+        reranker: Reranker = rerank,
         llm_provider_factory: LLMProviderFactory = OllamaLLMProvider,
         evaluator: Evaluator = evaluate_answer,
         run_logger: AgentRunLogger | None = None,
@@ -235,6 +291,7 @@ class AgenticRAGWorkflow:
         self.router = RouterAgent()
         self.query_rewriter = QueryRewriterAgent()
         self.retrieval = RetrievalAgent(retriever=retriever)
+        self.reranker = RerankerAgent(reranker=reranker)
         self.generator = GeneratorAgent(llm_provider_factory=llm_provider_factory)
         self.evaluator = EvaluatorAgent(evaluator=evaluator)
         self.corrector = CorrectorAgent()
@@ -270,17 +327,35 @@ class AgenticRAGWorkflow:
             input_payload={
                 "query": rewritten_query,
                 "retrieval_strategy": retrieval_strategy,
-                "top_k": settings.rag_top_k,
+                "top_k": _candidate_top_k(),
             },
             operation=lambda: self.retrieval.run(
                 db=db,
                 workspace_id=workspace_id,
                 query=rewritten_query,
                 retrieval_strategy=retrieval_strategy,
-                top_k=settings.rag_top_k,
+                top_k=_candidate_top_k(),
             ),
         )
-        retrieved_chunks = list(retrieval_output["chunks"])
+        candidate_chunks = list(retrieval_output["chunks"])
+
+        if settings.enable_reranking:
+            reranking_output = await self._run_agent(
+                agent_type=RerankerAgent.agent_type,
+                input_payload={
+                    "query": rewritten_query,
+                    "candidate_count": len(candidate_chunks),
+                    "top_k": settings.rerank_top_k,
+                },
+                operation=lambda: self.reranker.run(
+                    query=rewritten_query,
+                    contexts=candidate_chunks,
+                    top_k=settings.rerank_top_k,
+                ),
+            )
+            retrieved_chunks = list(reranking_output["chunks"])
+        else:
+            retrieved_chunks = candidate_chunks[: settings.rag_top_k]
 
         generator_output = await self._run_agent(
             agent_type=GeneratorAgent.agent_type,
@@ -319,10 +394,13 @@ class AgenticRAGWorkflow:
             input_payload={
                 "answer": generated_answer,
                 "evaluation": evaluation,
+                "context_count": len(retrieved_chunks),
+                "top_retrieval_score": _top_retrieval_score(retrieved_chunks),
             },
             operation=lambda: self.corrector.run(
                 answer=generated_answer,
                 evaluation=evaluation,
+                contexts=retrieved_chunks,
             ),
         )
 
@@ -331,6 +409,7 @@ class AgenticRAGWorkflow:
             query_type=query_type,
             retrieval_strategy=retrieval_strategy,
             rewritten_query=rewritten_query,
+            candidate_chunks=candidate_chunks,
             retrieved_chunks=retrieved_chunks,
             generated_answer=generated_answer,
             final_answer=str(correction_output["answer"]),
@@ -431,6 +510,20 @@ Content:
     return "\n\n".join(blocks)
 
 
+def _looks_like_exact_term_query(normalized_question: str) -> bool:
+    if '"' in normalized_question or "'" in normalized_question or "`" in normalized_question:
+        return True
+    question_starters = ("what", "who", "when", "where", "which", "why", "how", "explain", "summarize")
+    words = normalized_question.split()
+    return bool(words) and len(words) <= 3 and not normalized_question.startswith(question_starters)
+
+
+def _candidate_top_k() -> int:
+    if not settings.enable_reranking:
+        return settings.rag_top_k
+    return max(settings.retrieval_candidates, settings.rerank_top_k, settings.rag_top_k)
+
+
 def _says_information_not_found(answer: str) -> bool:
     normalized = " ".join(answer.lower().split())
     return any(
@@ -444,6 +537,99 @@ def _says_information_not_found(answer: str) -> bool:
             "no retrieved context",
         )
     )
+
+
+def _should_replace_with_insufficient_context(
+    *,
+    answer: str,
+    evaluation: EvaluationResult,
+    contexts: list[dict[str, Any]],
+) -> tuple[bool, str]:
+    if not contexts:
+        return True, "No retrieved context was available."
+
+    if _top_retrieval_score(contexts) < 0.25:
+        return True, "Top retrieval score was too low."
+
+    if evaluation["faithfulness"] < 0.5:
+        return True, "Faithfulness was below the replacement threshold."
+
+    if evaluation["hallucination_score"] > 0.6:
+        return True, "Hallucination score was above the replacement threshold."
+
+    if (
+        not _says_information_not_found(answer)
+        and not _has_citation_marker(answer)
+        and _claims_facts(answer)
+    ):
+        return True, "Answer claimed facts without citation markers."
+
+    if _answer_is_supported_despite_low_relevance(
+        evaluation=evaluation,
+        contexts=contexts,
+    ):
+        return False, "Context support is strong and hallucination risk is low."
+
+    return False, "No insufficient-context replacement condition was met."
+
+
+def _answer_is_supported_despite_low_relevance(
+    *,
+    evaluation: EvaluationResult,
+    contexts: list[dict[str, Any]],
+) -> bool:
+    return (
+        bool(contexts)
+        and evaluation["context_precision"] >= 0.8
+        and evaluation["hallucination_score"] <= 0.3
+        and evaluation["faithfulness"] >= 0.7
+    )
+
+
+def _top_retrieval_score(contexts: list[dict[str, Any]]) -> float:
+    scores: list[float] = []
+    for context in contexts:
+        try:
+            scores.append(float(context.get("score", 0.0)))
+        except (TypeError, ValueError):
+            continue
+        metadata = context.get("metadata")
+        if isinstance(metadata, dict):
+            source_scores = metadata.get("source_scores")
+            if isinstance(source_scores, dict):
+                for score in source_scores.values():
+                    try:
+                        scores.append(float(score))
+                    except (TypeError, ValueError):
+                        continue
+    return max(scores, default=0.0)
+
+
+def _has_citation_marker(answer: str) -> bool:
+    return bool(re.search(r"\[\d+\]", answer))
+
+
+def _claims_facts(answer: str) -> bool:
+    if _says_information_not_found(answer):
+        return False
+    words = answer.split()
+    if len(words) < 4:
+        return False
+    factual_markers = (
+        " is ",
+        " are ",
+        " uses ",
+        " use ",
+        " has ",
+        " have ",
+        " supports ",
+        " contains ",
+        " includes ",
+        " was ",
+        " were ",
+    )
+    normalized = f" {answer.lower()} "
+    return any(marker in normalized for marker in factual_markers)
 
 
 def _json_safe(value: Any) -> Any:

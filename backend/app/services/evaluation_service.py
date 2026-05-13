@@ -166,8 +166,15 @@ def _evaluate_with_heuristics(
     context_text = _build_context_text(contexts)
     context_words = _keywords(context_text)
 
-    relevance = _overlap_score(question_words, answer_words)
     answer_context_overlap = _overlap_score(answer_words, context_words)
+    relevance = _estimate_relevance(
+        question=question,
+        answer=answer,
+        context_text=context_text,
+        question_words=question_words,
+        answer_words=answer_words,
+        answer_context_overlap=answer_context_overlap,
+    )
     context_precision = _estimate_context_precision(question_words, contexts)
 
     not_found = _says_information_not_found(answer)
@@ -222,6 +229,9 @@ def _keywords(text: str) -> set[str]:
         "at",
         "be",
         "by",
+        "did",
+        "do",
+        "does",
         "for",
         "from",
         "in",
@@ -234,12 +244,107 @@ def _keywords(text: str) -> set[str]:
         "the",
         "this",
         "to",
+        "use",
+        "used",
+        "uses",
+        "using",
         "was",
         "what",
         "with",
     }
     words = re.findall(r"[a-zA-Z0-9_]{3,}", text.lower())
     return {word for word in words if word not in stop_words}
+
+
+def _estimate_relevance(
+    *,
+    question: str,
+    answer: str,
+    context_text: str,
+    question_words: set[str],
+    answer_words: set[str],
+    answer_context_overlap: float,
+) -> float:
+    relevance = max(
+        _overlap_score(question_words, answer_words),
+        _overlap_score(_expanded_terms(question_words), _expanded_terms(answer_words)),
+    )
+
+    if _is_technology_question(question):
+        supported_technology_terms = _technology_terms(answer) & _technology_terms(context_text)
+        if len(supported_technology_terms) >= 2:
+            relevance = max(relevance, 0.9)
+        elif supported_technology_terms:
+            relevance = max(relevance, 0.75)
+        elif answer_context_overlap >= 0.6:
+            relevance = max(relevance, 0.7)
+
+    return relevance
+
+
+def _expanded_terms(words: set[str]) -> set[str]:
+    expanded = set(words)
+    for word in words:
+        if word.endswith("ies") and len(word) > 4:
+            expanded.add(f"{word[:-3]}y")
+        if word.endswith("s") and len(word) > 3:
+            expanded.add(word[:-1])
+        if word.endswith("ing") and len(word) > 5:
+            expanded.add(word[:-3])
+        if word.endswith("ed") and len(word) > 4:
+            expanded.add(word[:-2])
+    return expanded
+
+
+def _is_technology_question(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    technology_markers = (
+        "technologies",
+        "technology",
+        "tech stack",
+        "stack",
+        "tools",
+        "frameworks",
+        "libraries",
+        "built with",
+        "powered by",
+        "what does",
+        "what do",
+    )
+    use_markers = (" use", " uses", " using", " built", " run on")
+    return any(marker in normalized for marker in technology_markers) and (
+        any(marker in normalized for marker in use_markers)
+        or "technolog" in normalized
+        or "stack" in normalized
+    )
+
+
+def _technology_terms(text: str) -> set[str]:
+    known_terms = {
+        "alembic",
+        "asyncpg",
+        "celery",
+        "docker",
+        "fastapi",
+        "jwt",
+        "next",
+        "nextjs",
+        "ollama",
+        "postgres",
+        "postgresql",
+        "pydantic",
+        "python",
+        "qdrant",
+        "redis",
+        "sqlalchemy",
+    }
+    normalized = text.replace("Next.js", "NextJS").replace("Docker Compose", "DockerCompose")
+    capitalized_terms = {
+        term.lower().replace(".", "").replace("-", "")
+        for term in re.findall(r"\b[A-Z][A-Za-z0-9.+#-]{2,}\b", normalized)
+    }
+    lower_words = set(re.findall(r"[a-zA-Z0-9_]{3,}", text.lower()))
+    return (capitalized_terms | lower_words) & known_terms
 
 
 def _overlap_score(source_words: set[str], target_words: set[str]) -> float:

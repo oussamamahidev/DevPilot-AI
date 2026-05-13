@@ -7,13 +7,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.conversation import Conversation, Evaluation, LLMUsage, Message, RetrievedChunk
+from app.agents.rag import AgenticRAGWorkflow
+from app.models.conversation import (
+    AgentRun,
+    Conversation,
+    Evaluation,
+    LLMUsage,
+    Message,
+    RetrievedChunk,
+)
 from app.models.document import Chunk
 from app.models.user import User
 from app.models.workspace import Workspace
-from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT, OllamaLLMProvider
+from app.providers.ollama_provider import OllamaLLMProvider
 from app.services.evaluation_service import evaluate_answer
-from app.services.retrieval_service import retrieve_semantic
+from app.services.reranking_service import rerank
+from app.services.retrieval_service import retrieve_chunks
 
 
 class ConversationNotFoundError(RuntimeError):
@@ -43,29 +52,49 @@ async def query_chat(
     db.add(user_message)
     await db.commit()
 
-    retrieved_chunks = await retrieve_semantic(
-        db=db,
-        workspace_id=workspace.id,
-        query=question,
-        top_k=5,
-    )
-    prompt_chunks = retrieved_chunks
-    citations = _build_citations(prompt_chunks)
-    prompt = _build_user_prompt(question=question, retrieved_chunks=prompt_chunks)
-
-    llm_response = await OllamaLLMProvider().generate(
-        prompt=prompt,
-        system_prompt=DEFAULT_RAG_SYSTEM_PROMPT,
-    )
-
     assistant_message = Message(
         conversation_id=conversation.id,
         role="assistant",
-        content=llm_response.content,
+        content="",
     )
     conversation.updated_at = datetime.now(UTC)
     db.add(assistant_message)
     await db.flush()
+
+    def log_agent_run(
+        agent_type: str,
+        input_payload: dict[str, object],
+        output_payload: dict[str, object] | None,
+        latency_ms: int | None,
+        status: str,
+    ) -> None:
+        db.add(
+            AgentRun(
+                message_id=assistant_message.id,
+                agent_type=agent_type,
+                status=status,
+                input=input_payload,
+                output=output_payload,
+                latency_ms=latency_ms,
+            )
+        )
+
+    workflow = AgenticRAGWorkflow(
+        retriever=retrieve_chunks,
+        reranker=rerank,
+        llm_provider_factory=OllamaLLMProvider,
+        evaluator=evaluate_answer,
+        run_logger=log_agent_run,
+    )
+    workflow_result = await workflow.run(
+        db=db,
+        workspace_id=workspace.id,
+        question=question,
+    )
+
+    assistant_message.content = workflow_result.final_answer
+    prompt_chunks = workflow_result.retrieved_chunks
+    citations = _build_citations(prompt_chunks)
 
     for rank, chunk in enumerate(prompt_chunks, start=1):
         db.add(
@@ -74,7 +103,7 @@ async def query_chat(
                 chunk_id=chunk["chunk_id"],
                 score=float(chunk["score"]),
                 rank=rank,
-                retrieval_strategy="semantic",
+                retrieval_strategy=workflow_result.retrieval_strategy,
             )
         )
 
@@ -82,19 +111,15 @@ async def query_chat(
         LLMUsage(
             message_id=assistant_message.id,
             provider="ollama",
-            model=llm_response.model,
-            prompt_tokens=llm_response.prompt_tokens,
-            completion_tokens=llm_response.completion_tokens,
-            total_tokens=llm_response.total_tokens,
-            latency_ms=llm_response.latency_ms,
+            model=workflow_result.llm_response.model,
+            prompt_tokens=workflow_result.llm_response.prompt_tokens,
+            completion_tokens=workflow_result.llm_response.completion_tokens,
+            total_tokens=workflow_result.llm_response.total_tokens,
+            latency_ms=workflow_result.llm_response.latency_ms,
         )
     )
 
-    evaluation = await evaluate_answer(
-        question=question,
-        answer=llm_response.content,
-        contexts=prompt_chunks,
-    )
+    evaluation = workflow_result.evaluation
     db.add(
         Evaluation(
             message_id=assistant_message.id,
@@ -108,7 +133,7 @@ async def query_chat(
     await db.commit()
 
     return {
-        "answer": llm_response.content,
+        "answer": workflow_result.final_answer,
         "citations": citations,
         "conversation_id": conversation.id,
         "message_id": assistant_message.id,

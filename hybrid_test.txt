@@ -1,0 +1,1 @@
+DevPilot AI uses Qdrant for vector search and Celery for asynchronous document processing.

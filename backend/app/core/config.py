@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     generation_max_tokens: int = Field(default=1000, gt=0)
     rag_top_k: int = Field(default=5, gt=0, le=20)
     rag_max_context_chars: int = Field(default=6000, gt=0)
+    enable_reranking: bool = Field(default=True)
+    enable_ollama_reranker: bool = Field(default=False)
+    retrieval_candidates: int = Field(default=15, gt=0, le=50)
+    rerank_top_k: int = Field(default=5, gt=0, le=20)
     max_upload_size: int = Field(default=10 * 1024 * 1024, gt=0)
 
     openai_api_key: str | None = None
@@ -130,6 +134,10 @@ class Settings(BaseSettings):
             "generation_max_tokens": self.generation_max_tokens,
             "rag_top_k": self.rag_top_k,
             "rag_max_context_chars": self.rag_max_context_chars,
+            "enable_reranking": self.enable_reranking,
+            "enable_ollama_reranker": self.enable_ollama_reranker,
+            "retrieval_candidates": self.retrieval_candidates,
+            "rerank_top_k": self.rerank_top_k,
             "max_upload_size": self.max_upload_size,
             "frontend_url": str(self.frontend_url),
             "cors_origins": self.cors_origins,
@@ -145,6 +153,10 @@ class Settings(BaseSettings):
             "ollama_embedding_model": self.ollama_embedding_model,
             "generation_temperature": self.generation_temperature,
             "generation_max_tokens": self.generation_max_tokens,
+            "enable_reranking": self.enable_reranking,
+            "enable_ollama_reranker": self.enable_ollama_reranker,
+            "retrieval_candidates": self.retrieval_candidates,
+            "rerank_top_k": self.rerank_top_k,
         }
 
 
