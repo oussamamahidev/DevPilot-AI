@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from uuid import UUID
@@ -12,13 +13,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.models.document import Chunk, Document
-from app.providers.base import BaseEmbeddingProvider
+from app.providers.base import (
+    BaseEmbeddingProvider,
+    EmbeddingProviderError,
+    EmbeddingProviderTimeoutError,
+)
 from app.providers.ollama_provider import OllamaEmbeddingProvider
 
 
 logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "devpilot_chunks"
+EMBEDDING_TIMEOUT_MAX_RETRIES = 3
+EMBEDDING_TIMEOUT_INITIAL_BACKOFF_SECONDS = 1.0
 
 
 class VectorStoreError(RuntimeError):
@@ -151,7 +158,11 @@ async def upsert_chunks(
     embedding_provider = provider or get_embedding_provider()
 
     await ensure_collection(client=qdrant)
-    embeddings = await embedding_provider.embed_batch([chunk.content for chunk in chunks])
+    embeddings = await _embed_chunks_in_batches(
+        chunks=chunks,
+        document_id=document_uuid,
+        provider=embedding_provider,
+    )
     if len(embeddings) != len(chunks):
         raise VectorStoreError(
             "Embedding provider returned an unexpected vector count "
@@ -174,6 +185,106 @@ async def upsert_chunks(
         extra={"document_id": str(document_uuid), "chunk_count": len(chunks)},
     )
     return len(chunks)
+
+
+async def _embed_chunks_in_batches(
+    *,
+    chunks: Sequence[Chunk],
+    document_id: UUID,
+    provider: BaseEmbeddingProvider,
+) -> list[list[float]]:
+    batch_size = settings.embedding_batch_size
+    total_batches = (len(chunks) + batch_size - 1) // batch_size
+    embeddings: list[list[float]] = []
+
+    for batch_number, start in enumerate(range(0, len(chunks), batch_size), start=1):
+        batch_chunks = chunks[start : start + batch_size]
+        batch_texts = [chunk.content for chunk in batch_chunks]
+        logger.info(
+            "embedding batch %s/%s document_id=%s chunk_count=%s",
+            batch_number,
+            total_batches,
+            str(document_id),
+            len(batch_chunks),
+            extra={
+                "document_id": str(document_id),
+                "embedding_batch": batch_number,
+                "embedding_batch_total": total_batches,
+                "chunk_count": len(batch_chunks),
+            },
+        )
+
+        try:
+            batch_embeddings = await _embed_batch_with_timeout_retries(
+                provider=provider,
+                texts=batch_texts,
+                document_id=document_id,
+                batch_number=batch_number,
+                total_batches=total_batches,
+            )
+        except VectorStoreError:
+            raise
+        except EmbeddingProviderError as exc:
+            raise VectorStoreError(
+                f"Embedding batch {batch_number}/{total_batches} failed: {exc}"
+            ) from exc
+
+        if len(batch_embeddings) != len(batch_chunks):
+            raise VectorStoreError(
+                "Embedding provider returned an unexpected vector count for "
+                f"batch {batch_number}/{total_batches} "
+                f"expected={len(batch_chunks)} actual={len(batch_embeddings)}"
+            )
+
+        embeddings.extend(batch_embeddings)
+
+    return embeddings
+
+
+async def _embed_batch_with_timeout_retries(
+    *,
+    provider: BaseEmbeddingProvider,
+    texts: Sequence[str],
+    document_id: UUID,
+    batch_number: int,
+    total_batches: int,
+) -> list[list[float]]:
+    max_attempts = EMBEDDING_TIMEOUT_MAX_RETRIES + 1
+    attempt = 1
+
+    while True:
+        try:
+            return await provider.embed_batch(texts)
+        except EmbeddingProviderTimeoutError as exc:
+            if attempt >= max_attempts:
+                raise VectorStoreError(
+                    f"Ollama embedding batch {batch_number}/{total_batches} timed out "
+                    f"after {EMBEDDING_TIMEOUT_MAX_RETRIES} retries: {exc}"
+                ) from exc
+
+            retry_in_seconds = EMBEDDING_TIMEOUT_INITIAL_BACKOFF_SECONDS * (
+                2 ** (attempt - 1)
+            )
+            logger.warning(
+                "Ollama embedding batch timed out; retrying document_id=%s "
+                "embedding_batch=%s/%s attempt=%s/%s retry_in_seconds=%s",
+                str(document_id),
+                batch_number,
+                total_batches,
+                attempt,
+                max_attempts,
+                retry_in_seconds,
+                extra={
+                    "document_id": str(document_id),
+                    "embedding_batch": batch_number,
+                    "embedding_batch_total": total_batches,
+                    "attempt": attempt,
+                    "max_attempts": max_attempts,
+                    "retry_in_seconds": retry_in_seconds,
+                },
+            )
+            await asyncio.sleep(retry_in_seconds)
+            attempt += 1
 
 
 async def search(

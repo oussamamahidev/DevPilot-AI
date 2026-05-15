@@ -10,7 +10,8 @@ from uuid import UUID
 
 from app.core.config import settings
 from app.providers.base import LLMResponse
-from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT, OllamaLLMProvider
+from app.providers.factory import get_llm_provider
+from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT
 from app.services.evaluation_service import EvaluationResult, evaluate_answer
 from app.services.reranking_service import rerank
 from app.services.retrieval_service import retrieve_chunks
@@ -175,7 +176,7 @@ class GeneratorAgent:
 
     def __init__(
         self,
-        llm_provider_factory: LLMProviderFactory = OllamaLLMProvider,
+        llm_provider_factory: LLMProviderFactory = get_llm_provider,
     ) -> None:
         self.llm_provider_factory = llm_provider_factory
 
@@ -230,8 +231,10 @@ class CorrectorAgent:
         answer: str,
         evaluation: EvaluationResult,
         contexts: list[dict[str, Any]],
+        question: str = "",
     ) -> dict[str, object]:
         should_replace, reason = _should_replace_with_insufficient_context(
+            question=question,
             answer=answer,
             evaluation=evaluation,
             contexts=contexts,
@@ -284,7 +287,7 @@ class AgenticRAGWorkflow:
         *,
         retriever: Retriever = retrieve_chunks,
         reranker: Reranker = rerank,
-        llm_provider_factory: LLMProviderFactory = OllamaLLMProvider,
+        llm_provider_factory: LLMProviderFactory = get_llm_provider,
         evaluator: Evaluator = evaluate_answer,
         run_logger: AgentRunLogger | None = None,
     ) -> None:
@@ -401,6 +404,7 @@ class AgenticRAGWorkflow:
                 answer=generated_answer,
                 evaluation=evaluation,
                 contexts=retrieved_chunks,
+                question=question,
             ),
         )
 
@@ -541,15 +545,13 @@ def _says_information_not_found(answer: str) -> bool:
 
 def _should_replace_with_insufficient_context(
     *,
+    question: str,
     answer: str,
     evaluation: EvaluationResult,
     contexts: list[dict[str, Any]],
 ) -> tuple[bool, str]:
     if not contexts:
-        return True, "No retrieved context was available."
-
-    if _top_retrieval_score(contexts) < 0.25:
-        return True, "Top retrieval score was too low."
+        return True, "No citations were available."
 
     if evaluation["faithfulness"] < 0.5:
         return True, "Faithfulness was below the replacement threshold."
@@ -557,23 +559,28 @@ def _should_replace_with_insufficient_context(
     if evaluation["hallucination_score"] > 0.6:
         return True, "Hallucination score was above the replacement threshold."
 
-    if (
-        not _says_information_not_found(answer)
-        and not _has_citation_marker(answer)
-        and _claims_facts(answer)
+    if _technical_terms_are_supported(
+        question=question,
+        contexts=contexts,
     ):
-        return True, "Answer claimed facts without citation markers."
+        return False, "Technical terms from the question are present in retrieved context."
 
-    if _answer_is_supported_despite_low_relevance(
+    if evaluation["context_precision"] < 0.5:
+        return True, "Context precision was below the replacement threshold."
+
+    if _answer_is_supported_despite_medium_or_low_relevance(
         evaluation=evaluation,
         contexts=contexts,
     ):
         return False, "Context support is strong and hallucination risk is low."
 
-    return False, "No insufficient-context replacement condition was met."
+    if 0.5 <= evaluation["relevance"] < 0.7:
+        return False, "Relevance was medium, not a refusal condition."
+
+    return False, "No hard insufficient-context condition was met."
 
 
-def _answer_is_supported_despite_low_relevance(
+def _answer_is_supported_despite_medium_or_low_relevance(
     *,
     evaluation: EvaluationResult,
     contexts: list[dict[str, Any]],
@@ -584,6 +591,32 @@ def _answer_is_supported_despite_low_relevance(
         and evaluation["hallucination_score"] <= 0.3
         and evaluation["faithfulness"] >= 0.7
     )
+
+
+def _technical_terms_are_supported(
+    *,
+    question: str,
+    contexts: list[dict[str, Any]],
+) -> bool:
+    terms = _technical_terms(question)
+    if not terms:
+        return False
+
+    context_text = " ".join(str(context.get("content", "")) for context in contexts)
+    return bool(terms & _technical_terms(context_text))
+
+
+def _technical_terms(text: str) -> set[str]:
+    exact_terms = {
+        "celery",
+        "fastapi",
+        "ollama",
+        "postgresql",
+        "qdrant",
+        "redis",
+    }
+    normalized = text.lower()
+    return {term for term in exact_terms if re.search(rf"\b{re.escape(term)}\b", normalized)}
 
 
 def _top_retrieval_score(contexts: list[dict[str, Any]]) -> float:

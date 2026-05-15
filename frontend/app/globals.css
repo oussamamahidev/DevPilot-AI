@@ -6,8 +6,16 @@
   color-scheme: light;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   min-height: 100vh;
   background: #f8fafc;
   color: #0f172a;
+}
+
+a {
+  text-decoration: none;
 }

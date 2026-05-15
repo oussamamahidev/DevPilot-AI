@@ -26,7 +26,14 @@ class Settings(BaseSettings):
     ollama_generation_model: str = Field(default="qwen3:8b", min_length=1)
     ollama_chat_think: bool = Field(default=False)
     ollama_embedding_model: str = Field(default="nomic-embed-text", min_length=1)
+    ollama_embedding_timeout_seconds: float = Field(default=120.0, gt=0)
+    gemini_api_key: str | None = None
+    gemini_generation_model: str = Field(default="gemini-2.5-flash", min_length=1)
+    gemini_timeout_seconds: float = Field(default=60.0, gt=0)
+    gemini_max_output_tokens: int = Field(default=1000, gt=0)
+    gemini_temperature: float = Field(default=0.2, ge=0, le=2)
     embedding_dimension: int = Field(default=768, gt=0)
+    embedding_batch_size: int = Field(default=4, gt=0)
     generation_temperature: float = Field(default=0.2, ge=0, le=2)
     generation_max_tokens: int = Field(default=1000, gt=0)
     rag_top_k: int = Field(default=5, gt=0, le=20)
@@ -65,12 +72,20 @@ class Settings(BaseSettings):
             raise ValueError("REDIS_URL must be a Redis connection URL")
         return value
 
-    @field_validator("llm_provider", "embedding_provider")
+    @field_validator("llm_provider")
     @classmethod
-    def validate_provider(cls, value: str) -> str:
+    def validate_llm_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"ollama", "openai", "gemini"}:
+            raise ValueError("LLM provider must be one of: ollama, openai, gemini")
+        return normalized
+
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_embedding_provider(cls, value: str) -> str:
         normalized = value.strip().lower()
         if normalized not in {"ollama", "openai"}:
-            raise ValueError("Provider must be one of: ollama, openai")
+            raise ValueError("Embedding provider must be one of: ollama, openai")
         return normalized
 
     @field_validator("backend_cors_origins")
@@ -103,9 +118,25 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def active_generation_model(self) -> str:
+        if self.llm_provider == "gemini":
+            return self.gemini_generation_model
         if self.llm_provider == "openai" and self.openai_generation_model:
             return self.openai_generation_model
         return self.ollama_generation_model
+
+    @computed_field
+    @property
+    def active_generation_temperature(self) -> float:
+        if self.llm_provider == "gemini":
+            return self.gemini_temperature
+        return self.generation_temperature
+
+    @computed_field
+    @property
+    def active_generation_max_tokens(self) -> int:
+        if self.llm_provider == "gemini":
+            return self.gemini_max_output_tokens
+        return self.generation_max_tokens
 
     @computed_field
     @property
@@ -129,7 +160,13 @@ class Settings(BaseSettings):
             "ollama_generation_model": self.ollama_generation_model,
             "ollama_chat_think": self.ollama_chat_think,
             "ollama_embedding_model": self.ollama_embedding_model,
+            "ollama_embedding_timeout_seconds": self.ollama_embedding_timeout_seconds,
+            "gemini_generation_model": self.gemini_generation_model,
+            "gemini_timeout_seconds": self.gemini_timeout_seconds,
+            "gemini_max_output_tokens": self.gemini_max_output_tokens,
+            "gemini_temperature": self.gemini_temperature,
             "embedding_dimension": self.embedding_dimension,
+            "embedding_batch_size": self.embedding_batch_size,
             "generation_temperature": self.generation_temperature,
             "generation_max_tokens": self.generation_max_tokens,
             "rag_top_k": self.rag_top_k,
@@ -151,8 +188,16 @@ class Settings(BaseSettings):
             "ollama_generation_model": self.ollama_generation_model,
             "ollama_chat_think": self.ollama_chat_think,
             "ollama_embedding_model": self.ollama_embedding_model,
-            "generation_temperature": self.generation_temperature,
-            "generation_max_tokens": self.generation_max_tokens,
+            "ollama_embedding_timeout_seconds": self.ollama_embedding_timeout_seconds,
+            "gemini_generation_model": self.gemini_generation_model,
+            "gemini_timeout_seconds": self.gemini_timeout_seconds,
+            "gemini_max_output_tokens": self.gemini_max_output_tokens,
+            "gemini_temperature": self.gemini_temperature,
+            "generation_model": self.active_generation_model,
+            "embedding_model": self.active_embedding_model,
+            "embedding_batch_size": self.embedding_batch_size,
+            "generation_temperature": self.active_generation_temperature,
+            "generation_max_tokens": self.active_generation_max_tokens,
             "enable_reranking": self.enable_reranking,
             "enable_ollama_reranker": self.enable_ollama_reranker,
             "retrieval_candidates": self.retrieval_candidates,

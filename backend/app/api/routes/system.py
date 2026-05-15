@@ -13,17 +13,22 @@ router = APIRouter(prefix="/system", tags=["system"])
 
 @router.get("/ai-config")
 async def get_ai_config() -> dict[str, object]:
-    return {
+    config: dict[str, object] = {
         "llm_provider": settings.llm_provider,
         "embedding_provider": settings.embedding_provider,
-        "ollama_base_url": settings.ollama_url,
         "generation_model": settings.active_generation_model,
-        "ollama_chat_think": settings.ollama_chat_think,
         "embedding_model": settings.active_embedding_model,
-        "generation_temperature": settings.generation_temperature,
-        "generation_max_tokens": settings.generation_max_tokens,
-        "embedding_dimension": settings.embedding_dimension,
+        "generation_temperature": settings.active_generation_temperature,
+        "generation_max_tokens": settings.active_generation_max_tokens,
+        "enable_reranking": settings.enable_reranking,
+        "retrieval_candidates": settings.retrieval_candidates,
+        "rerank_top_k": settings.rerank_top_k,
     }
+    if settings.llm_provider == "ollama" or settings.embedding_provider == "ollama":
+        config["ollama_base_url"] = settings.ollama_url
+    if settings.llm_provider == "gemini":
+        config["gemini_generation_model"] = settings.gemini_generation_model
+    return config
 
 
 @router.get("/ai-health", response_model=None)
@@ -68,21 +73,30 @@ async def get_ai_health() -> dict[str, object] | JSONResponse:
         for model in models
         if isinstance(model, dict) and isinstance(model.get("name"), str)
     ]
-    generation_model_available = _model_is_available(
-        model_name=settings.ollama_generation_model,
-        available_models=available_models,
-    )
-    embedding_model_available = _model_is_available(
-        model_name=settings.ollama_embedding_model,
-        available_models=available_models,
-    )
+    generation_model_available = True
+    if settings.llm_provider == "ollama":
+        generation_model_available = _model_is_available(
+            model_name=settings.ollama_generation_model,
+            available_models=available_models,
+        )
+
+    embedding_model_available = True
+    if settings.embedding_provider == "ollama":
+        embedding_model_available = _model_is_available(
+            model_name=settings.ollama_embedding_model,
+            available_models=available_models,
+        )
+
     warnings: list[str] = []
-    if not generation_model_available:
+    if settings.llm_provider == "ollama" and not generation_model_available:
         warnings.append(
             "Generation model is not available. Run "
             f"`ollama pull {settings.ollama_generation_model}`."
         )
-    if not embedding_model_available:
+    if settings.llm_provider == "gemini" and not settings.gemini_api_key:
+        warnings.append("Gemini API key is not configured. Set GEMINI_API_KEY.")
+        generation_model_available = False
+    if settings.embedding_provider == "ollama" and not embedding_model_available:
         warnings.append(
             "Embedding model is not available. Run "
             f"`ollama pull {settings.ollama_embedding_model}`."
@@ -90,10 +104,10 @@ async def get_ai_health() -> dict[str, object] | JSONResponse:
 
     return {
         "status": "ok",
-        "provider": "ollama",
+        "provider": settings.llm_provider,
         "ollama_base_url": settings.ollama_url,
-        "generation_model": settings.ollama_generation_model,
-        "embedding_model": settings.ollama_embedding_model,
+        "generation_model": settings.active_generation_model,
+        "embedding_model": settings.active_embedding_model,
         "generation_model_available": generation_model_available,
         "embedding_model_available": embedding_model_available,
         "models": available_models,

@@ -114,7 +114,7 @@ async def test_query_chat_saves_messages_citations_and_usage(
         return list(kwargs["contexts"])  # type: ignore[arg-type]
 
     monkeypatch.setattr(chat_service, "rerank", fake_rerank)
-    monkeypatch.setattr(chat_service, "OllamaLLMProvider", lambda: FakeLLMProvider())
+    monkeypatch.setattr(chat_service, "get_llm_provider", lambda: FakeLLMProvider())
 
     async def fake_evaluate_answer(**kwargs: object) -> dict[str, object]:
         assert kwargs["question"] == "What technologies does DevPilot AI use?"

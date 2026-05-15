@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.agents.rag import AgenticRAGWorkflow
+from app.core.config import settings
 from app.models.conversation import (
     AgentRun,
     Conversation,
@@ -19,7 +20,7 @@ from app.models.conversation import (
 from app.models.document import Chunk
 from app.models.user import User
 from app.models.workspace import Workspace
-from app.providers.ollama_provider import OllamaLLMProvider
+from app.providers.factory import get_llm_provider
 from app.services.evaluation_service import evaluate_answer
 from app.services.reranking_service import rerank
 from app.services.retrieval_service import retrieve_chunks
@@ -82,7 +83,7 @@ async def query_chat(
     workflow = AgenticRAGWorkflow(
         retriever=retrieve_chunks,
         reranker=rerank,
-        llm_provider_factory=OllamaLLMProvider,
+        llm_provider_factory=get_llm_provider,
         evaluator=evaluate_answer,
         run_logger=log_agent_run,
     )
@@ -110,7 +111,7 @@ async def query_chat(
     db.add(
         LLMUsage(
             message_id=assistant_message.id,
-            provider="ollama",
+            provider=settings.llm_provider,
             model=workflow_result.llm_response.model,
             prompt_tokens=workflow_result.llm_response.prompt_tokens,
             completion_tokens=workflow_result.llm_response.completion_tokens,

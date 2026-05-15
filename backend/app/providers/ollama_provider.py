@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.providers.base import (
     BaseEmbeddingProvider,
     EmbeddingProviderError,
+    EmbeddingProviderTimeoutError,
     EmbeddingResponse,
     LLMProviderError,
     LLMResponse,
@@ -29,11 +30,13 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         self,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = 60.0,
+        timeout: float | None = None,
     ) -> None:
         self.base_url = (base_url or settings.ollama_url).rstrip("/")
         self.model = model or settings.active_embedding_model
-        self.timeout = timeout
+        self.timeout = (
+            timeout if timeout is not None else settings.ollama_embedding_timeout_seconds
+        )
 
     async def embed(self, text: str) -> list[float]:
         embeddings = await self.embed_batch([text])
@@ -71,7 +74,7 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
                 f"with `ollama pull {self.model}`."
             ) from exc
         except httpx.TimeoutException as exc:
-            raise EmbeddingProviderError(
+            raise EmbeddingProviderTimeoutError(
                 "Ollama embedding request timed out. Confirm Ollama is running and the "
                 f"`{self.model}` model is available."
             ) from exc

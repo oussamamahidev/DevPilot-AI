@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,10 @@ class EmbeddingResponse:
 
 class EmbeddingProviderError(RuntimeError):
     """Raised when an embedding provider cannot create embeddings."""
+
+
+class EmbeddingProviderTimeoutError(EmbeddingProviderError):
+    """Raised when an embedding provider request times out."""
 
 
 @dataclass(frozen=True)

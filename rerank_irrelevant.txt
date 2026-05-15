@@ -1,0 +1,2 @@
+This document talks about football, training schedules, match analysis, and player performance.
+It does not explain DevPilot AI architecture or document processing.
