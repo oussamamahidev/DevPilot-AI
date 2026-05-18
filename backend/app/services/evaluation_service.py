@@ -35,9 +35,16 @@ async def evaluate_answer(
     contexts: list[dict[str, Any] | str],
 ) -> EvaluationResult:
     started_at = perf_counter()
-    status = "llm"
+    status = "heuristic"
     try:
-        return await _evaluate_with_ollama(question=question, answer=answer, contexts=contexts)
+        if settings.llm_provider == "ollama":
+            status = "llm"
+            return await _evaluate_with_ollama(
+                question=question,
+                answer=answer,
+                contexts=contexts,
+            )
+        return _evaluate_with_heuristics(question=question, answer=answer, contexts=contexts)
     except Exception:
         status = "heuristic"
         try:

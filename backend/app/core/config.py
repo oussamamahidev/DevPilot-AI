@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="ollama", min_length=1)
     embedding_provider: str = Field(default="ollama", min_length=1)
     ollama_base_url: AnyHttpUrl = "http://host.docker.internal:11434"
-    ollama_generation_model: str = Field(default="qwen3:8b", min_length=1)
+    ollama_generation_model: str = Field(default="qwen2.5:3b-instruct-q3_K_S", min_length=1)
     ollama_chat_think: bool = Field(default=False)
     ollama_embedding_model: str = Field(default="nomic-embed-text", min_length=1)
     ollama_embedding_timeout_seconds: float = Field(default=120.0, gt=0)
@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     gemini_timeout_seconds: float = Field(default=60.0, gt=0)
     gemini_max_output_tokens: int = Field(default=1000, gt=0)
     gemini_temperature: float = Field(default=0.2, ge=0, le=2)
+    gemini_max_retries: int = Field(default=3, ge=0)
+    gemini_retry_backoff_seconds: float = Field(default=2.0, ge=0)
+    gemini_fallback_model: str | None = Field(default="gemini-2.0-flash")
     embedding_dimension: int = Field(default=768, gt=0)
     embedding_batch_size: int = Field(default=4, gt=0)
     generation_temperature: float = Field(default=0.2, ge=0, le=2)
@@ -165,6 +168,9 @@ class Settings(BaseSettings):
             "gemini_timeout_seconds": self.gemini_timeout_seconds,
             "gemini_max_output_tokens": self.gemini_max_output_tokens,
             "gemini_temperature": self.gemini_temperature,
+            "gemini_max_retries": self.gemini_max_retries,
+            "gemini_retry_backoff_seconds": self.gemini_retry_backoff_seconds,
+            "gemini_fallback_model": self.gemini_fallback_model,
             "embedding_dimension": self.embedding_dimension,
             "embedding_batch_size": self.embedding_batch_size,
             "generation_temperature": self.generation_temperature,
@@ -193,6 +199,9 @@ class Settings(BaseSettings):
             "gemini_timeout_seconds": self.gemini_timeout_seconds,
             "gemini_max_output_tokens": self.gemini_max_output_tokens,
             "gemini_temperature": self.gemini_temperature,
+            "gemini_max_retries": self.gemini_max_retries,
+            "gemini_retry_backoff_seconds": self.gemini_retry_backoff_seconds,
+            "gemini_fallback_model": self.gemini_fallback_model,
             "generation_model": self.active_generation_model,
             "embedding_model": self.active_embedding_model,
             "embedding_batch_size": self.embedding_batch_size,

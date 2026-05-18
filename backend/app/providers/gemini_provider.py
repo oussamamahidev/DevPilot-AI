@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
+import logging
 from time import perf_counter
 from typing import Any
 
@@ -13,13 +15,31 @@ from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 GEMINI_UNAVAILABLE_MESSAGE = (
-    "Gemini generation is unavailable or timed out. Please check "
-    "GEMINI_API_KEY and GEMINI_GENERATION_MODEL."
+    "Gemini generation is temporarily unavailable. Please retry later or switch "
+    "LLM_PROVIDER=ollama."
 )
 GEMINI_MISSING_API_KEY_MESSAGE = (
     "GEMINI_API_KEY is not configured. Set GEMINI_API_KEY in .env to use "
     "Gemini generation."
 )
+GEMINI_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+GEMINI_NON_RETRYABLE_STATUS_CODES = {400, 401, 403}
+
+logger = logging.getLogger(__name__)
+
+
+class _GeminiModelFailure(RuntimeError):
+    def __init__(
+        self,
+        *,
+        error_category: str,
+        status_code: int | None = None,
+        allow_fallback: bool = True,
+    ) -> None:
+        super().__init__(error_category)
+        self.error_category = error_category
+        self.status_code = status_code
+        self.allow_fallback = allow_fallback
 
 
 class GeminiLLMProvider:
@@ -32,6 +52,9 @@ class GeminiLLMProvider:
         timeout: float | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
+        retry_attempts: int | None = None,
+        retry_backoff_seconds: float | None = None,
+        fallback_model: str | None = None,
     ) -> None:
         raw_api_key = api_key if api_key is not None else settings.gemini_api_key
         self.api_key = raw_api_key.strip() if raw_api_key else ""
@@ -46,6 +69,20 @@ class GeminiLLMProvider:
             if max_output_tokens is not None
             else settings.gemini_max_output_tokens
         )
+        self.retry_attempts = max(
+            retry_attempts if retry_attempts is not None else settings.gemini_max_retries,
+            0,
+        )
+        self.retry_backoff_seconds = max(
+            retry_backoff_seconds
+            if retry_backoff_seconds is not None
+            else settings.gemini_retry_backoff_seconds,
+            0,
+        )
+        fallback_source = (
+            fallback_model if fallback_model is not None else settings.gemini_fallback_model
+        )
+        self.fallback_model = fallback_source.strip() if fallback_source else None
 
     async def generate(
         self,
@@ -68,16 +105,11 @@ class GeminiLLMProvider:
         payload = self._build_payload(messages=messages, system_prompt=system_prompt)
         started_at = perf_counter()
 
-        try:
-            async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-                response = await client.post(
-                    f"/models/{self.model}:generateContent",
-                    headers={"x-goog-api-key": self.api_key},
-                    json=payload,
-                )
-                response.raise_for_status()
-        except (httpx.HTTPError, httpx.TimeoutException) as exc:
-            raise LLMProviderError(GEMINI_UNAVAILABLE_MESSAGE) from exc
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
+            response, selected_model = await self._post_with_fallback(
+                client=client,
+                payload=payload,
+            )
 
         elapsed_ms = int((perf_counter() - started_at) * 1000)
 
@@ -100,12 +132,119 @@ class GeminiLLMProvider:
 
         return LLMResponse(
             content=content,
-            model=model if isinstance(model, str) else self.model,
+            model=model if isinstance(model, str) else selected_model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
             latency_ms=elapsed_ms,
         )
+
+    async def _post_with_fallback(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        payload: dict[str, object],
+    ) -> tuple[httpx.Response, str]:
+        last_failure: _GeminiModelFailure | None = None
+        models = list(self._models_to_try())
+
+        for index, model in enumerate(models):
+            try:
+                return (
+                    await self._post_model_with_retries(
+                        client=client,
+                        payload=payload,
+                        model=model,
+                    ),
+                    model,
+                )
+            except _GeminiModelFailure as exc:
+                last_failure = exc
+                has_fallback = index + 1 < len(models)
+                if not has_fallback or not exc.allow_fallback:
+                    raise LLMProviderError(GEMINI_UNAVAILABLE_MESSAGE) from exc
+                fallback_model = models[index + 1]
+                _log_gemini_event(
+                    message="Gemini generation switching to fallback model",
+                    level=logging.WARNING,
+                    model=fallback_model,
+                    attempt_number=0,
+                    status_code=exc.status_code,
+                    error_category=f"fallback_after_{exc.error_category}",
+                )
+
+        raise LLMProviderError(GEMINI_UNAVAILABLE_MESSAGE) from last_failure
+
+    async def _post_model_with_retries(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        payload: dict[str, object],
+        model: str,
+    ) -> httpx.Response:
+        for attempt in range(self.retry_attempts + 1):
+            attempt_number = attempt + 1
+            try:
+                response = await client.post(
+                    f"/models/{model}:generateContent",
+                    headers={"x-goog-api-key": self.api_key},
+                    json=payload,
+                )
+                response.raise_for_status()
+                return response
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                error_category = _error_category_for_status(status_code)
+                _log_gemini_event(
+                    message="Gemini generation request failed",
+                    level=logging.WARNING,
+                    model=model,
+                    attempt_number=attempt_number,
+                    status_code=status_code,
+                    error_category=error_category,
+                )
+                if _should_not_retry_status(status_code):
+                    raise _GeminiModelFailure(
+                        error_category=error_category,
+                        status_code=status_code,
+                        allow_fallback=False,
+                    ) from exc
+                if not _should_retry_status(status_code):
+                    raise _GeminiModelFailure(
+                        error_category=error_category,
+                        status_code=status_code,
+                    ) from exc
+                if attempt >= self.retry_attempts:
+                    raise _GeminiModelFailure(
+                        error_category=error_category,
+                        status_code=status_code,
+                    ) from exc
+                await asyncio.sleep(
+                    _retry_delay(exc.response, attempt, self.retry_backoff_seconds)
+                )
+            except (httpx.TimeoutException, httpx.RequestError) as exc:
+                error_category = (
+                    "timeout" if isinstance(exc, httpx.TimeoutException) else "request_error"
+                )
+                _log_gemini_event(
+                    message="Gemini generation request failed",
+                    level=logging.WARNING,
+                    model=model,
+                    attempt_number=attempt_number,
+                    status_code=None,
+                    error_category=error_category,
+                )
+                if attempt >= self.retry_attempts:
+                    raise _GeminiModelFailure(error_category=error_category) from exc
+                await asyncio.sleep(_retry_delay(None, attempt, self.retry_backoff_seconds))
+
+        raise _GeminiModelFailure(error_category="unknown")
+
+    def _models_to_try(self) -> Sequence[str]:
+        models = [self.model]
+        if self.fallback_model and self.fallback_model != self.model:
+            models.append(self.fallback_model)
+        return models
 
     def _build_payload(
         self,
@@ -168,6 +307,61 @@ def _extract_text(data: Any) -> str:
                 text_parts.append(part["text"])
 
     return "".join(text_parts).strip()
+
+
+def _should_retry_status(status_code: int) -> bool:
+    return status_code in GEMINI_RETRYABLE_STATUS_CODES
+
+
+def _should_not_retry_status(status_code: int) -> bool:
+    return status_code in GEMINI_NON_RETRYABLE_STATUS_CODES
+
+
+def _error_category_for_status(status_code: int) -> str:
+    if status_code == 429:
+        return "rate_limited"
+    if status_code in {500, 502, 503, 504}:
+        return "transient_http_status"
+    if status_code in GEMINI_NON_RETRYABLE_STATUS_CODES:
+        return "configuration_or_auth"
+    return "http_status"
+
+
+def _log_gemini_event(
+    *,
+    message: str,
+    level: int,
+    model: str,
+    attempt_number: int,
+    status_code: int | None,
+    error_category: str,
+) -> None:
+    logger.log(
+        level,
+        message,
+        extra={
+            "provider": "gemini",
+            "model": model,
+            "attempt_number": attempt_number,
+            "status_code": status_code,
+            "error_category": error_category,
+        },
+    )
+
+
+def _retry_delay(
+    response: httpx.Response | None,
+    attempt: int,
+    retry_backoff_seconds: float,
+) -> float:
+    if response is not None:
+        retry_after = response.headers.get("retry-after")
+        if retry_after is not None:
+            try:
+                return min(float(retry_after), 5.0)
+            except ValueError:
+                pass
+    return min(retry_backoff_seconds * (2**attempt), 5.0)
 
 
 def _int_value(data: Any, key: str) -> int:

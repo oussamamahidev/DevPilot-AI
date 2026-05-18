@@ -24,8 +24,6 @@ async def get_ai_config() -> dict[str, object]:
         "retrieval_candidates": settings.retrieval_candidates,
         "rerank_top_k": settings.rerank_top_k,
     }
-    if settings.llm_provider == "ollama" or settings.embedding_provider == "ollama":
-        config["ollama_base_url"] = settings.ollama_url
     if settings.llm_provider == "gemini":
         config["gemini_generation_model"] = settings.gemini_generation_model
     return config

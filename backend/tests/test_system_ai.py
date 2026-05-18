@@ -14,7 +14,7 @@ os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("LLM_PROVIDER", "ollama")
 os.environ.setdefault("EMBEDDING_PROVIDER", "ollama")
 os.environ.setdefault("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-os.environ.setdefault("OLLAMA_GENERATION_MODEL", "qwen3:8b")
+os.environ.setdefault("OLLAMA_GENERATION_MODEL", "qwen2.5:3b-instruct-q3_K_S")
 os.environ.setdefault("OLLAMA_CHAT_THINK", "false")
 os.environ.setdefault("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
 os.environ.setdefault("EMBEDDING_DIMENSION", "768")
@@ -44,14 +44,13 @@ def test_ai_config_is_ollama_first() -> None:
     assert response.json() == {
         "llm_provider": "ollama",
         "embedding_provider": "ollama",
-        "generation_model": "qwen3:8b",
+        "generation_model": "qwen2.5:3b-instruct-q3_K_S",
         "embedding_model": "nomic-embed-text",
         "generation_temperature": 0.2,
         "generation_max_tokens": 1000,
         "enable_reranking": True,
         "retrieval_candidates": 15,
         "rerank_top_k": 5,
-        "ollama_base_url": "http://host.docker.internal:11434",
     }
 
 
@@ -76,7 +75,6 @@ def test_ai_config_is_safe_for_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
         "enable_reranking": True,
         "retrieval_candidates": 15,
         "rerank_top_k": 5,
-        "ollama_base_url": "http://host.docker.internal:11434",
         "gemini_generation_model": "gemini-2.5-flash",
     }
     assert "GEMINI_API_KEY" not in data
@@ -85,7 +83,7 @@ def test_ai_config_is_safe_for_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_ai_health_returns_ok_for_reachable_ollama(monkeypatch) -> None:
     async def fake_list_ollama_models(_: str) -> list[dict[str, object]]:
-        return [{"name": "qwen3:8b"}, {"name": "nomic-embed-text:latest"}]
+        return [{"name": "qwen2.5:3b-instruct-q3_K_S"}, {"name": "nomic-embed-text:latest"}]
 
     monkeypatch.setattr(system_routes, "list_ollama_models", fake_list_ollama_models)
 
@@ -94,7 +92,7 @@ def test_ai_health_returns_ok_for_reachable_ollama(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["provider"] == "ollama"
-    assert "qwen3:8b" in response.json()["models"]
+    assert "qwen2.5:3b-instruct-q3_K_S" in response.json()["models"]
     assert response.json()["generation_model_available"] is True
     assert response.json()["embedding_model_available"] is True
     assert response.json()["warnings"] == []

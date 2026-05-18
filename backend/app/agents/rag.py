@@ -196,8 +196,9 @@ class GeneratorAgent:
             prompt=prompt,
             system_prompt=DEFAULT_RAG_SYSTEM_PROMPT,
         )
+        answer = _ensure_answer_has_citation(llm_response.content, contexts)
         return {
-            "answer": llm_response.content,
+            "answer": answer,
             "llm_response": llm_response,
         }
 
@@ -553,6 +554,12 @@ def _should_replace_with_insufficient_context(
     if not contexts:
         return True, "No citations were available."
 
+    if _is_technology_stack_question(question) and _answer_technical_terms_are_supported(
+        answer=answer,
+        contexts=contexts,
+    ):
+        return False, "Technology terms in the answer are present in retrieved context."
+
     if evaluation["faithfulness"] < 0.5:
         return True, "Faithfulness was below the replacement threshold."
 
@@ -606,17 +613,75 @@ def _technical_terms_are_supported(
     return bool(terms & _technical_terms(context_text))
 
 
+def _answer_technical_terms_are_supported(
+    *,
+    answer: str,
+    contexts: list[dict[str, Any]],
+) -> bool:
+    answer_terms = _technical_terms(answer)
+    if not answer_terms:
+        return False
+
+    context_text = " ".join(str(context.get("content", "")) for context in contexts)
+    context_terms = _technical_terms(context_text)
+    return answer_terms <= context_terms
+
+
+def _is_technology_stack_question(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    technology_markers = (
+        "technologies",
+        "technology",
+        "tech stack",
+        "stack",
+        "tools",
+        "frameworks",
+        "libraries",
+        "built with",
+        "powered by",
+    )
+    use_markers = (" use", " uses", " using", " built", " run on")
+    return any(marker in normalized for marker in technology_markers) and (
+        any(marker in normalized for marker in use_markers)
+        or "technolog" in normalized
+        or "stack" in normalized
+    )
+
+
 def _technical_terms(text: str) -> set[str]:
     exact_terms = {
+        "alembic",
+        "asyncpg",
         "celery",
+        "docker",
         "fastapi",
+        "gemini",
+        "jwt",
+        "next",
+        "nextjs",
+        "openai",
         "ollama",
+        "postgres",
         "postgresql",
+        "pydantic",
+        "python",
         "qdrant",
         "redis",
+        "sqlalchemy",
     }
-    normalized = text.lower()
+    normalized = text.lower().replace("next.js", "nextjs").replace("docker compose", "docker")
     return {term for term in exact_terms if re.search(rf"\b{re.escape(term)}\b", normalized)}
+
+
+def _ensure_answer_has_citation(answer: str, contexts: list[dict[str, Any]]) -> str:
+    stripped = answer.strip()
+    if not stripped or not contexts or _says_information_not_found(stripped):
+        return stripped
+    if re.search(r"\[\d+\]", stripped):
+        return stripped
+    if stripped[-1] in ".!?":
+        return f"{stripped[:-1]} [1]{stripped[-1]}"
+    return f"{stripped} [1]"
 
 
 def _top_retrieval_score(contexts: list[dict[str, Any]]) -> float:

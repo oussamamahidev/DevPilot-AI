@@ -9,9 +9,11 @@ from app.providers.ollama_provider import OllamaLLMProvider
 
 
 def get_llm_provider() -> Any:
-    if settings.llm_provider == "ollama":
-        return OllamaLLMProvider()
     if settings.llm_provider == "gemini":
         return GeminiLLMProvider()
+    if settings.llm_provider == "ollama":
+        return OllamaLLMProvider()
 
-    raise LLMProviderError(f"Unsupported LLM provider: {settings.llm_provider}")
+    raise LLMProviderError(
+        "Unsupported LLM provider. Set LLM_PROVIDER to either `gemini` or `ollama`."
+    )

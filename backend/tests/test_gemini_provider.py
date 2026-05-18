@@ -159,6 +159,8 @@ async def test_gemini_llm_provider_timeout_returns_clean_error(
         api_key="secret-api-key",
         base_url="https://gemini.test/v1beta",
         model="gemini-2.5-flash",
+        retry_attempts=0,
+        fallback_model=None,
     )
 
     with pytest.raises(LLMProviderError) as exc_info:
@@ -166,3 +168,168 @@ async def test_gemini_llm_provider_timeout_returns_clean_error(
 
     assert str(exc_info.value) == GEMINI_UNAVAILABLE_MESSAGE
     assert "secret-api-key" not in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_gemini_llm_provider_retries_transient_http_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+
+    class FakeAsyncClient:
+        def __init__(self, *, base_url: str, timeout: float) -> None:
+            self.base_url = base_url
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(
+            self,
+            path: str,
+            *,
+            headers: dict[str, str],
+            json: dict[str, object],
+        ) -> httpx.Response:
+            nonlocal attempts
+            _ = headers, json
+            attempts += 1
+            request = httpx.Request("POST", f"{self.base_url}{path}")
+            if attempts == 1:
+                return httpx.Response(503, json={"error": "busy"}, request=request)
+            return httpx.Response(
+                200,
+                json={
+                    "modelVersion": "gemini-2.5-flash",
+                    "candidates": [
+                        {"content": {"parts": [{"text": "Retried successfully."}]}}
+                    ],
+                    "usageMetadata": {},
+                },
+                request=request,
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    provider = GeminiLLMProvider(
+        api_key="secret-api-key",
+        base_url="https://gemini.test/v1beta",
+        model="gemini-2.5-flash",
+        retry_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    response = await provider.generate("Hello")
+
+    assert response.content == "Retried successfully."
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_gemini_llm_provider_uses_fallback_model_after_primary_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths: list[str] = []
+
+    class FakeAsyncClient:
+        def __init__(self, *, base_url: str, timeout: float) -> None:
+            self.base_url = base_url
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(
+            self,
+            path: str,
+            *,
+            headers: dict[str, str],
+            json: dict[str, object],
+        ) -> httpx.Response:
+            _ = headers, json
+            paths.append(path)
+            request = httpx.Request("POST", f"{self.base_url}{path}")
+            if "gemini-2.5-flash" in path:
+                return httpx.Response(503, json={"error": "busy"}, request=request)
+            return httpx.Response(
+                200,
+                json={
+                    "modelVersion": "gemini-2.0-flash",
+                    "candidates": [
+                        {"content": {"parts": [{"text": "Fallback response."}]}}
+                    ],
+                    "usageMetadata": {},
+                },
+                request=request,
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    provider = GeminiLLMProvider(
+        api_key="secret-api-key",
+        base_url="https://gemini.test/v1beta",
+        model="gemini-2.5-flash",
+        retry_attempts=1,
+        retry_backoff_seconds=0,
+        fallback_model="gemini-2.0-flash",
+    )
+
+    response = await provider.generate("Hello")
+
+    assert response.content == "Fallback response."
+    assert response.model == "gemini-2.0-flash"
+    assert paths == [
+        "/models/gemini-2.5-flash:generateContent",
+        "/models/gemini-2.5-flash:generateContent",
+        "/models/gemini-2.0-flash:generateContent",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_gemini_llm_provider_does_not_retry_or_fallback_auth_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths: list[str] = []
+
+    class FakeAsyncClient:
+        def __init__(self, *, base_url: str, timeout: float) -> None:
+            self.base_url = base_url
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(
+            self,
+            path: str,
+            *,
+            headers: dict[str, str],
+            json: dict[str, object],
+        ) -> httpx.Response:
+            _ = headers, json
+            paths.append(path)
+            request = httpx.Request("POST", f"{self.base_url}{path}")
+            return httpx.Response(401, json={"error": "unauthorized"}, request=request)
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    provider = GeminiLLMProvider(
+        api_key="secret-api-key",
+        base_url="https://gemini.test/v1beta",
+        model="gemini-2.5-flash",
+        retry_attempts=3,
+        retry_backoff_seconds=0,
+        fallback_model="gemini-2.0-flash",
+    )
+
+    with pytest.raises(LLMProviderError) as exc_info:
+        await provider.generate("Hello")
+
+    assert str(exc_info.value) == GEMINI_UNAVAILABLE_MESSAGE
+    assert paths == ["/models/gemini-2.5-flash:generateContent"]

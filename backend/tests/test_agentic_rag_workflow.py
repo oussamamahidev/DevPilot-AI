@@ -114,6 +114,33 @@ async def test_corrector_keeps_grounded_answer_when_only_relevance_is_low() -> N
 
 
 @pytest.mark.asyncio
+async def test_corrector_keeps_supported_technology_answer_when_evaluator_is_wrong() -> None:
+    result = await CorrectorAgent().run(
+        question="Which technologies does DevPilot AI use?",
+        answer=TECH_ANSWER,
+        evaluation={
+            "faithfulness": 1.0,
+            "relevance": 0.0,
+            "context_precision": 0.0,
+            "hallucination_score": 1.0,
+            "explanation": "Incorrect LLM evaluator response.",
+        },
+        contexts=[
+            {
+                "filename": "phase13.txt",
+                "chunk_index": 0,
+                "content": TECH_CONTEXT,
+                "score": 0.91,
+            }
+        ],
+    )
+
+    assert result["answer"] == TECH_ANSWER
+    assert result["correction_applied"] is False
+    assert "Technology terms" in result["reason"]
+
+
+@pytest.mark.asyncio
 async def test_corrector_keeps_medium_relevance_answer_with_strong_context() -> None:
     result = await CorrectorAgent().run(
         question="How does Celery and Qdrant work in DevPilot AI?",
