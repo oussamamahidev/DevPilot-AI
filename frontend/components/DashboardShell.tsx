@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 
 type DashboardShellProps = {
-  activeItem?: "dashboard" | "workspaces" | "documents" | "chat" | "settings";
+  activeItem?: "dashboard" | "workspaces" | "documents" | "chat" | "admin" | "settings";
   title: string;
   description?: string;
   workspaceId?: string;
@@ -30,6 +30,7 @@ export function DashboardShell({
       key: "chat",
       label: "Chat",
     },
+    { href: "/admin", key: "admin", label: "Admin" },
     { href: "/settings", key: "settings", label: "Settings" },
   ];
 

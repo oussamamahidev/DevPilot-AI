@@ -1,3 +1,0 @@
-DevPilot AI uses Celery for asynchronous document processing.
-Redis is used as the queue broker for background jobs.
-Qdrant stores vector embeddings and enables semantic search over document chunks.

@@ -1,7 +1,0 @@
-DevPilot AI is a secure multi-workspace Agentic RAG platform for private document intelligence.
-
-It uses FastAPI for backend APIs, PostgreSQL for metadata, Redis for queueing, Celery for asynchronous document processing, Qdrant for vector search, and Ollama for local AI models.
-
-The system supports document upload, text extraction, cleaning, chunking, embeddings, semantic retrieval, RAG answers with citations, evaluation, and agentic workflow.
-
-The platform protects private data using JWT authentication and workspace-level isolation.
