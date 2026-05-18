@@ -10,6 +10,10 @@ from pypdf import PdfReader
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.metrics import (
+    DOCUMENT_PROCESSING_DURATION_SECONDS,
+    DOCUMENT_PROCESSING_FAILURES_TOTAL,
+)
 from app.db.session import AsyncSessionLocal, engine
 from app.models.document import Chunk, Document
 from app.providers.base import EmbeddingProviderError
@@ -28,7 +32,11 @@ def process_document_task(self: Task, document_id: str) -> dict[str, object]:
     started_at = perf_counter()
     try:
         result = asyncio.run(_run_document_processing_attempt(document_id=document_id))
-        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        elapsed_seconds = perf_counter() - started_at
+        elapsed_ms = int(elapsed_seconds * 1000)
+        DOCUMENT_PROCESSING_DURATION_SECONDS.labels(
+            status=str(result.get("status", "unknown"))
+        ).observe(elapsed_seconds)
         logger.info(
             "Document processing task completed document_id=%s status=%s processing_time_ms=%s",
             document_id,
@@ -42,7 +50,10 @@ def process_document_task(self: Task, document_id: str) -> dict[str, object]:
         )
         return result
     except (EmbeddingProviderError, VectorStoreError) as exc:
-        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        elapsed_seconds = perf_counter() - started_at
+        elapsed_ms = int(elapsed_seconds * 1000)
+        DOCUMENT_PROCESSING_DURATION_SECONDS.labels(status="failed").observe(elapsed_seconds)
+        DOCUMENT_PROCESSING_FAILURES_TOTAL.labels(error_type=type(exc).__name__).inc()
         logger.exception(
             "Document processing task failed without retry document_id=%s status=failed "
             "processing_time_ms=%s error=%s",
@@ -58,7 +69,10 @@ def process_document_task(self: Task, document_id: str) -> dict[str, object]:
         )
         return {"document_id": document_id, "status": "failed", "error": str(exc)}
     except Exception as exc:
-        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        elapsed_seconds = perf_counter() - started_at
+        elapsed_ms = int(elapsed_seconds * 1000)
+        DOCUMENT_PROCESSING_DURATION_SECONDS.labels(status="failed").observe(elapsed_seconds)
+        DOCUMENT_PROCESSING_FAILURES_TOTAL.labels(error_type=type(exc).__name__).inc()
         logger.exception(
             "Document processing task failed document_id=%s status=failed processing_time_ms=%s "
             "retry=%s max_retries=%s",

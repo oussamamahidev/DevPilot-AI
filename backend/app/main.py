@@ -10,6 +10,8 @@ from app.api.routes.health import health_check
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
+from app.core.metrics import initialize_metric_labels
+from app.core.observability import RequestObservabilityMiddleware, metrics_response
 
 
 configure_logging()
@@ -18,6 +20,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    initialize_metric_labels(
+        llm_provider=settings.llm_provider,
+        llm_model=settings.active_generation_model,
+    )
     logger.info("Application startup", extra=settings.safe_log_context())
     logger.info(
         "Backend AI configuration llm_provider=%s generation_model=%s "
@@ -49,10 +55,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestObservabilityMiddleware)
 
     register_exception_handlers(app)
     app.include_router(api_router)
     app.add_api_route("/health", health_check, methods=["GET"], tags=["health"])
+    app.add_api_route("/metrics", metrics_response, methods=["GET"], tags=["metrics"])
 
     return app
 

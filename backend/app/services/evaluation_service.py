@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from time import perf_counter
 from typing import Any, TypedDict
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.metrics import EVALUATION_LATENCY_SECONDS
 from app.models.conversation import Conversation, Evaluation, Message
 from app.models.workspace import WorkspaceMember
 from app.providers.base import LLMProviderError
@@ -32,10 +34,19 @@ async def evaluate_answer(
     answer: str,
     contexts: list[dict[str, Any] | str],
 ) -> EvaluationResult:
+    started_at = perf_counter()
+    status = "llm"
     try:
         return await _evaluate_with_ollama(question=question, answer=answer, contexts=contexts)
     except Exception:
-        return _evaluate_with_heuristics(question=question, answer=answer, contexts=contexts)
+        status = "heuristic"
+        try:
+            return _evaluate_with_heuristics(question=question, answer=answer, contexts=contexts)
+        except Exception:
+            status = "error"
+            raise
+    finally:
+        EVALUATION_LATENCY_SECONDS.labels(status=status).observe(perf_counter() - started_at)
 
 
 async def get_message_evaluation(

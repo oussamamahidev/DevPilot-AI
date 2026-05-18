@@ -1,3 +1,10 @@
 # Monitoring
 
-Monitoring starts with structured application logs in the backend. Prometheus and Grafana configuration will be added in a later phase.
+Prometheus and Grafana configuration lives in this directory.
+
+- Prometheus scrape config: `monitoring/prometheus.yml`
+- Grafana datasource provisioning: `monitoring/grafana/provisioning/datasources`
+- Grafana dashboard provisioning: `monitoring/grafana/provisioning/dashboards`
+- Grafana dashboards: `monitoring/grafana/dashboards`
+
+See `docs/observability.md` for usage and metric definitions.

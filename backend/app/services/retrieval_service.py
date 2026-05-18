@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.metrics import RETRIEVAL_LATENCY_SECONDS
 from app.db.session import AsyncSessionLocal
 from app.models.document import Chunk, Document
 from app.services import vector_store_service
@@ -64,37 +66,49 @@ async def retrieve_chunks(
                 db=session,
             )
 
-    workspace_uuid = UUID(str(workspace_id))
-    normalized_query = query.strip()
-    if not normalized_query:
-        return []
+    started_at = perf_counter()
+    status = "success"
+    strategy_label = strategy.strip().lower() or "unknown"
+    try:
+        workspace_uuid = UUID(str(workspace_id))
+        normalized_query = query.strip()
+        if not normalized_query:
+            return []
 
-    normalized_strategy = strategy.strip().lower()
-    if normalized_strategy not in RETRIEVAL_STRATEGIES:
-        raise ValueError(f"Unsupported retrieval strategy: {strategy}")
+        normalized_strategy = strategy_label
+        if normalized_strategy not in RETRIEVAL_STRATEGIES:
+            raise ValueError(f"Unsupported retrieval strategy: {strategy}")
 
-    if normalized_strategy == "semantic":
-        return await _retrieve_semantic(
+        if normalized_strategy == "semantic":
+            return await _retrieve_semantic(
+                db=db,
+                workspace_id=workspace_uuid,
+                query=normalized_query,
+                top_k=top_k,
+            )
+
+        if normalized_strategy == "keyword":
+            return await _retrieve_keyword(
+                db=db,
+                workspace_id=workspace_uuid,
+                query=normalized_query,
+                top_k=top_k,
+            )
+
+        return await _retrieve_hybrid(
             db=db,
             workspace_id=workspace_uuid,
             query=normalized_query,
             top_k=top_k,
         )
-
-    if normalized_strategy == "keyword":
-        return await _retrieve_keyword(
-            db=db,
-            workspace_id=workspace_uuid,
-            query=normalized_query,
-            top_k=top_k,
-        )
-
-    return await _retrieve_hybrid(
-        db=db,
-        workspace_id=workspace_uuid,
-        query=normalized_query,
-        top_k=top_k,
-    )
+    except Exception:
+        status = "error"
+        raise
+    finally:
+        RETRIEVAL_LATENCY_SECONDS.labels(
+            strategy=strategy_label,
+            status=status,
+        ).observe(perf_counter() - started_at)
 
 
 async def _retrieve_semantic(

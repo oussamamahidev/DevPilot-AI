@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.metrics import DOCUMENTS_UPLOADED_TOTAL
 from app.models.document import Document
 from app.models.user import User
 from app.models.workspace import Workspace
@@ -108,6 +109,8 @@ async def upload_document(
     created_document = await get_document_by_id(db, document.id)
     if created_document is None:
         raise RuntimeError("Uploaded document could not be loaded")
+
+    DOCUMENTS_UPLOADED_TOTAL.labels(file_type=file_type).inc()
 
     from app.workers.document_tasks import process_document_task
 

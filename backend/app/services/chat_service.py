@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from time import perf_counter
 from uuid import UUID
 
 from sqlalchemy import select
@@ -9,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.rag import AgenticRAGWorkflow
 from app.core.config import settings
+from app.core.metrics import LLM_TOKENS_TOTAL, RAG_QUERIES_TOTAL, RAG_QUERY_DURATION_SECONDS
 from app.models.conversation import (
     AgentRun,
     Conversation,
@@ -31,6 +33,31 @@ class ConversationNotFoundError(RuntimeError):
 
 
 async def query_chat(
+    db: AsyncSession,
+    workspace: Workspace,
+    user: User,
+    question: str,
+    conversation_id: UUID | None = None,
+) -> dict[str, object]:
+    started_at = perf_counter()
+    status = "success"
+    try:
+        return await _query_chat_impl(
+            db=db,
+            workspace=workspace,
+            user=user,
+            question=question,
+            conversation_id=conversation_id,
+        )
+    except Exception:
+        status = "error"
+        raise
+    finally:
+        RAG_QUERIES_TOTAL.labels(status=status).inc()
+        RAG_QUERY_DURATION_SECONDS.labels(status=status).observe(perf_counter() - started_at)
+
+
+async def _query_chat_impl(
     db: AsyncSession,
     workspace: Workspace,
     user: User,
@@ -119,6 +146,13 @@ async def query_chat(
             latency_ms=workflow_result.llm_response.latency_ms,
         )
     )
+    _record_llm_token_metrics(
+        provider=settings.llm_provider,
+        model=workflow_result.llm_response.model,
+        prompt_tokens=workflow_result.llm_response.prompt_tokens,
+        completion_tokens=workflow_result.llm_response.completion_tokens,
+        total_tokens=workflow_result.llm_response.total_tokens,
+    )
 
     evaluation = workflow_result.evaluation
     db.add(
@@ -140,6 +174,26 @@ async def query_chat(
         "message_id": assistant_message.id,
         "evaluation": evaluation,
     }
+
+
+def _record_llm_token_metrics(
+    *,
+    provider: str,
+    model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    total_tokens: int,
+) -> None:
+    for token_type, value in (
+        ("prompt", prompt_tokens),
+        ("completion", completion_tokens),
+        ("total", total_tokens),
+    ):
+        LLM_TOKENS_TOTAL.labels(
+            provider=provider,
+            model=model,
+            token_type=token_type,
+        ).inc(max(value, 0))
 
 
 async def list_workspace_conversations(
