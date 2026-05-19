@@ -112,6 +112,7 @@ services:
         condition: service_started
     volumes:
       - ./backend/app:/app/app
+      - ./backend/scripts:/app/scripts
       - ./backend/storage:/app/storage
       - prometheus_multiproc:/tmp/prometheus-multiproc
 

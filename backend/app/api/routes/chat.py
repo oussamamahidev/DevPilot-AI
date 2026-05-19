@@ -93,7 +93,7 @@ async def get_conversation(
             detail="Conversation not found or access denied",
         )
 
-    if current_user.role != "admin":
+    if current_user.role not in {"admin", "super_admin"}:
         member = await workspace_service.get_workspace_member(
             db=db,
             workspace_id=workspace_id,
@@ -132,7 +132,7 @@ async def get_message_evaluation(
             db=db,
             message_id=message_id,
             user_id=current_user.id,
-            is_admin=current_user.role == "admin",
+            is_admin=current_user.role in {"admin", "super_admin"},
         )
     except evaluation_service.EvaluationNotFoundError as exc:
         raise HTTPException(

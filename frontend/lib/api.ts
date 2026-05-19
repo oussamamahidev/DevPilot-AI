@@ -1,4 +1,4 @@
-import { getToken } from "@/lib/auth";
+import { getToken, removeToken } from "@/lib/auth";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -136,6 +136,17 @@ export async function apiFetch<TResponse>(
   const payload = await parseResponse(response);
 
   if (!response.ok) {
+    if (response.status === 401) {
+      removeToken();
+
+      if (
+        typeof window !== "undefined" &&
+        !["/login", "/register"].includes(window.location.pathname)
+      ) {
+        window.location.assign("/login");
+      }
+    }
+
     throw new ApiRequestError(
       getErrorMessage(payload, response.status),
       response.status,
@@ -169,9 +180,17 @@ export function apiPut<TResponse>(
   return apiFetch<TResponse>(path, { ...options, body, method: "PUT" });
 }
 
+export function apiPatch<TResponse>(
+  path: string,
+  body?: unknown,
+  options?: Omit<ApiRequestOptions, "body" | "method">,
+) {
+  return apiFetch<TResponse>(path, { ...options, body, method: "PATCH" });
+}
+
 export function apiDelete<TResponse>(
   path: string,
-  options?: Omit<ApiRequestOptions, "body" | "method">,
+  options?: Omit<ApiRequestOptions, "method">,
 ) {
   return apiFetch<TResponse>(path, { ...options, method: "DELETE" });
 }

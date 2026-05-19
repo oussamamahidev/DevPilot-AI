@@ -1,20 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ApiRequestError, apiPost } from "@/lib/api";
+import { ApiRequestError } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
-import { saveToken } from "@/lib/auth";
-import type { TokenResponse } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading, login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -22,13 +28,11 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await apiPost<TokenResponse>("/api/v1/auth/login", {
+      await login({
         email,
         password,
       });
-
-      saveToken(response.access_token);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (requestError) {
       if (requestError instanceof ApiRequestError) {
         if (requestError.status === 401) {

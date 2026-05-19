@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-UserRole = Literal["user", "admin"]
+UserRole = Literal["user", "admin", "super_admin"]
 
 
 class UserRegister(BaseModel):

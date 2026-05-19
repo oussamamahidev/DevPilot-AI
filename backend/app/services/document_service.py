@@ -143,7 +143,7 @@ async def get_document_for_user(
     if document is None or document.status == "deleted":
         return None
 
-    if user.role == "admin":
+    if user.role in {"admin", "super_admin"}:
         return document
 
     member = await workspace_service.get_workspace_member(

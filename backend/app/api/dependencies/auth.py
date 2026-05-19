@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
@@ -46,9 +47,14 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(
+async def require_active_user(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
+    if current_user.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Deleted user",
+        )
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -57,12 +63,22 @@ async def get_current_active_user(
     return current_user
 
 
-async def require_admin(
-    current_user: Annotated[User, Depends(get_current_active_user)],
-) -> User:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-    return current_user
+get_current_active_user = require_active_user
+
+
+def require_role(*allowed_roles: str, message: str = "Insufficient role") -> Callable[[User], User]:
+    async def dependency(
+        current_user: Annotated[User, Depends(require_active_user)],
+    ) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=message,
+            )
+        return current_user
+
+    return dependency
+
+
+require_admin = require_role("admin", "super_admin", message="Admin access required")
+require_super_admin = require_role("super_admin", message="Super admin access required")

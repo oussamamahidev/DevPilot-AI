@@ -1,71 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ApiRequestError, apiGet } from "@/lib/api";
-import { getToken, removeToken } from "@/lib/auth";
-import type { User } from "@/types";
-
-type AuthUserState = {
-  error: string | null;
-  isLoading: boolean;
-  user: User | null;
-};
+import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function useAuthUser() {
   const router = useRouter();
-  const [state, setState] = useState<AuthUserState>({
-    error: null,
-    isLoading: true,
-    user: null,
-  });
+  const auth = useAuth();
 
   useEffect(() => {
-    let isMounted = true;
-    const token = getToken();
-
-    if (!token) {
+    if (!auth.isLoading && !auth.user) {
       router.replace("/login");
-      return () => {
-        isMounted = false;
-      };
     }
+  }, [auth.isLoading, auth.user, router]);
 
-    async function loadUser() {
-      try {
-        const user = await apiGet<User>("/api/v1/auth/me", { token });
-
-        if (isMounted) {
-          setState({ error: null, isLoading: false, user });
-        }
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        if (error instanceof ApiRequestError && error.status === 401) {
-          removeToken();
-          router.replace("/login");
-          return;
-        }
-
-        setState({
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to reach the backend. Check that the API is running.",
-          isLoading: false,
-          user: null,
-        });
-      }
-    }
-
-    void loadUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
-
-  return state;
+  return {
+    error: auth.error,
+    isLoading: auth.isLoading,
+    user: auth.user,
+  };
 }

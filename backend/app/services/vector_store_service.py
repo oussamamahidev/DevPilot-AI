@@ -324,6 +324,58 @@ async def search(
     return list(response.points)
 
 
+async def delete_vectors_by_ids(
+    vector_ids: Sequence[str],
+    *,
+    client: AsyncQdrantClient | None = None,
+) -> None:
+    if not vector_ids:
+        return
+
+    qdrant = client or get_qdrant_client()
+    should_close = client is None
+    try:
+        await qdrant.delete(
+            collection_name=COLLECTION_NAME,
+            points_selector=models.PointIdsList(points=list(vector_ids)),
+            wait=True,
+        )
+    except Exception as exc:
+        raise VectorStoreError("Qdrant vector delete by ids failed.") from exc
+    finally:
+        if should_close:
+            await qdrant.close()
+
+
+async def delete_vectors_by_workspace(
+    workspace_id: UUID | str,
+    *,
+    client: AsyncQdrantClient | None = None,
+) -> None:
+    qdrant = client or get_qdrant_client()
+    should_close = client is None
+    try:
+        await qdrant.delete(
+            collection_name=COLLECTION_NAME,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="workspace_id",
+                            match=models.MatchValue(value=str(workspace_id)),
+                        )
+                    ]
+                )
+            ),
+            wait=True,
+        )
+    except Exception as exc:
+        raise VectorStoreError("Qdrant vector delete by workspace failed.") from exc
+    finally:
+        if should_close:
+            await qdrant.close()
+
+
 async def get_collection_status(
     client: AsyncQdrantClient | None = None,
 ) -> dict[str, object]:

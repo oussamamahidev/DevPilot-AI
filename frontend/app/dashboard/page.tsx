@@ -8,6 +8,7 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { LoadingState } from "@/components/LoadingState";
 import { ApiRequestError } from "@/lib/api";
 import { removeToken } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { createWorkspace, listWorkspaces } from "@/lib/workspaces";
 import type { DashboardMetric, Workspace } from "@/types";
@@ -32,6 +33,7 @@ const metrics: DashboardMetric[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { logout } = useAuth();
   const { error: authError, isLoading: isAuthLoading, user } = useAuthUser();
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -145,11 +147,10 @@ export default function DashboardPage() {
   }
 
   function handleLogout() {
-    removeToken();
-    router.push("/login");
+    logout();
   }
 
-  if (isAuthLoading) {
+  if (isAuthLoading || !user) {
     return (
       <DashboardShell
         activeItem="dashboard"
