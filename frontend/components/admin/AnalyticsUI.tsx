@@ -184,11 +184,15 @@ export function safePreview(text: string | null | undefined, maxLength = 180) {
 }
 
 export function computeWorkspaceHealthScore(input: {
+  rag_health_score?: number;
   documents_failed: number;
   documents_indexed: number;
   documents_total: number;
   embedding_coverage_percent: number;
 }) {
+  if (typeof input.rag_health_score === "number") {
+    return input.rag_health_score;
+  }
   const indexedRatio =
     input.documents_total > 0 ? input.documents_indexed / input.documents_total : 1;
   const failedRatio =
@@ -909,7 +913,7 @@ export function RerankingComparisonChart({ items }: { items: RagTraceRerankingIt
                 <div className="min-w-0">
                   <p className="truncate font-medium text-slate-950">{item.filename}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {safePreview(item.chunk_preview, 120)}
+                    {safePreview(item.content_preview, 120)}
                   </p>
                 </div>
                 <div>

@@ -60,8 +60,8 @@ export default function RagOpsDocumentPage() {
         getRagOpsDocumentPipeline(documentId),
         listRagOpsDocumentChunks(documentId, {
           include_content: false,
-          limit: PAGE_SIZE,
-          offset: page * PAGE_SIZE,
+          page: page + 1,
+          page_size: PAGE_SIZE,
         }),
       ]);
       setPipeline(pipelineData);
@@ -79,7 +79,7 @@ export default function RagOpsDocumentPage() {
 
   const chunkHistogram = useMemo(() => {
     return (
-      chunks?.chunks.map((chunk) => ({
+      chunks?.items.map((chunk) => ({
         chunk: `#${chunk.chunk_index}`,
         length: chunk.content_preview.length,
         tokens: chunk.token_count ?? 0,
@@ -95,7 +95,7 @@ export default function RagOpsDocumentPage() {
     setIsSubmitting(true);
     setModalError(null);
     try {
-      await retryRagOpsDocument(pipeline.document_id, reason);
+      await retryRagOpsDocument(pipeline.document.id, reason);
       setIsRetrying(false);
       await load();
     } catch (requestError) {
@@ -118,11 +118,11 @@ export default function RagOpsDocumentPage() {
       description="Document ingestion lifecycle, chunking, embedding coverage, and vector indexing."
     >
       <PageHeader
-        title={pipeline?.filename ?? "Document Pipeline"}
+        title={pipeline?.document.filename ?? "Document Pipeline"}
         subtitle={
           pipeline
-            ? `${pipeline.workspace_name} - ${pipeline.file_type.toUpperCase()} - ${formatBytes(
-                pipeline.file_size,
+            ? `${pipeline.document.file_type.toUpperCase()} - ${formatBytes(
+                pipeline.document.file_size,
               )}`
             : "Visual document lifecycle from upload to Qdrant indexing."
         }
@@ -150,68 +150,68 @@ export default function RagOpsDocumentPage() {
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <StatCard
               label="Status"
-              value={pipeline.status}
+              value={pipeline.document.status}
               description={pipeline.retry_allowed ? "Retry is available" : "No retry needed"}
-              badge={pipeline.status}
-              tone={pipeline.status === "failed" ? "critical" : pipeline.status === "indexed" ? "success" : "info"}
+              badge={pipeline.document.status}
+              tone={pipeline.document.status === "failed" ? "critical" : pipeline.document.status === "indexed" ? "success" : "info"}
             />
             <StatCard
               label="Uploaded"
-              value={formatDate(pipeline.created_at)}
-              description={`Uploader ${pipeline.uploader_email ?? "unknown"}`}
+              value={formatDate(pipeline.document.created_at)}
+              description="Document row exists"
               badge="Upload"
               tone="info"
             />
             <StatCard
               label="Processed"
-              value={formatDate(pipeline.processed_at)}
-              description={`Duration ${formatDuration(pipeline.processing_duration_seconds)}`}
+              value={formatDate(pipeline.document.processed_at)}
+              description={`Qdrant ${pipeline.qdrant.qdrant_reachable ? "reachable" : "unreachable"}`}
               badge="Processing"
               tone="ai"
             />
             <StatCard
               label="Chunks"
-              value={formatNumber(pipeline.chunks_count)}
-              description={`${formatDecimal(pipeline.average_chunk_length, 0)} chars average`}
+              value={formatNumber(pipeline.stats.chunks_count)}
+              description={`${formatDecimal(pipeline.stats.average_chunk_length, 0)} chars average`}
               badge="Chunking"
               tone="info"
             />
             <StatCard
               label="Vector Coverage"
-              value={`${formatDecimal(pipeline.embedding_coverage_percent, 1)}%`}
-              description={`${formatNumber(pipeline.chunks_with_vector_id)} vectorized chunks`}
-              progress={pipeline.embedding_coverage_percent}
-              badge={pipeline.qdrant_indexed ? "Qdrant" : "Missing"}
-              tone={pipeline.embedding_coverage_percent >= 85 ? "success" : "warning"}
+              value={`${formatDecimal(pipeline.stats.embedding_coverage_percent, 1)}%`}
+              description={`${formatNumber(pipeline.stats.chunks_with_vector_id)} vectorized chunks`}
+              progress={pipeline.stats.embedding_coverage_percent}
+              badge={pipeline.pipeline.qdrant_indexing === "completed" ? "Qdrant" : "Missing"}
+              tone={pipeline.stats.embedding_coverage_percent >= 85 ? "success" : "warning"}
             />
             <StatCard
-              label="Workspace"
-              value={pipeline.workspace_name}
-              description="Owning project"
+              label="Collection"
+              value={pipeline.qdrant.collection}
+              description="Vector collection"
               badge="Scope"
               tone="neutral"
             />
           </section>
 
-          <PipelineStepper steps={pipeline.pipeline_steps} />
+          <PipelineStepper steps={pipelineSteps(pipeline)} />
 
           <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-base font-semibold text-slate-950">Embedding Coverage Ring</h3>
               <div className="mt-6 grid place-items-center">
                 <ProgressRing
-                  label={`${formatNumber(pipeline.chunks_with_vector_id)} of ${formatNumber(
-                    pipeline.chunks_count,
+                  label={`${formatNumber(pipeline.stats.chunks_with_vector_id)} of ${formatNumber(
+                    pipeline.stats.chunks_count,
                   )} chunks`}
                   size={180}
-                  value={pipeline.embedding_coverage_percent}
-                  tone={pipeline.embedding_coverage_percent >= 85 ? "success" : "warning"}
+                  value={pipeline.stats.embedding_coverage_percent}
+                  tone={pipeline.stats.embedding_coverage_percent >= 85 ? "success" : "warning"}
                 />
               </div>
               <div className="mt-6 grid gap-3">
-                <InfoRow label="Missing vectors" value={formatNumber(pipeline.chunks_missing_vector_id)} />
-                <InfoRow label="Minimum chunk" value={`${formatNumber(pipeline.min_chunk_length)} chars`} />
-                <InfoRow label="Maximum chunk" value={`${formatNumber(pipeline.max_chunk_length)} chars`} />
+                <InfoRow label="Missing vectors" value={formatNumber(pipeline.stats.chunks_missing_vector_id)} />
+                <InfoRow label="Minimum chunk" value={`${formatNumber(pipeline.stats.min_chunk_length)} chars`} />
+                <InfoRow label="Maximum chunk" value={`${formatNumber(pipeline.stats.max_chunk_length)} chars`} />
               </div>
             </section>
             <BarChartCard
@@ -244,7 +244,7 @@ export default function RagOpsDocumentPage() {
               <h3 className="text-base font-semibold text-slate-950">Chunk Preview Table</h3>
               <span className="text-sm text-slate-500">{formatNumber(chunks?.total ?? 0)} chunks</span>
             </div>
-            {chunks && chunks.chunks.length === 0 ? (
+            {chunks && chunks.items.length === 0 ? (
               <EmptyState label="No chunks found for this document." />
             ) : chunks ? (
               <>
@@ -261,7 +261,7 @@ export default function RagOpsDocumentPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {chunks.chunks.map((chunk) => (
+                      {chunks.items.map((chunk) => (
                         <tr key={chunk.chunk_id}>
                           <td className="whitespace-nowrap px-3 py-3 text-slate-700">
                             {formatNumber(chunk.chunk_index)}
@@ -328,14 +328,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDuration(seconds: number | null) {
-  if (seconds === null) {
-    return "In progress";
-  }
-  if (seconds < 60) {
-    return `${formatDecimal(seconds, 1)} s`;
-  }
-  return `${formatDecimal(seconds / 60, 1)} min`;
+function pipelineSteps(pipeline: RagOpsDocumentPipeline) {
+  return [
+    { name: "Upload", status: pipeline.pipeline.upload, timestamp: pipeline.document.created_at, detail: "Document row exists." },
+    { name: "Extraction", status: pipeline.pipeline.extraction, timestamp: null, detail: "Chunks indicate extraction completed." },
+    { name: "Chunking", status: pipeline.pipeline.chunking, timestamp: null, detail: `${formatNumber(pipeline.stats.chunks_count)} chunks.` },
+    { name: "Embedding", status: pipeline.pipeline.embedding, timestamp: null, detail: `${formatDecimal(pipeline.stats.embedding_coverage_percent, 1)}% coverage.` },
+    { name: "Qdrant Indexing", status: pipeline.pipeline.qdrant_indexing, timestamp: null, detail: pipeline.qdrant.collection },
+  ];
 }
 
 function metadataPreview(metadata: Record<string, unknown>) {

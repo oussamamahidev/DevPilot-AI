@@ -14,7 +14,7 @@ from app.schemas.ragops import (
     RagOpsRetryRequest,
     RagOpsRetryResponse,
     RagOpsWorkspaceDetail,
-    RagOpsWorkspaceSummary,
+    RagOpsWorkspacesResponse,
 )
 from app.services import ragops_service
 
@@ -22,12 +22,12 @@ from app.services import ragops_service
 router = APIRouter(prefix="/admin/ragops", tags=["admin-ragops"])
 
 
-@router.get("/workspaces", response_model=list[RagOpsWorkspaceSummary])
+@router.get("/workspaces", response_model=RagOpsWorkspacesResponse)
 async def list_ragops_workspaces(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_admin)],
-) -> list[dict[str, object]]:
-    return await ragops_service.list_workspace_summaries(db)
+) -> dict[str, object]:
+    return {"items": await ragops_service.list_workspace_summaries(db)}
 
 
 @router.get("/workspaces/{workspace_id}", response_model=RagOpsWorkspaceDetail)
@@ -55,17 +55,23 @@ async def list_ragops_document_chunks(
     db: Annotated[AsyncSession, Depends(get_db)],
     actor: Annotated[User, Depends(require_admin)],
     include_content: Annotated[bool, Query()] = False,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    limit: Annotated[int | None, Query(ge=1, le=100, include_in_schema=False)] = None,
+    offset: Annotated[int | None, Query(ge=0, include_in_schema=False)] = None,
 ) -> dict[str, object]:
+    if limit is not None:
+        page_size = limit
+        if offset is not None:
+            page = (offset // limit) + 1
     ip_address, user_agent = _request_context(request)
     return await ragops_service.list_document_chunks(
         db,
         document_id,
         actor=actor,
         include_content=include_content,
-        limit=limit,
-        offset=offset,
+        page=page,
+        page_size=page_size,
         ip_address=ip_address,
         user_agent=user_agent,
     )

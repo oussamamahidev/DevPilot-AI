@@ -48,10 +48,10 @@ export default function AdminQualityPage() {
     try {
       const [summaryData, traceData] = await Promise.all([
         getRagTraceQualitySummary(),
-        listRagTraces({ limit: 200, offset: 0 }),
+        listRagTraces({ page: 1, page_size: 200 }),
       ]);
       setSummary(summaryData);
-      setTraces(traceData.traces);
+      setTraces(traceData.items);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load quality data.");
     } finally {
@@ -155,9 +155,9 @@ export default function AdminQualityPage() {
             <div className="xl:col-span-2">
               <BarChartCard
                 title="Agent Latency Chart"
-                data={summary.average_latency_by_agent_type.map((agent) => ({
-                  agent: agent.agent_type,
-                  latency: agent.average_latency_ms,
+                data={Object.entries(summary.average_latency_by_agent).map(([agent, latency]) => ({
+                  agent,
+                  latency,
                 }))}
                 xKey="agent"
                 bars={[{ key: "latency", name: "Latency ms", color: chartPalette.blue }]}
@@ -209,12 +209,12 @@ export default function AdminQualityPage() {
           <div className="grid gap-6 xl:grid-cols-2">
             <WorstTable
               title="Worst Answers By Hallucination"
-              rows={summary.worst_by_hallucination_score}
+              rows={summary.worst_messages_by_hallucination}
               metric="hallucination"
             />
             <WorstTable
               title="Worst Answers By Low Relevance"
-              rows={summary.worst_by_relevance}
+              rows={summary.worst_messages_by_relevance}
               metric="relevance"
             />
           </div>

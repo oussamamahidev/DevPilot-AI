@@ -26,7 +26,14 @@ class RagOpsWorkspaceSummary(BaseModel):
     average_chunk_length: float
     last_document_uploaded_at: datetime | None
     last_document_indexed_at: datetime | None
+    average_faithfulness: float
+    average_hallucination_score: float
+    rag_health_score: int
     rag_health_status: RagHealthStatus
+
+
+class RagOpsWorkspacesResponse(BaseModel):
+    items: list[RagOpsWorkspaceSummary]
 
 
 class RagOpsWorkspaceInfo(BaseModel):
@@ -138,6 +145,8 @@ class RagOpsWorkspaceDetail(BaseModel):
     recent_rag_queries: list[RagOpsRecentQuery]
     average_evaluation_scores: RagOpsEvaluationScores
     average_agent_latency_by_agent_type: list[RagOpsAgentLatency]
+    rag_health_score: int
+    rag_health_status: RagHealthStatus
 
 
 class RagOpsPipelineStage(BaseModel):
@@ -147,26 +156,17 @@ class RagOpsPipelineStage(BaseModel):
     detail: str | None = None
 
 
-class RagOpsDocumentPipeline(BaseModel):
-    document_id: UUID
-    workspace_id: UUID
-    workspace_name: str
+class RagOpsPipelineDocument(BaseModel):
+    id: UUID
     filename: str
-    uploader_email: str | None
-    upload_state: RagOpsPipelineStage
-    extraction_state: RagOpsPipelineStage
-    chunking_state: RagOpsPipelineStage
-    embedding_state: RagOpsPipelineStage
-    vector_indexing_state: RagOpsPipelineStage
-    indexed_state: RagOpsPipelineStage
-    pipeline_steps: list[RagOpsPipelineStage]
     file_type: str
     file_size: int
     status: str
-    storage_path: str
     created_at: datetime
     processed_at: datetime | None
-    processing_duration_seconds: float | None
+
+
+class RagOpsDocumentPipelineStats(BaseModel):
     chunks_count: int
     chunks_with_vector_id: int
     chunks_missing_vector_id: int
@@ -174,16 +174,31 @@ class RagOpsDocumentPipeline(BaseModel):
     average_chunk_length: float
     min_chunk_length: int
     max_chunk_length: int
-    qdrant_indexed: bool
-    retry_allowed: bool
+
+
+class RagOpsDocumentQdrantPipeline(BaseModel):
+    collection: str
+    expected_vectors: int
+    indexed_vectors_known: bool
+    qdrant_reachable: bool
+    collection_exists: bool
+    qdrant_vectors_count: int | None = None
+
+
+class RagOpsDocumentPipeline(BaseModel):
+    document: RagOpsPipelineDocument
+    pipeline: dict[str, PipelineStepStatus]
+    stats: RagOpsDocumentPipelineStats
+    qdrant: RagOpsDocumentQdrantPipeline
     errors: list[str]
+    retry_allowed: bool
 
 
 class RagOpsChunkInspectItem(BaseModel):
     chunk_id: UUID
     chunk_index: int
     content_preview: str
-    content: str | None = None
+    full_content: str | None = None
     token_count: int | None
     vector_id_exists: bool
     metadata: dict[str, Any]
@@ -192,11 +207,11 @@ class RagOpsChunkInspectItem(BaseModel):
 
 class RagOpsChunksResponse(BaseModel):
     document_id: UUID
+    items: list[RagOpsChunkInspectItem]
     total: int
-    limit: int
-    offset: int
+    page: int
+    page_size: int
     include_content: bool
-    chunks: list[RagOpsChunkInspectItem]
 
 
 class RagOpsRetryRequest(BaseModel):
@@ -207,6 +222,7 @@ class RagOpsRetryResponse(BaseModel):
     document_id: UUID
     status: str
     task_enqueued: bool
+    task_id: str | None = None
     audit_action: str
 
 
@@ -218,13 +234,14 @@ class RagOpsQdrantCollectionHealth(BaseModel):
 
 
 class RagOpsQdrantHealth(BaseModel):
-    qdrant_reachable: bool
+    reachable: bool
     collections: list[RagOpsQdrantCollectionHealth]
-    collection_name: str
-    vector_count: int | None = None
-    indexed_vectors_count: int | None = None
-    expected_chunks_count: int
-    postgres_vector_id_count: int
-    chunks_missing_vector_id: int
+    devpilot_collection_exists: bool
+    postgres_chunks_with_vector_id: int
+    qdrant_vectors_count: int | None = None
     mismatch_count: int | None = None
+    collection_name: str
+    indexed_vectors_count: int | None = None
+    postgres_chunks_total: int
+    chunks_missing_vector_id: int
     error: str | None = None

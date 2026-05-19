@@ -210,8 +210,8 @@ export default function RagTraceDetailPage() {
 
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid gap-5 lg:grid-cols-2">
-              <TextPanel label="User Question" value={trace.user_question} />
-              <TextPanel label="Final Assistant Answer" value={trace.assistant_answer} />
+              <TextPanel label="User Question" value={trace.question} />
+              <TextPanel label="Final Assistant Answer" value={trace.answer} />
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <StatusBadge label={`${formatNumber(trace.citations.length)} citations`} tone={trace.citations.length > 0 ? "success" : "warning"} />
@@ -262,7 +262,7 @@ export default function RagTraceDetailPage() {
               relevance={metric(evaluation?.relevance, trace.evaluation.relevance)}
               contextPrecision={metric(evaluation?.context_precision, trace.evaluation.context_precision)}
               hallucinationScore={metric(evaluation?.hallucination_score, trace.evaluation.hallucination_score)}
-              retrievalCoverage={metric(evaluation?.context_recall ?? undefined, trace.evaluation.context_recall ?? trace.evaluation.context_precision)}
+              retrievalCoverage={trace.evaluation.context_precision}
               title="Evaluation Radar"
             />
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -277,12 +277,12 @@ export default function RagTraceDetailPage() {
                 />
                 <StatusBadge
                   label={
-                    evaluation?.corrector_changed_answer ?? trace.evaluation.corrector_changed_answer
+                    evaluation?.corrected ?? trace.evaluation.corrected
                       ? "Corrector changed answer"
                       : "No correction"
                   }
                   tone={
-                    evaluation?.corrector_changed_answer ?? trace.evaluation.corrector_changed_answer
+                    evaluation?.corrected ?? trace.evaluation.corrected
                       ? "ai"
                       : "neutral"
                   }
@@ -296,7 +296,7 @@ export default function RagTraceDetailPage() {
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Retrieved Chunks</h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  Original query: {safePreview(retrieval?.original_query ?? trace.user_question, 180)}
+                  Original query: {safePreview(retrieval?.original_query ?? trace.question, 180)}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
                   Rewritten query: {retrieval?.rewritten_query ? safePreview(retrieval.rewritten_query, 180) : "Not rewritten"}
@@ -307,13 +307,13 @@ export default function RagTraceDetailPage() {
                 tone="info"
               />
             </div>
-            {(retrieval?.retrieved_chunks ?? trace.retrieved_chunks).length === 0 ? (
+            {(retrieval?.chunks ?? trace.retrieved_chunks).length === 0 ? (
               <div className="mt-5">
                 <EmptyState label="No retrieved chunks were recorded." />
               </div>
             ) : (
               <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {(retrieval?.retrieved_chunks ?? trace.retrieved_chunks).map((chunk) => {
+                {(retrieval?.chunks ?? trace.retrieved_chunks).map((chunk) => {
                   const used = trace.citations.some((citation) => citation.chunk_id === chunk.chunk_id);
                   return (
                     <article
@@ -385,7 +385,7 @@ export default function RagTraceDetailPage() {
                       />
                     </div>
                     <p className="mt-3 text-sm leading-6 text-slate-700">
-                      {safePreview(item.chunk_preview, 180)}
+                      {safePreview(item.content_preview, 180)}
                     </p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <RerankMetric
@@ -441,7 +441,7 @@ export default function RagTraceDetailPage() {
                 tone={trace.corrector_decision.corrected ? "ai" : "neutral"}
               />
             </div>
-            {isRefusalDespiteCitations(trace.assistant_answer, trace.citations.length) ? (
+            {isRefusalDespiteCitations(trace.answer, trace.citations.length) ? (
               <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 Warning: the final answer appears to refuse or claim missing context even though citations exist.
               </p>
@@ -457,7 +457,7 @@ export default function RagTraceDetailPage() {
               />
               <InfoPanel
                 label="Final Answer Preview"
-                value={trace.corrector_decision.final_answer_preview ?? safePreview(trace.assistant_answer, 260)}
+                value={trace.corrector_decision.final_answer_preview ?? safePreview(trace.answer, 260)}
               />
               <InfoPanel
                 label="Correction Applied"

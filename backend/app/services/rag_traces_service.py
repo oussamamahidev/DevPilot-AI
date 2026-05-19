@@ -22,8 +22,8 @@ from app.models.user import User
 from app.models.workspace import Workspace
 
 
-TRACE_LIST_LIMIT = 50
-TRACE_MAX_LIMIT = 200
+TRACE_DEFAULT_PAGE_SIZE = 20
+TRACE_MAX_PAGE_SIZE = 200
 PREVIEW_CHARS = 300
 QUESTION_PREVIEW_CHARS = 180
 ANSWER_PREVIEW_CHARS = 240
@@ -41,6 +41,8 @@ SECRET_KEY_MARKERS = (
 async def list_rag_traces(
     db: AsyncSession,
     *,
+    page: int = 1,
+    page_size: int = TRACE_DEFAULT_PAGE_SIZE,
     workspace_id: UUID | None = None,
     user_id: UUID | None = None,
     retrieval_strategy: str | None = None,
@@ -51,9 +53,10 @@ async def list_rag_traces(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     search: str | None = None,
-    limit: int = TRACE_LIST_LIMIT,
-    offset: int = 0,
 ) -> dict[str, object]:
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), TRACE_MAX_PAGE_SIZE)
+    offset = (page - 1) * page_size
     statement = _trace_list_statement(
         workspace_id=workspace_id,
         user_id=user_id,
@@ -71,13 +74,13 @@ async def list_rag_traces(
     )
     total = int((await db.scalar(count_statement)) or 0)
 
-    rows = await db.execute(statement.offset(offset).limit(limit))
-    traces = [_trace_list_row_to_dict(row) for row in rows.all()]
+    rows = await db.execute(statement.offset(offset).limit(page_size))
+    items = [_trace_list_row_to_dict(row) for row in rows.all()]
     return {
+        "items": items,
+        "page": page,
+        "page_size": page_size,
         "total": total,
-        "limit": limit,
-        "offset": offset,
-        "traces": traces,
     }
 
 
@@ -129,8 +132,6 @@ async def get_trace_detail(
     return {
         "message_id": message_id,
         "conversation_id": header["conversation_id"],
-        "user_question": header["user_question"],
-        "assistant_answer": header["assistant_answer"],
         "workspace": {
             "id": header["workspace_id"],
             "name": header["workspace_name"],
@@ -140,6 +141,8 @@ async def get_trace_detail(
             "email": header["user_email"],
             "full_name": header["user_full_name"],
         },
+        "question": header["user_question"],
+        "answer": header["assistant_answer"],
         "retrieval_strategy": _retrieval_strategy(agent_runs, citations),
         "citations": citations,
         "retrieved_chunks": retrieved_chunks,
@@ -147,12 +150,6 @@ async def get_trace_detail(
         "agent_runs": sanitized_agent_runs,
         "latency_summary": _latency_summary(agent_runs),
         "corrector_decision": corrector_decision,
-        "raw_debug": {
-            "include_content": include_content,
-            "agent_runs": sanitized_agent_runs,
-            "evaluation": evaluation,
-            "corrector_decision": corrector_decision,
-        },
     }
 
 
@@ -192,7 +189,7 @@ async def get_retrieval_details(
         "original_query": header["user_question"],
         "rewritten_query": _rewritten_query(agent_runs),
         "retrieval_strategy": _retrieval_strategy(agent_runs, []),
-        "retrieved_chunks": retrieved_chunks,
+        "chunks": retrieved_chunks,
     }
 
 
@@ -207,8 +204,10 @@ async def get_reranking_details(
     await _get_trace_header(db, message_id)
     agent_runs = await _get_agent_runs(db, message_id)
     used_chunk_ids = {str(item["chunk_id"]) for item in await _get_citations(db, message_id)}
+    reranker_details_available = bool(_raw_chunks_from_agent_run(agent_runs, "reranker"))
     return {
         "message_id": message_id,
+        "reranker_details_available": reranker_details_available,
         "items": _reranking_items(
             agent_runs,
             used_chunk_ids=used_chunk_ids,
@@ -223,8 +222,7 @@ async def get_evaluation_details(
 ) -> dict[str, object]:
     await _get_trace_header(db, message_id)
     agent_runs = await _get_agent_runs(db, message_id)
-    evaluation = await _get_evaluation_details(db, message_id, agent_runs)
-    return {"message_id": message_id, **evaluation}
+    return await _get_evaluation_details(db, message_id, agent_runs)
 
 
 async def get_quality_summary(db: AsyncSession) -> dict[str, object]:
@@ -257,8 +255,8 @@ async def get_quality_summary(db: AsyncSession) -> dict[str, object]:
         "hallucination_risk_count": hallucination_risk_count,
         "no_context_count": no_context_count,
         "corrected_answers_count": corrected_answers_count,
-        "average_latency_by_agent_type": await _average_latency_by_agent_type(db),
-        "worst_by_hallucination_score": [
+        "average_latency_by_agent": await _average_latency_by_agent(db),
+        "worst_messages_by_hallucination": [
             _worst_message(item)
             for item in sorted(
                 traces,
@@ -266,7 +264,7 @@ async def get_quality_summary(db: AsyncSession) -> dict[str, object]:
                 reverse=True,
             )[:10]
         ],
-        "worst_by_relevance": [
+        "worst_messages_by_relevance": [
             _worst_message(item)
             for item in sorted(traces, key=lambda trace: trace["relevance"])[:10]
         ],
@@ -322,6 +320,7 @@ def _trace_list_statement(
             Message.conversation_id,
             Conversation.workspace_id,
             Workspace.name.label("workspace_name"),
+            User.id.label("user_id"),
             User.email.label("user_email"),
             question_expr.label("question"),
             Message.content.label("answer"),
@@ -382,7 +381,10 @@ def _trace_list_statement(
         statement = statement.where(Message.created_at <= date_to)
     if search:
         term = f"%{search.strip().lower()}%"
-        statement = statement.where(func.lower(question_expr).like(term))
+        statement = statement.where(
+            func.lower(func.coalesce(question_expr, "")).like(term)
+            | func.lower(func.coalesce(Message.content, "")).like(term)
+        )
 
     return statement
 
@@ -409,6 +411,7 @@ def _trace_list_row_to_dict(row: Any) -> dict[str, object]:
         "conversation_id": row.conversation_id,
         "workspace_id": row.workspace_id,
         "workspace_name": row.workspace_name,
+        "user_id": row.user_id,
         "user_email": row.user_email,
         "question_preview": _preview(row.question or "", max_chars=QUESTION_PREVIEW_CHARS),
         "answer_preview": _preview(row.answer or "", max_chars=ANSWER_PREVIEW_CHARS),
@@ -526,11 +529,10 @@ async def _get_evaluation_details(
             "faithfulness": 0.0,
             "relevance": 0.0,
             "context_precision": 0.0,
-            "context_recall": None,
             "hallucination_score": 0.0,
             "explanation": "No evaluation row was recorded.",
-            "evaluation_method": "fallback",
-            "corrector_changed_answer": bool(corrector_output.get("correction_applied")),
+            "evaluation_method": "unknown",
+            "corrected": bool(corrector_output.get("correction_applied")),
             "correction_reason": _string_or_none(corrector_output.get("reason")),
         }
 
@@ -538,15 +540,10 @@ async def _get_evaluation_details(
         "faithfulness": _float_or_zero(evaluation.faithfulness),
         "relevance": _float_or_zero(evaluation.relevance),
         "context_precision": _float_or_zero(evaluation.context_precision),
-        "context_recall": (
-            None
-            if evaluation.context_recall is None
-            else _float_or_zero(evaluation.context_recall)
-        ),
         "hallucination_score": _float_or_zero(evaluation.hallucination_score),
         "explanation": evaluation.explanation,
         "evaluation_method": _evaluation_method(evaluation.explanation, agent_runs),
-        "corrector_changed_answer": bool(corrector_output.get("correction_applied")),
+        "corrected": bool(corrector_output.get("correction_applied")),
         "correction_reason": _string_or_none(corrector_output.get("reason")),
     }
 
@@ -619,20 +616,24 @@ def _reranking_items(
         content = str(raw_chunk.get("content") or original_chunk.get("content") or "")
         items.append(
             {
+                "filename": str(
+                    raw_chunk.get("filename") or original_chunk.get("filename") or "unknown"
+                ),
+                "chunk_id": _uuid_or_none(
+                    raw_chunk.get("chunk_id") or original_chunk.get("chunk_id")
+                ),
                 "original_rank": original_rank,
                 "final_rank": final_rank,
                 "original_score": _float_or_zero(original_chunk.get("score")),
                 "rerank_score": _optional_float(raw_chunk.get("rerank_score")),
                 "exact_matches": _optional_int(features.get("exact_matches")),
                 "overlap": _optional_float(features.get("overlap")),
-                "filename": str(raw_chunk.get("filename") or original_chunk.get("filename") or "unknown"),
-                "chunk_preview": _preview(content),
-                "content": content if include_content else None,
                 "used_in_final_citations": chunk_id in used_chunk_ids,
+                "content_preview": _preview(content),
+                "content": content if include_content else None,
                 "document_id": _uuid_or_none(
                     raw_chunk.get("document_id") or original_chunk.get("document_id")
                 ),
-                "chunk_id": _uuid_or_none(raw_chunk.get("chunk_id") or original_chunk.get("chunk_id")),
             }
         )
     return items
@@ -742,7 +743,7 @@ def _latency_summary(agent_runs: list[AgentRun]) -> dict[str, object]:
     return {"total_latency_ms": total, "by_agent_type": by_agent_type}
 
 
-async def _average_latency_by_agent_type(db: AsyncSession) -> list[dict[str, object]]:
+async def _average_latency_by_agent(db: AsyncSession) -> dict[str, float]:
     rows = await db.execute(
         select(
             AgentRun.agent_type,
@@ -752,14 +753,7 @@ async def _average_latency_by_agent_type(db: AsyncSession) -> list[dict[str, obj
         .group_by(AgentRun.agent_type)
         .order_by(desc(func.avg(AgentRun.latency_ms)))
     )
-    return [
-        {
-            "agent_type": row.agent_type,
-            "average_latency_ms": _float_or_zero(row.average_latency_ms),
-            "run_count": int(row.run_count or 0),
-        }
-        for row in rows.all()
-    ]
+    return {str(row.agent_type): _float_or_zero(row.average_latency_ms) for row in rows.all()}
 
 
 def _worst_message(item: dict[str, object]) -> dict[str, object]:

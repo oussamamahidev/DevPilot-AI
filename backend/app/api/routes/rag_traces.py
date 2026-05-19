@@ -26,6 +26,10 @@ router = APIRouter(prefix="/admin/rag-traces", tags=["admin-rag-traces"])
 async def list_rag_traces(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_admin)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=rag_traces_service.TRACE_MAX_PAGE_SIZE)] = (
+        rag_traces_service.TRACE_DEFAULT_PAGE_SIZE
+    ),
     workspace_id: UUID | None = None,
     user_id: UUID | None = None,
     retrieval_strategy: str | None = None,
@@ -36,14 +40,17 @@ async def list_rag_traces(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     search: str | None = None,
-    limit: Annotated[
-        int,
-        Query(ge=1, le=rag_traces_service.TRACE_MAX_LIMIT),
-    ] = rag_traces_service.TRACE_LIST_LIMIT,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int | None, Query(ge=1, le=rag_traces_service.TRACE_MAX_PAGE_SIZE, include_in_schema=False)] = None,
+    offset: Annotated[int | None, Query(ge=0, include_in_schema=False)] = None,
 ) -> dict[str, object]:
+    if limit is not None:
+        page_size = limit
+        if offset is not None:
+            page = (offset // limit) + 1
     return await rag_traces_service.list_rag_traces(
         db,
+        page=page,
+        page_size=page_size,
         workspace_id=workspace_id,
         user_id=user_id,
         retrieval_strategy=retrieval_strategy,
@@ -54,8 +61,6 @@ async def list_rag_traces(
         date_from=date_from,
         date_to=date_to,
         search=search,
-        limit=limit,
-        offset=offset,
     )
 
 

@@ -96,7 +96,7 @@ export default function AdminPage() {
     stats,
   ]);
   const failedDocuments = documents.filter((document) => document.status === "failed").slice(0, 6);
-  const riskyAnswers = qualitySummary?.worst_by_hallucination_score.slice(0, 6) ?? [];
+  const riskyAnswers = qualitySummary?.worst_messages_by_hallucination.slice(0, 6) ?? [];
 
   if (isLoading) {
     return <AdminAccessMessage title="DevPilot AI Control Center" label="Checking admin access." />;
@@ -407,12 +407,11 @@ function agentLatencyData(summary: RagTraceQualitySummary | null) {
     "evaluator",
     "corrector",
   ];
-  const rows = summary?.average_latency_by_agent_type ?? [];
-  if (rows.length === 0) {
+  const rows = summary?.average_latency_by_agent ?? {};
+  if (Object.keys(rows).length === 0) {
     return fallbackAgents.map((agent) => ({ agent, latency: 0 }));
   }
-  const byAgent = new Map(rows.map((item) => [item.agent_type, item.average_latency_ms]));
-  return fallbackAgents.map((agent) => ({ agent, latency: byAgent.get(agent) ?? 0 }));
+  return fallbackAgents.map((agent) => ({ agent, latency: rows[agent] ?? 0 }));
 }
 
 function MiniMetric({

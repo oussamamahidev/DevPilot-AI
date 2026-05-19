@@ -133,8 +133,8 @@ export default function RagOpsPage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge
-                label={qdrant?.qdrant_reachable ? "Qdrant reachable" : "Qdrant unreachable"}
-                tone={qdrant?.qdrant_reachable ? "success" : "critical"}
+                label={qdrant?.reachable ? "Qdrant reachable" : "Qdrant unreachable"}
+                tone={qdrant?.reachable ? "success" : "critical"}
               />
               <span className="text-sm text-slate-600">
                 Collection {qdrant?.collection_name ?? "unknown"}

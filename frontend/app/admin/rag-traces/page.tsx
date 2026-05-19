@@ -63,11 +63,11 @@ export default function RagTracesPage() {
       max_hallucination_score:
         riskFilter === "low" ? 0.3 : riskFilter === "medium" ? 0.6 : undefined,
       min_faithfulness: minFaithfulness ? Number(minFaithfulness) : undefined,
-      offset: page * PAGE_SIZE,
+      page: page + 1,
+      page_size: PAGE_SIZE,
       retrieval_strategy: retrievalStrategy || undefined,
       search: search || undefined,
       workspace_id: workspaceId || undefined,
-      limit: PAGE_SIZE,
     }),
     [dateFrom, dateTo, minFaithfulness, page, retrievalStrategy, riskFilter, search, workspaceId],
   );
@@ -109,7 +109,7 @@ export default function RagTracesPage() {
     return <AdminAccessMessage title="RAG Trace Explorer" label="Admin access required." />;
   }
 
-  const traces = filterByRisk(data?.traces ?? [], riskFilter);
+  const traces = filterByRisk(data?.items ?? [], riskFilter);
   const total = data?.total ?? 0;
   const averages = summarizeTraces(traces, summary);
 

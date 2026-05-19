@@ -349,7 +349,14 @@ export type RagOpsWorkspaceSummary = {
   average_chunk_length: number;
   last_document_uploaded_at: string | null;
   last_document_indexed_at: string | null;
+  average_faithfulness: number;
+  average_hallucination_score: number;
+  rag_health_score: number;
   rag_health_status: RagHealthStatus;
+};
+
+export type RagOpsWorkspacesResponse = {
+  items: RagOpsWorkspaceSummary[];
 };
 
 export type RagOpsWorkspaceDetail = {
@@ -404,6 +411,8 @@ export type RagOpsWorkspaceDetail = {
     hallucination_score: number;
   };
   average_agent_latency_by_agent_type: RagOpsAgentLatency[];
+  rag_health_score: number;
+  rag_health_status: RagHealthStatus;
 };
 
 export type RagOpsIngestionJob = {
@@ -459,42 +468,42 @@ export type RagOpsPipelineStage = {
 };
 
 export type RagOpsDocumentPipeline = {
-  document_id: string;
-  workspace_id: string;
-  workspace_name: string;
-  filename: string;
-  uploader_email: string | null;
-  upload_state: RagOpsPipelineStage;
-  extraction_state: RagOpsPipelineStage;
-  chunking_state: RagOpsPipelineStage;
-  embedding_state: RagOpsPipelineStage;
-  vector_indexing_state: RagOpsPipelineStage;
-  indexed_state: RagOpsPipelineStage;
-  pipeline_steps: RagOpsPipelineStage[];
-  file_type: string;
-  file_size: number;
-  status: string;
-  storage_path: string;
-  created_at: string;
-  processed_at: string | null;
-  processing_duration_seconds: number | null;
-  chunks_count: number;
-  chunks_with_vector_id: number;
-  chunks_missing_vector_id: number;
-  embedding_coverage_percent: number;
-  average_chunk_length: number;
-  min_chunk_length: number;
-  max_chunk_length: number;
-  qdrant_indexed: boolean;
-  retry_allowed: boolean;
+  document: {
+    id: string;
+    filename: string;
+    file_type: string;
+    file_size: number;
+    status: string;
+    created_at: string;
+    processed_at: string | null;
+  };
+  pipeline: Record<"upload" | "extraction" | "chunking" | "embedding" | "qdrant_indexing", RagPipelineStepStatus>;
+  stats: {
+    chunks_count: number;
+    chunks_with_vector_id: number;
+    chunks_missing_vector_id: number;
+    embedding_coverage_percent: number;
+    average_chunk_length: number;
+    min_chunk_length: number;
+    max_chunk_length: number;
+  };
+  qdrant: {
+    collection: string;
+    expected_vectors: number;
+    indexed_vectors_known: boolean;
+    qdrant_reachable: boolean;
+    collection_exists: boolean;
+    qdrant_vectors_count: number | null;
+  };
   errors: string[];
+  retry_allowed: boolean;
 };
 
 export type RagOpsChunkInspectItem = {
   chunk_id: string;
   chunk_index: number;
   content_preview: string;
-  content: string | null;
+  full_content: string | null;
   token_count: number | null;
   vector_id_exists: boolean;
   metadata: Record<string, unknown>;
@@ -503,35 +512,37 @@ export type RagOpsChunkInspectItem = {
 
 export type RagOpsChunksResponse = {
   document_id: string;
+  items: RagOpsChunkInspectItem[];
   total: number;
-  limit: number;
-  offset: number;
+  page: number;
+  page_size: number;
   include_content: boolean;
-  chunks: RagOpsChunkInspectItem[];
 };
 
 export type RagOpsRetryResponse = {
   document_id: string;
   status: string;
   task_enqueued: boolean;
+  task_id: string | null;
   audit_action: string;
 };
 
 export type RagOpsQdrantHealth = {
-  qdrant_reachable: boolean;
+  reachable: boolean;
   collections: {
     name: string;
     vector_count: number | null;
     indexed_vectors_count: number | null;
     status: string | null;
   }[];
-  collection_name: string;
-  vector_count: number | null;
-  indexed_vectors_count: number | null;
-  expected_chunks_count: number;
-  postgres_vector_id_count: number;
-  chunks_missing_vector_id: number;
+  devpilot_collection_exists: boolean;
+  postgres_chunks_with_vector_id: number;
+  qdrant_vectors_count: number | null;
   mismatch_count: number | null;
+  collection_name: string;
+  indexed_vectors_count: number | null;
+  postgres_chunks_total: number;
+  chunks_missing_vector_id: number;
   error: string | null;
 };
 
@@ -540,6 +551,7 @@ export type RagTraceListItem = {
   conversation_id: string;
   workspace_id: string;
   workspace_name: string;
+  user_id: string | null;
   user_email: string | null;
   question_preview: string;
   answer_preview: string;
@@ -555,10 +567,10 @@ export type RagTraceListItem = {
 };
 
 export type RagTraceListResponse = {
+  items: RagTraceListItem[];
+  page: number;
+  page_size: number;
   total: number;
-  limit: number;
-  offset: number;
-  traces: RagTraceListItem[];
 };
 
 export type RagTraceCitation = {
@@ -592,7 +604,7 @@ export type RagTraceRerankingItem = {
   exact_matches: number | null;
   overlap: number | null;
   filename: string;
-  chunk_preview: string;
+  content_preview: string;
   content: string | null;
   used_in_final_citations: boolean;
   document_id: string | null;
@@ -603,11 +615,10 @@ export type RagTraceEvaluation = {
   faithfulness: number;
   relevance: number;
   context_precision: number;
-  context_recall: number | null;
   hallucination_score: number;
   explanation: string;
-  evaluation_method: "llm" | "heuristic" | "fallback";
-  corrector_changed_answer: boolean;
+  evaluation_method: "llm" | "heuristic" | "fallback" | "unknown";
+  corrected: boolean;
   correction_reason: string | null;
 };
 
@@ -633,8 +644,6 @@ export type RagTraceCorrectorDecision = {
 export type RagTraceDetail = {
   message_id: string;
   conversation_id: string;
-  user_question: string;
-  assistant_answer: string;
   workspace: {
     id: string;
     name: string;
@@ -644,6 +653,8 @@ export type RagTraceDetail = {
     email: string | null;
     full_name: string | null;
   };
+  question: string;
+  answer: string;
   retrieval_strategy: string | null;
   citations: RagTraceCitation[];
   retrieved_chunks: RagTraceRetrievedChunk[];
@@ -662,11 +673,12 @@ export type RagTraceRetrievalDetails = {
   original_query: string;
   rewritten_query: string | null;
   retrieval_strategy: string | null;
-  retrieved_chunks: RagTraceRetrievedChunk[];
+  chunks: RagTraceRetrievedChunk[];
 };
 
 export type RagTraceRerankingDetails = {
   message_id: string;
+  reranker_details_available: boolean;
   items: RagTraceRerankingItem[];
 };
 
@@ -684,13 +696,9 @@ export type RagTraceQualitySummary = {
   hallucination_risk_count: number;
   no_context_count: number;
   corrected_answers_count: number;
-  average_latency_by_agent_type: {
-    agent_type: string;
-    average_latency_ms: number;
-    run_count: number;
-  }[];
-  worst_by_hallucination_score: RagTraceWorstMessage[];
-  worst_by_relevance: RagTraceWorstMessage[];
+  average_latency_by_agent: Record<string, number>;
+  worst_messages_by_hallucination: RagTraceWorstMessage[];
+  worst_messages_by_relevance: RagTraceWorstMessage[];
 };
 
 export type RagTraceWorstMessage = {

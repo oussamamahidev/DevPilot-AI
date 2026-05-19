@@ -18,7 +18,7 @@ import type {
   RagOpsQdrantHealth,
   RagOpsRetryResponse,
   RagOpsWorkspaceDetail,
-  RagOpsWorkspaceSummary,
+  RagOpsWorkspacesResponse,
   RagTraceDetail,
   RagTraceEvaluationDetails,
   RagTraceListResponse,
@@ -162,8 +162,9 @@ export function listAdminErrors() {
   return apiGet<AdminErrorsResponse>("/api/v1/admin/errors");
 }
 
-export function listRagOpsWorkspaces() {
-  return apiGet<RagOpsWorkspaceSummary[]>("/api/v1/admin/ragops/workspaces");
+export async function listRagOpsWorkspaces() {
+  const response = await apiGet<RagOpsWorkspacesResponse>("/api/v1/admin/ragops/workspaces");
+  return response.items;
 }
 
 export function getRagOpsWorkspace(workspaceId: string) {
@@ -178,7 +179,7 @@ export function getRagOpsDocumentPipeline(documentId: string) {
 
 export function listRagOpsDocumentChunks(
   documentId: string,
-  params: { include_content?: boolean; limit?: number; offset?: number } = {},
+  params: { include_content?: boolean; page?: number; page_size?: number } = {},
 ) {
   return apiGet<RagOpsChunksResponse>(
     `/api/v1/admin/ragops/documents/${documentId}/chunks${queryString(params)}`,

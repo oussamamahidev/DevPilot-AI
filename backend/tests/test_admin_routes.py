@@ -268,6 +268,9 @@ def test_admin_can_access_ragops_workspaces(
                 "average_chunk_length": 512.0,
                 "last_document_uploaded_at": now,
                 "last_document_indexed_at": now,
+                "average_faithfulness": 0.91,
+                "average_hallucination_score": 0.08,
+                "rag_health_score": 96,
                 "rag_health_status": "healthy",
             }
         ]
@@ -282,8 +285,8 @@ def test_admin_can_access_ragops_workspaces(
 
     assert response.status_code == 200
     data = response.json()
-    assert data[0]["workspace_name"] == "Engineering"
-    assert data[0]["rag_health_status"] == "healthy"
+    assert data["items"][0]["workspace_name"] == "Engineering"
+    assert data["items"][0]["rag_health_score"] == 96
 
 
 def test_user_cannot_access_ragops_routes(
@@ -321,15 +324,15 @@ def test_super_admin_can_request_full_ragops_chunk_content(
         return {
             "document_id": document_id,
             "total": 1,
-            "limit": kwargs["limit"],
-            "offset": kwargs["offset"],
+            "page": kwargs["page"],
+            "page_size": kwargs["page_size"],
             "include_content": True,
-            "chunks": [
+            "items": [
                 {
                     "chunk_id": chunk_id,
                     "chunk_index": 0,
                     "content_preview": "full content",
-                    "content": "full content",
+                    "full_content": "full content",
                     "token_count": 2,
                     "vector_id_exists": True,
                     "metadata": {},
@@ -350,7 +353,7 @@ def test_super_admin_can_request_full_ragops_chunk_content(
     )
 
     assert response.status_code == 200
-    assert response.json()["chunks"][0]["content"] == "full content"
+    assert response.json()["items"][0]["full_content"] == "full content"
 
 
 def test_admin_can_request_ragops_retry_with_reason(
@@ -406,18 +409,16 @@ def test_admin_can_access_rag_trace_list(
     now = datetime.now(UTC)
 
     async def fake_list_rag_traces(_: object, **kwargs: object) -> dict[str, object]:
-        assert kwargs["limit"] == 10
-        assert kwargs["offset"] == 0
+        assert kwargs["page"] == 1
+        assert kwargs["page_size"] == 10
         return {
-            "total": 1,
-            "limit": 10,
-            "offset": 0,
-            "traces": [
+            "items": [
                 {
                     "message_id": message_id,
                     "conversation_id": conversation_id,
                     "workspace_id": workspace_id,
                     "workspace_name": "Engineering",
+                    "user_id": admin.id,
                     "user_email": "user@example.com",
                     "question_preview": "What is DevPilot?",
                     "answer_preview": "DevPilot is...",
@@ -432,6 +433,9 @@ def test_admin_can_access_rag_trace_list(
                     "total_latency_ms": 1234,
                 }
             ],
+            "page": 1,
+            "page_size": 10,
+            "total": 1,
         }
 
     monkeypatch.setattr(
@@ -441,14 +445,14 @@ def test_admin_can_access_rag_trace_list(
     )
 
     response = client.get(
-        "/api/v1/admin/rag-traces?limit=10&search=DevPilot",
+        "/api/v1/admin/rag-traces?page_size=10&search=DevPilot",
         headers=auth_headers(admin),
     )
 
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
-    assert data["traces"][0]["retrieval_strategy"] == "hybrid"
+    assert data["items"][0]["retrieval_strategy"] == "hybrid"
 
 
 def test_user_cannot_access_rag_trace_routes(
@@ -487,10 +491,10 @@ def test_admin_can_access_rag_trace_detail(
         return {
             "message_id": message_id,
             "conversation_id": conversation_id,
-            "user_question": "What is indexed?",
-            "assistant_answer": "The guide is indexed [1].",
             "workspace": {"id": workspace_id, "name": "Engineering"},
             "user": {"id": admin.id, "email": admin.email, "full_name": admin.full_name},
+            "question": "What is indexed?",
+            "answer": "The guide is indexed [1].",
             "retrieval_strategy": "hybrid",
             "citations": [],
             "retrieved_chunks": [],
@@ -498,11 +502,10 @@ def test_admin_can_access_rag_trace_detail(
                 "faithfulness": 0.9,
                 "relevance": 0.8,
                 "context_precision": 0.7,
-                "context_recall": None,
                 "hallucination_score": 0.1,
                 "explanation": "Looks supported.",
                 "evaluation_method": "llm",
-                "corrector_changed_answer": False,
+                "corrected": False,
                 "correction_reason": None,
             },
             "agent_runs": [
@@ -525,7 +528,6 @@ def test_admin_can_access_rag_trace_detail(
                 "generated_answer_preview": "The guide is indexed [1].",
                 "final_answer_preview": "The guide is indexed [1].",
             },
-            "raw_debug": {},
         }
 
     monkeypatch.setattr(
@@ -537,7 +539,7 @@ def test_admin_can_access_rag_trace_detail(
     response = client.get(f"/api/v1/admin/rag-traces/{message_id}", headers=auth_headers(admin))
 
     assert response.status_code == 200
-    assert response.json()["user_question"] == "What is indexed?"
+    assert response.json()["question"] == "What is indexed?"
 
 
 def test_admin_can_access_rag_trace_quality_summary(
@@ -559,11 +561,9 @@ def test_admin_can_access_rag_trace_quality_summary(
             "hallucination_risk_count": 0,
             "no_context_count": 0,
             "corrected_answers_count": 0,
-            "average_latency_by_agent_type": [
-                {"agent_type": "generator", "average_latency_ms": 100.0, "run_count": 1}
-            ],
-            "worst_by_hallucination_score": [],
-            "worst_by_relevance": [],
+            "average_latency_by_agent": {"generator": 100.0},
+            "worst_messages_by_hallucination": [],
+            "worst_messages_by_relevance": [],
         }
 
     monkeypatch.setattr(
@@ -578,4 +578,4 @@ def test_admin_can_access_rag_trace_quality_summary(
     )
 
     assert response.status_code == 200
-    assert response.json()["average_latency_by_agent_type"][0]["agent_type"] == "generator"
+    assert response.json()["average_latency_by_agent"]["generator"] == 100.0
