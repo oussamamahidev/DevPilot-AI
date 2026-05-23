@@ -12,7 +12,7 @@ import {
   RoleBadge,
   StatusBadge,
 } from "@/components/admin/AdminUI";
-import { LoadingState } from "@/components/LoadingState";
+import { Button, EmptyState, LoadingSkeleton } from "@/components/ui";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import {
   deactivateAdminUser,
@@ -104,11 +104,9 @@ export default function AdminUserDetailPage() {
 
   return (
     <AdminShell title="User Detail" description="Inspect user access and manage lifecycle state.">
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error} onRetry={() => void load()} />
       {isFetching && !user ? (
-        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <LoadingState label="Loading user" />
-        </section>
+        <LoadingSkeleton label="Loading user" rows={3} />
       ) : null}
 
       {user ? (
@@ -147,7 +145,7 @@ export default function AdminUserDetailPage() {
                 {isSuperAdmin ? <option value="super_admin">Super admin</option> : null}
               </select>
               <div className="flex flex-wrap gap-2">
-                <button
+                <Button
                   type="button"
                   disabled={
                     role === user.role ||
@@ -155,37 +153,36 @@ export default function AdminUserDetailPage() {
                     (role === "super_admin" && !isSuperAdmin)
                   }
                   onClick={() => setPendingAction("role")}
-                  className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   Update Role
-                </button>
+                </Button>
                 {user.is_active ? (
-                  <button
+                  <Button
                     type="button"
                     disabled={isSelf || !canManageLifecycle}
                     onClick={() => setPendingAction("deactivate")}
-                    className="h-10 rounded-md border border-amber-300 bg-amber-50 px-4 text-sm font-medium text-amber-800 disabled:cursor-not-allowed disabled:text-amber-300"
+                    variant="secondary"
                   >
                     Deactivate
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
                     type="button"
                     disabled={!canManageLifecycle}
                     onClick={() => setPendingAction("reactivate")}
-                    className="h-10 rounded-md border border-emerald-300 bg-emerald-50 px-4 text-sm font-medium text-emerald-800 disabled:cursor-not-allowed disabled:text-emerald-300"
+                    variant="secondary"
                   >
                     Reactivate
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
                   disabled={isSelf || !canManageLifecycle}
                   onClick={() => setPendingAction("delete")}
-                  className="h-10 rounded-md border border-red-300 bg-red-50 px-4 text-sm font-medium text-red-800 disabled:cursor-not-allowed disabled:text-red-300"
+                  variant="danger"
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           </section>
@@ -199,6 +196,11 @@ export default function AdminUserDetailPage() {
             </div>
           </section>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState
+          title="User not found"
+          description="This user may have been deleted or the identifier is invalid."
+        />
       ) : null}
 
       <ConfirmReasonModal

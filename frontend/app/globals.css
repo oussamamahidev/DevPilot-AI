@@ -12,10 +12,21 @@
 
 body {
   min-height: 100vh;
+  overflow-x: hidden;
   background: #f8fafc;
   color: #0f172a;
 }
 
 a {
   text-decoration: none;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+.overflow-x-auto > table {
+  min-width: max-content;
 }

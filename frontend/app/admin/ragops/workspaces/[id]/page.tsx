@@ -388,6 +388,8 @@ export default function RagOpsWorkspacePage() {
             )}
           </section>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState label="Workspace not found. Check the workspace ID or return to RAGOps." />
       ) : null}
     </AdminShell>
   );

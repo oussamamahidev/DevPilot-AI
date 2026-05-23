@@ -1,4 +1,4 @@
-import { apiDelete, apiFetch, apiGet } from "@/lib/api";
+import { apiDelete, apiFetch, apiGet } from "@/lib/api-client";
 import type { Document, DocumentStatusResponse } from "@/types";
 
 export function listDocuments(workspaceId: string) {

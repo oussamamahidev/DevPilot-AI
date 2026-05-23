@@ -35,10 +35,12 @@ import {
   getAdminDocumentsStats,
   getAdminStats,
   getRagTraceQualitySummary,
+  listAdminAuditLogs,
   listAdminErrors,
   listRagOpsWorkspaces,
 } from "@/lib/admin";
 import type {
+  AdminAuditLogSummary,
   AdminDocumentSummary,
   AdminErrorSummary,
   AdminStats,
@@ -51,6 +53,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [documents, setDocuments] = useState<AdminDocumentSummary[]>([]);
   const [errors, setErrors] = useState<AdminErrorSummary[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditLogSummary[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
   const [ragOpsWorkspaces, setRagOpsWorkspaces] = useState<RagOpsWorkspaceSummary[]>([]);
   const [qualitySummary, setQualitySummary] = useState<RagTraceQualitySummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,19 +68,22 @@ export default function AdminPage() {
     setIsFetching(true);
     setError(null);
     try {
-      const [statsData, documentsData, errorsData, ragOpsData, qualityData] =
+      const [statsData, documentsData, errorsData, ragOpsData, qualityData, auditData] =
         await Promise.all([
           getAdminStats(),
           getAdminDocumentsStats(),
           listAdminErrors(),
           listRagOpsWorkspaces(),
           getRagTraceQualitySummary(),
+          listAdminAuditLogs({ page: 1, page_size: 20 }),
         ]);
       setStats(statsData);
       setDocuments(documentsData.recent_documents);
       setErrors(errorsData.errors);
       setRagOpsWorkspaces(ragOpsData);
       setQualitySummary(qualityData);
+      setAuditLogs(auditData.items);
+      setAuditTotal(auditData.total);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load admin data.");
     } finally {
@@ -97,6 +104,13 @@ export default function AdminPage() {
   ]);
   const failedDocuments = documents.filter((document) => document.status === "failed").slice(0, 6);
   const riskyAnswers = qualitySummary?.worst_messages_by_hallucination.slice(0, 6) ?? [];
+  const riskyActions = auditLogs
+    .filter((log) =>
+      ["DELETE", "DEACTIVATE", "ROLE", "RETRY"].some((keyword) =>
+        log.action.toUpperCase().includes(keyword),
+      ),
+    )
+    .slice(0, 6);
 
   if (isLoading) {
     return <AdminAccessMessage title="DevPilot AI Control Center" label="Checking admin access." />;
@@ -131,11 +145,34 @@ export default function AdminPage() {
               tone="info"
             />
             <StatCard
+              label="Active Users"
+              value={formatNumber(stats.active_users)}
+              description={`${formatNumber(stats.inactive_users)} inactive accounts`}
+              badge="Users"
+              tone="success"
+            />
+            <StatCard
+              label="Admins"
+              value={formatNumber(stats.users_by_role.admin ?? stats.users.admins ?? 0)}
+              description={`${formatNumber(
+                stats.users_by_role.super_admin ?? stats.users.super_admins ?? 0,
+              )} super admins`}
+              badge="RBAC"
+              tone="ai"
+            />
+            <StatCard
               label="Active Workspaces"
               value={formatNumber(stats.total_workspaces)}
               description={`${formatNumber(ragOpsWorkspaces.length)} with RAGOps telemetry`}
               badge="Tracked"
               tone="ai"
+            />
+            <StatCard
+              label="Documents"
+              value={formatNumber(stats.total_documents)}
+              description={`${formatNumber(stats.documents_by_status.failed ?? 0)} failed`}
+              badge="Corpus"
+              tone="neutral"
             />
             <StatCard
               label="Indexed Documents"
@@ -146,10 +183,24 @@ export default function AdminPage() {
               tone={overview.indexedRatio >= 0.85 ? "success" : "warning"}
             />
             <StatCard
+              label="Failed Documents"
+              value={formatNumber(stats.documents_by_status.failed ?? 0)}
+              description="Documents needing ingestion review"
+              badge={(stats.documents_by_status.failed ?? 0) > 0 ? "Action" : "Clear"}
+              tone={(stats.documents_by_status.failed ?? 0) > 0 ? "critical" : "success"}
+            />
+            <StatCard
               label="RAG Queries"
               value={formatNumber(stats.total_rag_queries)}
               description={`Average latency ${formatLatency(stats.average_latency_ms)}`}
               badge="Observed"
+              tone="info"
+            />
+            <StatCard
+              label="Audit Events"
+              value={formatNumber(auditTotal)}
+              description={`${formatNumber(riskyActions.length)} risky recent actions`}
+              badge="Audit"
               tone="info"
             />
             <StatCard
@@ -231,6 +282,44 @@ export default function AdminPage() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-semibold text-slate-950">Recent Risky Actions</h3>
+                <Link href="/admin/audit-logs" className="text-sm font-medium text-slate-700">
+                  View audit logs
+                </Link>
+              </div>
+              {riskyActions.length === 0 ? (
+                <div className="mt-5">
+                  <EmptyState label="No risky admin actions in recent audit logs." />
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-3">
+                  {riskyActions.map((log) => (
+                    <article
+                      key={log.id}
+                      className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-amber-950">{log.action}</p>
+                          <p className="mt-1 text-sm text-amber-800">
+                            {log.actor_email ?? "System"} on {log.target_type}
+                          </p>
+                          <p className="mt-1 text-xs text-amber-700">
+                            {log.reason ?? "No reason recorded"}
+                          </p>
+                        </div>
+                        <span className="text-xs text-amber-700">
+                          {formatDate(log.created_at)}
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-base font-semibold text-slate-950">Recent Risky Answers</h3>
@@ -325,6 +414,8 @@ export default function AdminPage() {
             </section>
           </div>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState label="No admin statistics are available yet." />
       ) : null}
     </AdminShell>
   );

@@ -247,7 +247,11 @@ def test_workspace_member_can_query_chat(
     response = client.post(
         f"/api/v1/workspaces/{workspace.id}/chat/query",
         headers=auth_headers(user),
-        json={"question": "What is DevPilot AI?", "conversation_id": None},
+        json={
+            "question": "What is DevPilot AI?",
+            "conversation_id": None,
+            "retrieval_strategy": "keyword",
+        },
     )
 
     assert response.status_code == 200
@@ -257,6 +261,7 @@ def test_workspace_member_can_query_chat(
     assert calls[0]["workspace"] == workspace
     assert calls[0]["user"] == user
     assert calls[0]["question"] == "What is DevPilot AI?"
+    assert calls[0]["retrieval_strategy"] == "keyword"
 
 
 def test_non_member_cannot_query_chat(

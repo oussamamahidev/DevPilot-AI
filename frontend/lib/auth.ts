@@ -1,6 +1,10 @@
-export const TOKEN_STORAGE_KEY = "devpilot_access_token";
-export const AUTH_TOKEN_CHANGED_EVENT = "devpilot_auth_token_changed";
-const LEGACY_TOKEN_STORAGE_KEY = "devpilot_token";
+import {
+  AUTH_TOKEN_CHANGED_EVENT,
+  LEGACY_TOKEN_STORAGE_KEY,
+  TOKEN_STORAGE_KEY,
+} from "@/lib/constants";
+
+export { AUTH_TOKEN_CHANGED_EVENT, TOKEN_STORAGE_KEY };
 
 function dispatchAuthTokenChanged() {
   if (typeof window === "undefined") {

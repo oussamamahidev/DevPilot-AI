@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 import logging
 from time import perf_counter
 from typing import Any
@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
-from app.providers.base import LLMProviderError, LLMResponse
+from app.providers.base import LLMProviderError, LLMResponse, chunk_text
 from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT
 
 
@@ -93,6 +93,15 @@ class GeminiLLMProvider:
             messages=[{"role": "user", "content": prompt}],
             system_prompt=system_prompt,
         )
+
+    async def stream_generate(
+        self,
+        prompt: str,
+        system_prompt: str = DEFAULT_RAG_SYSTEM_PROMPT,
+    ) -> AsyncIterator[str]:
+        response = await self.generate(prompt=prompt, system_prompt=system_prompt)
+        async for chunk in chunk_text(response.content):
+            yield chunk
 
     async def generate_messages(
         self,

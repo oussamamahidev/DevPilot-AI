@@ -1,19 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ApiRequestError, apiPost } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { ApiRequestError } from "@/lib/api-client";
 import { Navbar } from "@/components/Navbar";
-import type { User } from "@/types";
+import { Button, Card, ErrorState, Input } from "@/components/ui";
+import { useAuth } from "@/hooks/useAuth";
+import { AUTHENTICATED_HOME_PATH } from "@/lib/constants";
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const {
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    register,
+  } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registeredUser, setRegisteredUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      router.replace(AUTHENTICATED_HOME_PATH);
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,14 +35,13 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await apiPost<User>("/api/v1/auth/register", {
+      await register({
         full_name: fullName,
         email,
         password,
       });
-
-      setRegisteredUser(response);
       setPassword("");
+      router.replace(AUTHENTICATED_HOME_PATH);
     } catch (requestError) {
       if (requestError instanceof ApiRequestError) {
         if (requestError.status === 409) {
@@ -48,72 +61,49 @@ export default function RegisterPage() {
     <main className="min-h-screen bg-slate-50">
       <Navbar />
       <section className="mx-auto max-w-xl px-6 py-10">
-        <div className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+        <Card className="p-6">
           <p className="text-sm font-medium text-emerald-700">Register</p>
           <h1 className="mt-3 text-2xl font-semibold text-slate-950">
             Create your account
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Register a DevPilot AI user account for the workspace.
+            Register a DevPilot AI user account and continue to the dashboard.
           </p>
 
-          {registeredUser ? (
-            <div className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-              Account created for {registeredUser.email}. You can sign in now.
-            </div>
-          ) : null}
-
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Full name
-              <input
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                type="text"
-                autoComplete="name"
-                required
-                className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
+            <Input
+              autoComplete="name"
+              label="Full name"
+              onChange={(event) => setFullName(event.target.value)}
+              required
+              type="text"
+              value={fullName}
+            />
 
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Email
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                autoComplete="email"
-                required
-                className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
+            <Input
+              autoComplete="email"
+              label="Email"
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              type="email"
+              value={email}
+            />
 
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Password
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
+            <Input
+              autoComplete="new-password"
+              label="Password"
+              minLength={8}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
 
-            {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {error}
-              </div>
-            ) : null}
+            <ErrorState message={error} title="Unable to create account" />
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="h-11 rounded-md bg-slate-950 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
+            <Button type="submit" disabled={isSubmitting} isLoading={isSubmitting} size="lg">
               {isSubmitting ? "Creating account..." : "Create account"}
-            </button>
+            </Button>
 
             <p className="text-sm text-slate-600">
               Already registered?{" "}
@@ -125,7 +115,7 @@ export default function RegisterPage() {
               </Link>
             </p>
           </form>
-        </div>
+        </Card>
       </section>
     </main>
   );

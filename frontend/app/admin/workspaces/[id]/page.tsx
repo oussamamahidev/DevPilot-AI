@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   AdminAccessMessage,
@@ -11,7 +12,7 @@ import {
   formatNumber,
   StatusBadge,
 } from "@/components/admin/AdminUI";
-import { LoadingState } from "@/components/LoadingState";
+import { EmptyState, LoadingSkeleton } from "@/components/ui";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { deleteAdminWorkspace, getAdminWorkspace } from "@/lib/admin";
 import type { AdminWorkspaceDetail } from "@/types";
@@ -74,11 +75,9 @@ export default function AdminWorkspaceDetailPage() {
 
   return (
     <AdminShell title="Workspace Detail" description="Review workspace ownership and RAG data.">
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error} onRetry={() => void load()} />
       {isFetching && !workspace ? (
-        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <LoadingState label="Loading workspace" />
-        </section>
+        <LoadingSkeleton label="Loading workspace" rows={3} />
       ) : null}
 
       {workspace ? (
@@ -119,6 +118,102 @@ export default function AdminWorkspaceDetailPage() {
           </section>
 
           <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-slate-950">Members</h2>
+              <span className="text-sm text-slate-500">
+                {formatNumber(workspace.members.length)} members
+              </span>
+            </div>
+            {workspace.members.length === 0 ? (
+              <p className="mt-5 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                No members found.
+              </p>
+            ) : (
+              <div className="mt-5 overflow-x-auto rounded-md border border-slate-200">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Member</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Role</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Joined</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {workspace.members.map((member) => (
+                      <tr key={member.id}>
+                        <td className="px-3 py-3">
+                          <p className="font-medium text-slate-950">{member.full_name}</p>
+                          <p className="text-xs text-slate-500">{member.email}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {member.role}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                          {formatDate(member.joined_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-slate-950">Documents</h2>
+              <span className="text-sm text-slate-500">
+                {formatNumber(workspace.documents.length)} documents
+              </span>
+            </div>
+            {workspace.documents.length === 0 ? (
+              <p className="mt-5 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                No documents found.
+              </p>
+            ) : (
+              <div className="mt-5 overflow-x-auto rounded-md border border-slate-200">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Filename</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Status</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Chunks</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">Created</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {workspace.documents.map((document) => (
+                      <tr key={document.id}>
+                        <td className="max-w-md truncate px-3 py-3 font-medium text-slate-950">
+                          {document.filename}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <StatusBadge status={document.status} />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {formatNumber(document.chunks_count)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                          {formatDate(document.created_at)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right">
+                          <Link
+                            href={`/admin/documents/${document.id}`}
+                            className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold text-slate-950">Lifecycle</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Info label="Created" value={formatDate(workspace.created_at)} />
@@ -126,6 +221,11 @@ export default function AdminWorkspaceDetailPage() {
             </div>
           </section>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState
+          title="Workspace not found"
+          description="This workspace may have been deleted or the identifier is invalid."
+        />
       ) : null}
 
       <ConfirmReasonModal

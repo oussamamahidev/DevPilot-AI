@@ -32,7 +32,7 @@ import {
   listRagOpsDocumentChunks,
   retryRagOpsDocument,
 } from "@/lib/admin";
-import type { RagOpsChunksResponse, RagOpsDocumentPipeline } from "@/types";
+import type { RagOpsChunksResponse, RagOpsDocumentPipeline, RagPipelineStepStatus } from "@/types";
 
 const PAGE_SIZE = 25;
 
@@ -256,7 +256,7 @@ export default function RagOpsDocumentPage() {
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Preview</th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Vector</th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Tokens</th>
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">Metadata</th>
+                        <th className="whitespace-nowrap px-3 py-2 font-medium">Metadata keys</th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Created</th>
                       </tr>
                     </thead>
@@ -301,6 +301,8 @@ export default function RagOpsDocumentPage() {
             )}
           </section>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState label="Document not found. Check the document ID or return to RAGOps." />
       ) : null}
 
       <ConfirmReasonModal
@@ -329,19 +331,40 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function pipelineSteps(pipeline: RagOpsDocumentPipeline) {
+  const indexedStatus: RagPipelineStepStatus =
+    pipeline.document.status === "failed"
+      ? "failed"
+      : pipeline.document.status === "indexed"
+        ? "completed"
+        : "pending";
+
   return [
     { name: "Upload", status: pipeline.pipeline.upload, timestamp: pipeline.document.created_at, detail: "Document row exists." },
     { name: "Extraction", status: pipeline.pipeline.extraction, timestamp: null, detail: "Chunks indicate extraction completed." },
     { name: "Chunking", status: pipeline.pipeline.chunking, timestamp: null, detail: `${formatNumber(pipeline.stats.chunks_count)} chunks.` },
     { name: "Embedding", status: pipeline.pipeline.embedding, timestamp: null, detail: `${formatDecimal(pipeline.stats.embedding_coverage_percent, 1)}% coverage.` },
     { name: "Qdrant Indexing", status: pipeline.pipeline.qdrant_indexing, timestamp: null, detail: pipeline.qdrant.collection },
+    {
+      name: "Indexed",
+      status: indexedStatus,
+      timestamp: pipeline.document.processed_at,
+      detail:
+        indexedStatus === "completed"
+          ? "Ready for RAG chat."
+          : indexedStatus === "failed"
+            ? "Pipeline failed before the document became query-ready."
+            : "Waiting for the final indexed status.",
+    },
   ];
 }
 
 function metadataPreview(metadata: Record<string, unknown>) {
-  const value = JSON.stringify(metadata);
-  if (value.length <= 120) {
-    return value;
+  const safeKeys = Object.keys(metadata).filter(
+    (key) => !/token|secret|password|api[_-]?key|authorization|jwt|credential/i.test(key),
+  );
+  if (safeKeys.length === 0) {
+    return "No metadata keys";
   }
-  return `${value.slice(0, 117)}...`;
+  const visibleKeys = safeKeys.slice(0, 6).join(", ");
+  return safeKeys.length > 6 ? `${visibleKeys}, +${safeKeys.length - 6} more` : visibleKeys;
 }

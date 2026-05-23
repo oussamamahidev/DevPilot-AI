@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUploadForm } from "@/components/DocumentUploadForm";
 import { LoadingState } from "@/components/LoadingState";
-import { ApiConnectionError, ApiRequestError } from "@/lib/api";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ApiConnectionError, ApiRequestError } from "@/lib/api-client";
 import { removeToken } from "@/lib/auth";
 import { deleteDocument, listDocuments } from "@/lib/documents";
 import type { Document } from "@/types";
@@ -43,7 +44,9 @@ export function WorkspaceDocumentsPanel({
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [shouldWarnStatusRefreshFailure, setShouldWarnStatusRefreshFailure] =
     useState(false);
@@ -145,20 +148,28 @@ export function WorkspaceDocumentsPanel({
     return () => window.clearInterval(intervalId);
   }, [documents, refreshDocuments, shouldWarnStatusRefreshFailure]);
 
-  async function handleDelete(documentId: string) {
+  async function handleDeleteConfirmed() {
+    if (!pendingDeleteId) {
+      return;
+    }
+
     setError(null);
     setWarning(null);
+    setIsDeleting(true);
 
     try {
-      await deleteDocument(documentId);
+      await deleteDocument(pendingDeleteId);
       setDocuments((current) =>
-        current.filter((document) => document.id !== documentId),
+        current.filter((document) => document.id !== pendingDeleteId),
       );
+      setPendingDeleteId(null);
     } catch (requestError) {
       handleRequestError(requestError, {
         network: "Unable to remove the document. Check that the API is running.",
         unexpected: "Unable to remove the document.",
       });
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -226,10 +237,23 @@ export function WorkspaceDocumentsPanel({
           {isLoading ? (
             <LoadingState label="Loading documents" />
           ) : (
-            <DocumentList documents={documents} onDelete={handleDelete} />
+            <DocumentList
+              documents={documents}
+              onDelete={(documentId) => setPendingDeleteId(documentId)}
+            />
           )}
         </div>
       </section>
+
+      <ConfirmDialog
+        confirmLabel="Remove document"
+        description="This removes the document from the workspace. Continue only if you no longer need this file indexed for chat."
+        isOpen={Boolean(pendingDeleteId)}
+        isSubmitting={isDeleting}
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => void handleDeleteConfirmed()}
+        title="Remove document?"
+      />
     </div>
   );
 }

@@ -231,18 +231,18 @@ export function PageHeader({
   title: string;
 }) {
   return (
-    <section className="mb-6 rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-sm">
+    <section className="mb-6 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
             {eyebrow}
           </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-normal text-slate-950">
+          <h2 className="mt-2 break-words text-xl font-semibold tracking-normal text-slate-950 sm:text-2xl">
             {title}
           </h2>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{subtitle}</p>
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0">{actions}</div> : null}
       </div>
     </section>
   );
@@ -279,9 +279,9 @@ export function StatusBadge({
   const resolvedTone = tone ?? getStatusTone(status);
   return (
     <span
-      className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium capitalize ${toneClasses[resolvedTone]}`}
+      className={`inline-flex max-w-full items-center rounded-md border px-2 py-1 text-xs font-medium capitalize ${toneClasses[resolvedTone]}`}
     >
-      {label ?? status ?? "unknown"}
+      <span className="truncate">{label ?? status ?? "unknown"}</span>
     </span>
   );
 }
@@ -575,7 +575,7 @@ export function DonutChartCard({
       {total === 0 ? (
         <EmptyState label="No data to chart yet." />
       ) : (
-        <div className="relative h-72">
+        <div className="relative h-64 min-w-0 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -630,7 +630,7 @@ export function BarChartCard({
       {data.length === 0 ? (
         <EmptyState label="No data to chart yet." />
       ) : (
-        <div style={{ height }}>
+        <div className="min-w-0" style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
@@ -692,7 +692,7 @@ export function LineChartCard({
       {data.length === 0 ? (
         <EmptyState label="No time series data recorded yet." />
       ) : (
-        <div style={{ height }}>
+        <div className="min-w-0" style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ bottom: 8, left: 0, right: 16, top: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
@@ -737,7 +737,7 @@ export function AreaChartCard({
       {data.length === 0 ? (
         <EmptyState label="No data to chart yet." />
       ) : (
-        <div style={{ height }}>
+        <div className="min-w-0" style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ bottom: 8, left: 0, right: 16, top: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
@@ -789,7 +789,7 @@ export function EvaluationRadarChart({
   ];
   return (
     <ChartCard title={title}>
-      <div className="h-72">
+      <div className="h-64 min-w-0 sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
             <PolarGrid stroke="#cbd5e1" />
@@ -828,7 +828,7 @@ export function QualityScatterChart({
       {data.length === 0 ? (
         <EmptyState label="No trace points found for these filters." />
       ) : (
-        <div className="h-80">
+        <div className="h-64 min-w-0 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ bottom: 12, left: 0, right: 16, top: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
@@ -887,7 +887,7 @@ export function RerankingComparisonChart({ items }: { items: RagTraceRerankingIt
         <EmptyState label="No reranking details were recorded." />
       ) : (
         <div className="grid gap-5">
-          <div className="h-72">
+          <div className="h-64 min-w-0 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ bottom: 8, left: 0, right: 16, top: 8 }}>
                 <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
@@ -1063,16 +1063,55 @@ export function AgentTimeline({ runs }: { runs: RagTraceAgentRun[] }) {
 }
 
 function JsonSummary({ label, value }: { label: string; value: Record<string, unknown> }) {
+  const preview = jsonPreviewText(value);
+
   return (
-    <details className="rounded-md border border-slate-200 bg-white p-3">
-      <summary className="cursor-pointer text-xs font-semibold uppercase text-slate-500">
-        {label} preview
-      </summary>
-      <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-700">
-        {JSON.stringify(sanitizeDebugJson(value), null, 2)}
-      </pre>
-    </details>
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <p className="text-xs font-semibold uppercase text-slate-500">{label} preview</p>
+      <p className="mt-2 text-sm leading-5 text-slate-700">{preview}</p>
+      <details className="mt-3">
+        <summary className="cursor-pointer text-xs font-semibold text-slate-500">
+          Expand safe JSON
+        </summary>
+        <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-700">
+          {JSON.stringify(sanitizeDebugJson(value), null, 2)}
+        </pre>
+      </details>
+    </div>
   );
+}
+
+function jsonPreviewText(value: Record<string, unknown>) {
+  const sanitized = sanitizeDebugJson(value);
+  const entries = Object.entries(sanitized as Record<string, unknown>);
+  if (entries.length === 0) {
+    return "No preview recorded.";
+  }
+  const preferred = entries.find(([key]) =>
+    /question|query|answer|output|response|reason|status|strategy|error/i.test(key),
+  );
+  const [key, rawValue] = preferred ?? entries[0];
+  return `${key}: ${safePreview(formatPreviewValue(rawValue), 220)}`;
+}
+
+function formatPreviewValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "Not recorded";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return `${value.length} item${value.length === 1 ? "" : "s"}`;
+  }
+  if (typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>);
+    return keys.length > 0 ? `Object with keys: ${keys.slice(0, 6).join(", ")}` : "Empty object";
+  }
+  return String(value);
 }
 
 export function FilterBar({ children }: { children: ReactNode }) {
@@ -1139,9 +1178,9 @@ export function StackedStatusBar({
 
 function ChartCard({ children, title }: { children: ReactNode; title: string }) {
   return (
-    <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
-      <div className="mt-4">{children}</div>
+    <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <h3 className="break-words text-base font-semibold text-slate-950">{title}</h3>
+      <div className="mt-4 min-w-0">{children}</div>
     </section>
   );
 }

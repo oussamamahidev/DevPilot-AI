@@ -167,6 +167,19 @@ export default function RagTraceDetailPage() {
             </div>
           </section>
 
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <TextPanel label="User Question" value={trace.question} />
+              <TextPanel label="Final Assistant Answer" value={trace.answer} />
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <StatusBadge label={`${formatNumber(trace.citations.length)} citations`} tone={trace.citations.length > 0 ? "success" : "warning"} />
+              <QualityBadge label="Faithfulness" value={metric(evaluation?.faithfulness, trace.evaluation.faithfulness)} />
+              <QualityBadge label="Relevance" value={metric(evaluation?.relevance, trace.evaluation.relevance)} />
+              <RiskBadge value={metric(evaluation?.hallucination_score, trace.evaluation.hallucination_score)} />
+            </div>
+          </section>
+
           <TraceFlowDiagram
             steps={[
               { label: "Question", status: "completed", latencyMs: 0 },
@@ -180,26 +193,28 @@ export default function RagTraceDetailPage() {
                 label: "Retrieval",
                 status: statusForAgent(orderedAgentRuns, "retrieval"),
                 latencyMs: trace.latency_summary.by_agent_type.retrieval,
-                description: `${trace.retrieved_chunks.length} chunks`,
+                description: `${trace.retrieved_chunks.length} chunks retrieved`,
               },
               {
                 label: "Reranking",
                 status: statusForAgent(orderedAgentRuns, "reranker"),
                 latencyMs: trace.latency_summary.by_agent_type.reranker,
-                description: `${reranking?.items.length ?? 0} compared`,
+                description: `${reranking?.items.length ?? 0} chunks compared`,
               },
               {
                 label: "Generation",
                 status: statusForAgent(orderedAgentRuns, "generator"),
                 latencyMs: trace.latency_summary.by_agent_type.generator,
+                description: "Draft answer produced",
               },
               {
                 label: "Evaluation",
                 status: statusForAgent(orderedAgentRuns, "evaluator"),
                 latencyMs: trace.latency_summary.by_agent_type.evaluator,
+                description: qualityStatus(trace, evaluation),
               },
               {
-                label: "Correction",
+                label: "Corrector",
                 status: statusForAgent(orderedAgentRuns, "corrector"),
                 latencyMs: trace.latency_summary.by_agent_type.corrector,
                 description: trace.corrector_decision.corrected ? "Answer changed" : "No change",
@@ -207,19 +222,6 @@ export default function RagTraceDetailPage() {
               { label: "Final Answer", status: "completed", latencyMs: 0 },
             ]}
           />
-
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="grid gap-5 lg:grid-cols-2">
-              <TextPanel label="User Question" value={trace.question} />
-              <TextPanel label="Final Assistant Answer" value={trace.answer} />
-            </div>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <StatusBadge label={`${formatNumber(trace.citations.length)} citations`} tone={trace.citations.length > 0 ? "success" : "warning"} />
-              <QualityBadge label="Faithfulness" value={metric(evaluation?.faithfulness, trace.evaluation.faithfulness)} />
-              <QualityBadge label="Relevance" value={metric(evaluation?.relevance, trace.evaluation.relevance)} />
-              <RiskBadge value={metric(evaluation?.hallucination_score, trace.evaluation.hallucination_score)} />
-            </div>
-          </section>
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -358,55 +360,69 @@ export default function RagTraceDetailPage() {
             )}
           </section>
 
+          {reranking && !reranking.reranker_details_available ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Detailed reranker output was not stored for this trace. The page is showing the best available
+              retrieved-chunk ordering and scores.
+            </p>
+          ) : null}
+
           <RerankingComparisonChart items={reranking?.items ?? []} />
 
           {reranking && reranking.items.length > 0 ? (
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-base font-semibold text-slate-950">Reranking Detail</h3>
-              <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                {reranking.items.map((item) => (
-                  <article
-                    key={`${item.chunk_id ?? item.filename}-${item.original_rank}-${item.final_rank}`}
-                    className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="break-words font-semibold text-slate-950">
-                          {item.filename}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Original rank #{item.original_rank ?? "n/a"} to final rank #
-                          {item.final_rank ?? "n/a"}
-                        </p>
-                      </div>
-                      <StatusBadge
-                        label={item.used_in_final_citations ? "Used" : "Unused"}
-                        tone={item.used_in_final_citations ? "success" : "neutral"}
-                      />
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">
-                      {safePreview(item.content_preview, 180)}
-                    </p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <RerankMetric
-                        label="Original score"
-                        value={formatDecimal(item.original_score, 4)}
-                      />
-                      <RerankMetric
-                        label="Rerank score"
-                        value={formatOptionalScore(item.rerank_score)}
-                      />
-                      <RerankMetric
-                        label="Exact matches"
-                        value={item.exact_matches === null ? "n/a" : formatNumber(item.exact_matches)}
-                      />
-                      <RerankMetric
-                        label="Overlap"
-                        value={formatOptionalScore(item.overlap)}
-                      />
-                    </div>
-                  </article>
-                ))}
+              <div className="mt-4 overflow-x-auto rounded-md border border-slate-200">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Original rank</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Final rank</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Filename</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Original score</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Rerank score</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Exact matches</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Overlap</th>
+                      <th className="whitespace-nowrap px-3 py-3 font-medium">Used in answer</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {reranking.items.map((item) => (
+                      <tr key={`${item.chunk_id ?? item.filename}-${item.original_rank}-${item.final_rank}`}>
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-950">
+                          #{item.original_rank ?? "n/a"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-950">
+                          #{item.final_rank ?? "n/a"}
+                        </td>
+                        <td className="max-w-md px-3 py-3">
+                          <p className="font-medium text-slate-950">{item.filename}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {safePreview(item.content_preview, 110)}
+                          </p>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {formatDecimal(item.original_score, 4)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {formatOptionalScore(item.rerank_score)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {item.exact_matches === null ? "n/a" : formatNumber(item.exact_matches)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {formatOptionalScore(item.overlap)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <StatusBadge
+                            label={item.used_in_final_citations ? "Yes" : "No"}
+                            tone={item.used_in_final_citations ? "success" : "neutral"}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           ) : null}
@@ -460,6 +476,10 @@ export default function RagTraceDetailPage() {
                 value={trace.corrector_decision.final_answer_preview ?? safePreview(trace.answer, 260)}
               />
               <InfoPanel
+                label="Final Decision"
+                value={correctorDecisionSummary(trace)}
+              />
+              <InfoPanel
                 label="Correction Applied"
                 value={trace.corrector_decision.correction_applied ? "Yes" : "No"}
               />
@@ -477,6 +497,10 @@ export default function RagTraceDetailPage() {
             </details>
           </section>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState
+          label="Trace not found. Ask a question to generate traces, or check the message ID."
+        />
       ) : null}
     </AdminShell>
   );
@@ -556,11 +580,15 @@ function isRefusalDespiteCitations(answer: string, citationCount: number) {
   return /no context|not enough context|cannot answer|can't answer|do not have enough/i.test(answer);
 }
 
-function RerankMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-semibold text-slate-950">{value}</p>
-    </div>
-  );
+function correctorDecisionSummary(trace: RagTraceDetail) {
+  if (trace.corrector_decision.correction_applied) {
+    return "CorrectorAgent replaced the generated answer before it was persisted as the final response.";
+  }
+  if (trace.corrector_decision.corrected) {
+    return "CorrectorAgent detected an issue, but no final replacement was recorded.";
+  }
+  if (isRefusalDespiteCitations(trace.answer, trace.citations.length)) {
+    return "The answer may be overly conservative because it refuses despite available citations.";
+  }
+  return "The generated answer was accepted as the final response.";
 }

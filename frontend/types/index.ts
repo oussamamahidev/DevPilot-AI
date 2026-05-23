@@ -100,6 +100,7 @@ export type AnswerEvaluation = {
 
 export type ChatQueryRequest = {
   question: string;
+  retrieval_strategy?: "semantic" | "keyword" | "hybrid";
   conversation_id?: string | null;
 };
 

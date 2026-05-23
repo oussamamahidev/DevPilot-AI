@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-client";
 import type { HealthResponse } from "@/types";
 
 type ApiStatusState = {

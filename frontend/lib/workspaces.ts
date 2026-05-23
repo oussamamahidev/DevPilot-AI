@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api-client";
 import type { Workspace, WorkspaceCreateInput } from "@/types";
 
 export function listWorkspaces() {

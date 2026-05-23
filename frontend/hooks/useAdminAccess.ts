@@ -1,12 +1,13 @@
 "use client";
 
+import { canAccessAdmin, isSuperAdminRole } from "@/lib/permissions";
 import { useAuthUser } from "@/hooks/useAuthUser";
 
 export function useAdminAccess() {
   const auth = useAuthUser();
   return {
     ...auth,
-    isAdmin: auth.user?.role === "admin" || auth.user?.role === "super_admin",
-    isSuperAdmin: auth.user?.role === "super_admin",
+    isAdmin: canAccessAdmin(auth.user),
+    isSuperAdmin: isSuperAdminRole(auth.user?.role),
   };
 }

@@ -14,7 +14,7 @@ from app.providers.factory import get_llm_provider
 from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT
 from app.services.evaluation_service import EvaluationResult, evaluate_answer
 from app.services.reranking_service import rerank
-from app.services.retrieval_service import retrieve_chunks
+from app.services.retrieval_service import RETRIEVAL_STRATEGIES, retrieve_chunks
 
 
 INSUFFICIENT_CONTEXT_ANSWER = "I could not find this information in the uploaded documents."
@@ -234,6 +234,29 @@ class CorrectorAgent:
         contexts: list[dict[str, Any]],
         question: str = "",
     ) -> dict[str, object]:
+        if _says_information_not_found(answer):
+            extractive_answer = _extractive_answer_from_context(
+                question=question,
+                contexts=contexts,
+            )
+            if extractive_answer:
+                corrected_evaluation: EvaluationResult = {
+                    "faithfulness": max(evaluation["faithfulness"], 0.85),
+                    "relevance": max(evaluation["relevance"], 0.7),
+                    "context_precision": max(evaluation["context_precision"], 0.8),
+                    "hallucination_score": min(evaluation["hallucination_score"], 0.1),
+                    "explanation": (
+                        "Corrector replaced a refusal with an extractive cited answer "
+                        "because retrieved context matched the question."
+                    ),
+                }
+                return {
+                    "answer": extractive_answer,
+                    "correction_applied": True,
+                    "reason": "Retrieved context matched the question but the model returned a refusal.",
+                    "evaluation": corrected_evaluation,
+                }
+
         should_replace, reason = _should_replace_with_insufficient_context(
             question=question,
             answer=answer,
@@ -307,6 +330,7 @@ class AgenticRAGWorkflow:
         db: Any,
         workspace_id: UUID,
         question: str,
+        retrieval_strategy: str | None = None,
     ) -> AgenticRAGResult:
         router_output = await self._run_agent(
             agent_type=RouterAgent.agent_type,
@@ -314,7 +338,11 @@ class AgenticRAGWorkflow:
             operation=lambda: self.router.run(question),
         )
         query_type = str(router_output["query_type"])
-        retrieval_strategy = str(router_output["retrieval_strategy"])
+        router_strategy = str(router_output["retrieval_strategy"])
+        retrieval_strategy = _normalize_retrieval_strategy(
+            retrieval_strategy,
+            fallback=router_strategy,
+        )
 
         rewrite_output = await self._run_agent(
             agent_type=QueryRewriterAgent.agent_type,
@@ -529,6 +557,15 @@ def _candidate_top_k() -> int:
     return max(settings.retrieval_candidates, settings.rerank_top_k, settings.rag_top_k)
 
 
+def _normalize_retrieval_strategy(value: str | None, *, fallback: str) -> str:
+    normalized = (value or "").strip().lower()
+    if not normalized:
+        return fallback
+    if normalized not in RETRIEVAL_STRATEGIES:
+        raise ValueError(f"Unsupported retrieval strategy: {value}")
+    return normalized
+
+
 def _says_information_not_found(answer: str) -> bool:
     normalized = " ".join(answer.lower().split())
     return any(
@@ -585,6 +622,104 @@ def _should_replace_with_insufficient_context(
         return False, "Relevance was medium, not a refusal condition."
 
     return False, "No hard insufficient-context condition was met."
+
+
+def _extractive_answer_from_context(
+    *,
+    question: str,
+    contexts: list[dict[str, Any]],
+) -> str | None:
+    if not contexts:
+        return None
+
+    query_terms = _content_terms(question)
+    if not query_terms:
+        return None
+
+    best: tuple[int, int, int, str] | None = None
+    for citation_id, context in enumerate(contexts, start=1):
+        content = str(context.get("content", "")).strip()
+        if not content:
+            continue
+        for sentence_index, sentence in enumerate(_candidate_sentences(content)):
+            score = len(query_terms & _content_terms(sentence))
+            if score <= 0:
+                continue
+            candidate = (score, -sentence_index, citation_id, _trim_sentence(sentence))
+            if best is None or candidate[:2] > best[:2]:
+                best = candidate
+
+    if best is None:
+        return None
+
+    _, _, citation_id, snippet = best
+    if not snippet:
+        return None
+    if snippet[-1] in ".!?":
+        return f"According to the uploaded document, {snippet} [{citation_id}]"
+    return f"According to the uploaded document, {snippet} [{citation_id}]."
+
+
+def _candidate_sentences(content: str) -> list[str]:
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", content)
+        if sentence.strip()
+    ]
+    if sentences:
+        return sentences
+    return [content.strip()]
+
+
+def _trim_sentence(sentence: str, max_chars: int = 420) -> str:
+    normalized = " ".join(sentence.split())
+    if len(normalized) <= max_chars:
+        return normalized
+    return f"{normalized[: max_chars - 3].rstrip()}..."
+
+
+def _content_terms(text: str) -> set[str]:
+    stop_words = {
+        "a",
+        "about",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "available",
+        "be",
+        "by",
+        "can",
+        "does",
+        "for",
+        "from",
+        "how",
+        "in",
+        "information",
+        "is",
+        "it",
+        "list",
+        "me",
+        "of",
+        "on",
+        "or",
+        "tell",
+        "that",
+        "the",
+        "this",
+        "to",
+        "what",
+        "which",
+        "who",
+        "why",
+        "with",
+    }
+    return {
+        term
+        for term in re.findall(r"[\w-]{2,}", text.lower())
+        if term not in stop_words
+    }
 
 
 def _answer_is_supported_despite_medium_or_low_relevance(

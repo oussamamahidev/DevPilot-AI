@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { ApiConnectionError, ApiRequestError } from "@/lib/api";
+import { ApiConnectionError, ApiRequestError } from "@/lib/api-client";
 import { uploadDocument } from "@/lib/documents";
 import type { Document } from "@/types";
 

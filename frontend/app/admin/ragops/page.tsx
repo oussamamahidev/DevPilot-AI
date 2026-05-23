@@ -106,14 +106,6 @@ export default function RagOpsPage() {
             tone={summary.critical > 0 ? "critical" : "success"}
           />
           <StatCard
-            label="Global Embedding Coverage"
-            value={formatPercent(summary.embeddingCoverage)}
-            description={`${formatNumber(summary.chunksWithVectors)} chunks have vectors`}
-            progress={summary.embeddingCoverage * 100}
-            badge={summary.embeddingCoverage >= 0.85 ? "Synced" : "Gap"}
-            tone={summary.embeddingCoverage >= 0.85 ? "success" : "warning"}
-          />
-          <StatCard
             label="Failed Documents"
             value={formatNumber(summary.failedDocuments)}
             description="Documents with failed ingestion state"
@@ -126,6 +118,14 @@ export default function RagOpsPage() {
             description="Chunk records available for retrieval"
             badge="Indexed"
             tone="info"
+          />
+          <StatCard
+            label="Global Embedding Coverage"
+            value={formatPercent(summary.embeddingCoverage)}
+            description={`${formatNumber(summary.chunksWithVectors)} chunks have vectors`}
+            progress={summary.embeddingCoverage * 100}
+            badge={summary.embeddingCoverage >= 0.85 ? "Synced" : "Gap"}
+            tone={summary.embeddingCoverage >= 0.85 ? "success" : "warning"}
           />
         </section>
 
@@ -202,86 +202,90 @@ export default function RagOpsPage() {
           {workspaces.length === 0 && !isFetching ? (
             <EmptyState label="No workspaces found." />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {workspaces.map((workspace) => {
-                const score = computeWorkspaceHealthScore(workspace);
-                return (
-                  <article
-                    key={workspace.workspace_id}
-                    className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <h4 className="break-words font-semibold text-slate-950">
-                          {workspace.workspace_name}
-                        </h4>
-                        <p className="mt-1 break-all text-sm text-slate-600">
+            <div className="overflow-x-auto rounded-md border border-slate-200">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Workspace</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Owner</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Health score</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Embedding coverage</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Indexed docs</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Failed docs</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Last indexed</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-right font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {workspaces.map((workspace) => {
+                    const score = computeWorkspaceHealthScore(workspace);
+                    return (
+                      <tr key={workspace.workspace_id}>
+                        <td className="max-w-sm px-3 py-3">
+                          <div className="flex flex-col gap-2">
+                            <p className="break-words font-semibold text-slate-950">
+                              {workspace.workspace_name}
+                            </p>
+                            <StatusBadge status={workspace.rag_health_status} />
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
                           {workspace.owner_email}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap gap-2">
-                        <StatusBadge status={workspace.rag_health_status} />
-                        <Link
-                          href={`/admin/ragops/workspaces/${workspace.workspace_id}`}
-                          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-950 shadow-sm"
-                        >
-                          Open
-                        </Link>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      <div>
-                        <div className="mb-2 flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-700">RAG health score</span>
-                          <span className="font-semibold text-slate-950">{score}/100</span>
-                        </div>
-                        <ProgressBar
-                          value={score}
-                          tone={score >= 85 ? "success" : score >= 60 ? "warning" : "critical"}
-                        />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-700">Embedding coverage</span>
-                          <span className="font-semibold text-slate-950">
-                            {formatDecimal(workspace.embedding_coverage_percent, 1)}%
-                          </span>
-                        </div>
-                        <ProgressBar
-                          value={workspace.embedding_coverage_percent}
-                          tone={
-                            workspace.embedding_coverage_percent >= 85
-                              ? "success"
-                              : workspace.embedding_coverage_percent >= 60
-                                ? "warning"
-                                : "critical"
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <WorkspaceMetric
-                        label="Documents"
-                        value={formatNumber(workspace.documents_total)}
-                      />
-                      <WorkspaceMetric
-                        label="Indexed"
-                        value={formatNumber(workspace.documents_indexed)}
-                      />
-                      <WorkspaceMetric
-                        label="Failed"
-                        value={formatNumber(workspace.documents_failed)}
-                        tone={workspace.documents_failed > 0 ? "critical" : "success"}
-                      />
-                    </div>
-                    <p className="mt-4 text-xs text-slate-500">
-                      Last indexed: {formatDate(workspace.last_document_indexed_at)}
-                    </p>
-                  </article>
-                );
-              })}
+                        </td>
+                        <td className="min-w-44 px-3 py-3">
+                          <div className="mb-2 flex items-center justify-between text-xs">
+                            <span className="text-slate-500">score</span>
+                            <span className="font-semibold text-slate-950">{score}/100</span>
+                          </div>
+                          <ProgressBar
+                            value={score}
+                            tone={score >= 85 ? "success" : score >= 60 ? "warning" : "critical"}
+                          />
+                        </td>
+                        <td className="min-w-44 px-3 py-3">
+                          <div className="mb-2 flex items-center justify-between text-xs">
+                            <span className="text-slate-500">vectors</span>
+                            <span className="font-semibold text-slate-950">
+                              {formatDecimal(workspace.embedding_coverage_percent, 1)}%
+                            </span>
+                          </div>
+                          <ProgressBar
+                            value={workspace.embedding_coverage_percent}
+                            tone={
+                              workspace.embedding_coverage_percent >= 85
+                                ? "success"
+                                : workspace.embedding_coverage_percent >= 60
+                                  ? "warning"
+                                  : "critical"
+                            }
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          {formatNumber(workspace.documents_indexed)} / {formatNumber(workspace.documents_total)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <WorkspaceMetric
+                            label="failed"
+                            value={formatNumber(workspace.documents_failed)}
+                            tone={workspace.documents_failed > 0 ? "critical" : "success"}
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                          {formatDate(workspace.last_document_indexed_at)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right">
+                          <Link
+                            href={`/admin/ragops/workspaces/${workspace.workspace_id}`}
+                            className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
+                          >
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </section>

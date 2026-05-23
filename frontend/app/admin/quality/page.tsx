@@ -143,6 +143,30 @@ export default function AdminQualityPage() {
             />
           </section>
 
+          <section className="grid gap-4 md:grid-cols-3">
+            <StatCard
+              label="Low Quality Answers"
+              value={formatNumber(summary.low_quality_count)}
+              description="Answers below the quality threshold"
+              badge="Review"
+              tone={summary.low_quality_count > 0 ? "warning" : "success"}
+            />
+            <StatCard
+              label="High Hallucination Risk"
+              value={formatNumber(summary.hallucination_risk_count)}
+              description="Answers with elevated unsupported-content risk"
+              badge="Risk"
+              tone={summary.hallucination_risk_count > 0 ? "critical" : "success"}
+            />
+            <StatCard
+              label="No Context Answers"
+              value={formatNumber(summary.no_context_count)}
+              description="Answers where retrieval did not provide usable context"
+              badge="Retrieval"
+              tone={summary.no_context_count > 0 ? "warning" : "success"}
+            />
+          </section>
+
           <div className="grid gap-6 xl:grid-cols-3">
             <EvaluationRadarChart
               faithfulness={summary.average_faithfulness}
@@ -219,6 +243,8 @@ export default function AdminQualityPage() {
             />
           </div>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState label="No traces available yet. Ask a question to generate traces." />
       ) : null}
     </AdminShell>
   );

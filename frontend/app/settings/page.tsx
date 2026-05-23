@@ -1,37 +1,88 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/DashboardShell";
-import { LoadingState } from "@/components/LoadingState";
-import { AiConfigCard } from "@/components/settings/AiConfigCard";
-import { ApiStatusCard } from "@/components/settings/ApiStatusCard";
-import { AuthDebugCard } from "@/components/settings/AuthDebugCard";
-import { DangerZoneCard } from "@/components/settings/DangerZoneCard";
-import { FrontendConfigCard } from "@/components/settings/FrontendConfigCard";
-import { UserCard } from "@/components/settings/UserCard";
-import { WorkspaceCard } from "@/components/settings/WorkspaceCard";
 import {
-  checkLocalStorageAvailable,
-  displayValue,
-  formatNow,
-  getConfigValue,
-  maskSensitiveConfig,
-} from "@/components/settings/settingsUtils";
-import { API_BASE_URL, ApiRequestError, apiGet } from "@/lib/api";
-import { TOKEN_STORAGE_KEY, getToken, removeToken } from "@/lib/auth";
-import { createWorkspace, listWorkspaces } from "@/lib/workspaces";
-import type { HealthResponse, User, Workspace } from "@/types";
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  ErrorState,
+  LoadingSkeleton,
+  RoleBadge,
+  StatusBadge,
+} from "@/components/ui";
+import { API_BASE_URL, ApiConnectionError, ApiRequestError, apiGet } from "@/lib/api-client";
+import { getToken, removeToken } from "@/lib/auth";
+import { COMMON_ERROR_MESSAGES } from "@/lib/errors";
+import type { HealthResponse, User } from "@/types";
 
-type TokenValidationStatus = "idle" | "valid" | "invalid";
-
-const DEFAULT_WORKSPACE_PAYLOAD = {
-  description: "Default workspace created from settings page",
-  name: "Default Workspace",
+type SettingsState = {
+  aiConfig: Record<string, unknown> | null;
+  aiConfigError: string | null;
+  frontendUrl: string;
+  health: HealthResponse | null;
+  healthError: string | null;
+  isLoading: boolean;
+  localStorageAvailable: boolean;
+  tokenExists: boolean;
+  user: User | null;
+  userError: string | null;
 };
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiRequestError) {
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "Not available";
+
+const AI_CONFIG_FIELDS = [
+  { key: "llm_provider", label: "LLM provider", tone: "ai" },
+  { key: "embedding_provider", label: "Embedding provider", tone: "info" },
+  { key: "generation_model", label: "Generation model" },
+  { key: "embedding_model", label: "Embedding model" },
+  { key: "generation_temperature", label: "Temperature" },
+  { key: "generation_max_tokens", label: "Max tokens" },
+  { key: "enable_reranking", label: "Reranking enabled" },
+  { key: "retrieval_candidates", label: "Retrieval candidates" },
+  { key: "rerank_top_k", label: "Rerank top K" },
+] as const;
+
+const SENSITIVE_KEY_PARTS = [
+  "api_key",
+  "apikey",
+  "secret",
+  "token",
+  "password",
+  "database_url",
+  "dsn",
+  "credential",
+];
+
+function isSensitiveKey(key: string) {
+  const normalized = key.toLowerCase();
+  return SENSITIVE_KEY_PARTS.some((part) => normalized.includes(part));
+}
+
+function displayValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "Not available";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Enabled" : "Disabled";
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  if (typeof value === "string") {
+    return value.trim() ? value : "Not available";
+  }
+
+  return "Not available";
+}
+
+function requestErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiRequestError || error instanceof ApiConnectionError) {
     return error.message;
   }
 
@@ -42,385 +93,379 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function asSafeConfig(config: unknown) {
-  const maskedConfig = maskSensitiveConfig(config);
-
-  if (
-    maskedConfig &&
-    typeof maskedConfig === "object" &&
-    !Array.isArray(maskedConfig)
-  ) {
-    return maskedConfig as Record<string, unknown>;
+function checkLocalStorageAvailable() {
+  if (typeof window === "undefined") {
+    return false;
   }
 
-  return {};
+  try {
+    const key = "__devpilot_storage_check__";
+    window.localStorage.setItem(key, "1");
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "Not available";
+  }
+
+  try {
+    const url = new URL(value);
+    url.username = "";
+    url.password = "";
+    return url.toString();
+  } catch {
+    return "Configured";
+  }
+}
+
+function ConfigRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-[190px_1fr] sm:gap-4">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="min-w-0 break-words font-medium text-slate-950">{value}</dd>
+    </div>
+  );
+}
+
+function RuntimeCard({
+  description,
+  label,
+  status,
+}: {
+  description: string;
+  label: string;
+  status: string;
+}) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-950">{label}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+        </div>
+        <StatusBadge status={status} tone={status === "ok" ? "success" : undefined} />
+      </div>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
-  const pathname = usePathname();
   const router = useRouter();
-  const [aiConfig, setAiConfig] = useState<Record<string, unknown> | null>(null);
-  const [aiConfigError, setAiConfigError] = useState<string | null>(null);
-  const [aiConfigLoading, setAiConfigLoading] = useState(true);
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
-  const [frontendOrigin, setFrontendOrigin] = useState<string>("Not available");
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [healthError, setHealthError] = useState<string | null>(null);
-  const [healthLastChecked, setHealthLastChecked] = useState<string | null>(null);
-  const [healthLoading, setHealthLoading] = useState(true);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-  const [isLocalStorageAvailable, setIsLocalStorageAvailable] = useState(false);
-  const [isValidatingToken, setIsValidatingToken] = useState(false);
-  const [tokenExists, setTokenExists] = useState(false);
-  const [tokenValidationStatus, setTokenValidationStatus] =
-    useState<TokenValidationStatus>("idle");
-  const [user, setUser] = useState<User | null>(null);
-  const [userError, setUserError] = useState<string | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
-  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
-  const [workspaceLoading, setWorkspaceLoading] = useState(true);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [state, setState] = useState<SettingsState>({
+    aiConfig: null,
+    aiConfigError: null,
+    frontendUrl: "Not available",
+    health: null,
+    healthError: null,
+    isLoading: true,
+    localStorageAvailable: false,
+    tokenExists: false,
+    user: null,
+    userError: null,
+  });
 
-  const currentRoute = pathname ?? "/settings";
+  const tokenStatus = state.tokenExists
+    ? state.user
+      ? "Valid"
+      : state.userError
+        ? "Needs sign in"
+        : "Stored"
+    : "Missing";
 
-  const handleUnauthorized = useCallback(
-    (error: unknown) => {
-      if (error instanceof ApiRequestError && error.status === 401) {
-        removeToken();
-        setTokenExists(false);
-        router.replace("/login");
-        return true;
-      }
+  const aiConfigRows = useMemo(() => {
+    const config = state.aiConfig;
+    if (!config) {
+      return [];
+    }
 
-      return false;
-    },
-    [router],
-  );
+    return AI_CONFIG_FIELDS.map((field) => ({
+      key: field.key,
+      label: field.label,
+      value: displayValue(config[field.key]),
+    }));
+  }, [state.aiConfig]);
 
-  const refreshUser = useCallback(async () => {
+  const ollamaBaseUrl = useMemo(() => {
+    if (!state.aiConfig || isSensitiveKey("ollama_base_url")) {
+      return "Not available";
+    }
+
+    return safeUrl(state.aiConfig.ollama_base_url);
+  }, [state.aiConfig]);
+
+  const loadSettings = useCallback(async () => {
     const token = getToken();
-    setTokenExists(Boolean(token));
 
     if (!token) {
+      removeToken();
       router.replace("/login");
       return;
     }
 
-    setUserLoading(true);
-    setUserError(null);
+    setState((current) => ({
+      ...current,
+      aiConfigError: null,
+      healthError: null,
+      isLoading: true,
+      tokenExists: Boolean(token),
+      userError: null,
+    }));
 
-    try {
-      setUser(await apiGet<User>("/api/v1/auth/me", { token }));
-    } catch (error) {
-      if (handleUnauthorized(error)) {
+    const [userResult, healthResult, aiConfigResult] = await Promise.allSettled([
+      apiGet<User>("/api/v1/auth/me", { token }),
+      apiGet<HealthResponse>("/health", { token: null }),
+      apiGet<Record<string, unknown>>("/api/v1/system/ai-config"),
+    ]);
+
+    if (userResult.status === "rejected") {
+      if (
+        userResult.reason instanceof ApiRequestError &&
+        userResult.reason.status === 401
+      ) {
+        removeToken();
+        router.replace("/login");
         return;
       }
-
-      setUserError(
-        getErrorMessage(
-          error,
-          "Failed to load the current authenticated user.",
-        ),
-      );
-    } finally {
-      setUserLoading(false);
-    }
-  }, [handleUnauthorized, router]);
-
-  const refreshHealth = useCallback(async () => {
-    setHealthLoading(true);
-    setHealthError(null);
-
-    try {
-      setHealth(await apiGet<HealthResponse>("/health", { token: null }));
-    } catch {
-      setHealth(null);
-      setHealthError(
-        "Backend unavailable. Check that backend is running on NEXT_PUBLIC_API_URL.",
-      );
-    } finally {
-      setHealthLastChecked(formatNow());
-      setHealthLoading(false);
-    }
-  }, []);
-
-  const refreshAiConfig = useCallback(async () => {
-    setAiConfigLoading(true);
-    setAiConfigError(null);
-
-    try {
-      const response = await apiGet<Record<string, unknown>>(
-        "/api/v1/system/ai-config",
-      );
-      setAiConfig(asSafeConfig(response));
-    } catch (error) {
-      if (handleUnauthorized(error)) {
-        return;
-      }
-
-      setAiConfig(null);
-      setAiConfigError("Failed to load AI config.");
-    } finally {
-      setAiConfigLoading(false);
-    }
-  }, [handleUnauthorized]);
-
-  const refreshWorkspaces = useCallback(async () => {
-    setWorkspaceLoading(true);
-    setWorkspaceError(null);
-
-    try {
-      setWorkspaces(await listWorkspaces());
-    } catch (error) {
-      if (handleUnauthorized(error)) {
-        return;
-      }
-
-      setWorkspaces([]);
-      setWorkspaceError("Failed to load workspace.");
-    } finally {
-      setWorkspaceLoading(false);
-    }
-  }, [handleUnauthorized]);
-
-  useEffect(() => {
-    setIsLocalStorageAvailable(checkLocalStorageAvailable());
-    setTokenExists(Boolean(getToken()));
-
-    if (typeof window !== "undefined") {
-      setFrontendOrigin(window.location.origin);
-    }
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    const token = getToken();
-
-    if (!token) {
-      setTokenExists(false);
-      router.replace("/login");
-      return () => {
-        isMounted = false;
-      };
     }
 
-    setTokenExists(true);
-    setUserLoading(true);
-    setUserError(null);
-
-    async function checkAuth() {
-      try {
-        const currentUser = await apiGet<User>("/api/v1/auth/me", { token });
-
-        if (isMounted) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        if (error instanceof ApiRequestError && error.status === 401) {
-          removeToken();
-
-          if (isMounted) {
-            setTokenExists(false);
-          }
-
-          router.replace("/login");
-          return;
-        }
-
-        if (isMounted) {
-          setUser(null);
-          setUserError(
-            "Unable to verify authentication. Check that the API is running.",
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setUserLoading(false);
-          setIsCheckingAuth(false);
-        }
-      }
-    }
-
-    void checkAuth();
-
-    return () => {
-      isMounted = false;
-    };
+    setState({
+      aiConfig: aiConfigResult.status === "fulfilled" ? aiConfigResult.value : null,
+      aiConfigError:
+        aiConfigResult.status === "rejected"
+          ? requestErrorMessage(aiConfigResult.reason, "Failed to load AI configuration.")
+          : null,
+      frontendUrl:
+        typeof window !== "undefined" ? window.location.origin : "Not available",
+      health: healthResult.status === "fulfilled" ? healthResult.value : null,
+      healthError:
+        healthResult.status === "rejected"
+          ? COMMON_ERROR_MESSAGES.backendUnreachable
+          : null,
+      isLoading: false,
+      localStorageAvailable: checkLocalStorageAvailable(),
+      tokenExists: Boolean(getToken()),
+      user: userResult.status === "fulfilled" ? userResult.value : null,
+      userError:
+        userResult.status === "rejected"
+          ? requestErrorMessage(userResult.reason, "Failed to load profile.")
+          : null,
+    });
   }, [router]);
 
   useEffect(() => {
-    if (isCheckingAuth || !tokenExists) {
-      return;
-    }
-
-    void refreshHealth();
-    void refreshAiConfig();
-    void refreshWorkspaces();
-  }, [
-    isCheckingAuth,
-    refreshAiConfig,
-    refreshHealth,
-    refreshWorkspaces,
-    tokenExists,
-  ]);
-
-  async function handleCreateDefaultWorkspace() {
-    setIsCreatingWorkspace(true);
-    setWorkspaceError(null);
-
-    try {
-      const workspace = await createWorkspace(DEFAULT_WORKSPACE_PAYLOAD);
-      setWorkspaces((current) => [workspace, ...current]);
-    } catch (error) {
-      if (handleUnauthorized(error)) {
-        return;
-      }
-
-      setWorkspaceError("Failed to create default workspace.");
-    } finally {
-      setIsCreatingWorkspace(false);
-    }
-  }
-
-  async function handleValidateToken() {
-    const token = getToken();
-    setCopyStatus(null);
-    setTokenExists(Boolean(token));
-    setTokenValidationStatus("idle");
-
-    if (!token) {
-      setTokenValidationStatus("invalid");
-      return;
-    }
-
-    setIsValidatingToken(true);
-
-    try {
-      await apiGet<User>("/api/v1/auth/me", { token });
-      setTokenValidationStatus("valid");
-    } catch (error) {
-      setTokenValidationStatus("invalid");
-
-      if (handleUnauthorized(error)) {
-        return;
-      }
-    } finally {
-      setIsValidatingToken(false);
-    }
-  }
-
-  function handleClearToken() {
-    removeToken();
-    setTokenExists(false);
-    router.replace("/login");
-  }
-
-  async function handleCopyDiagnostic() {
-    const frontendUrl =
-      frontendOrigin === "Not available"
-        ? currentRoute
-        : `${frontendOrigin}${currentRoute}`;
-    const diagnosticSummary = [
-      "DevPilot AI Diagnostics",
-      `Frontend URL: ${frontendUrl}`,
-      `API URL: ${API_BASE_URL}`,
-      `Auth token exists: ${getToken() ? "yes" : "no"}`,
-      `User email: ${displayValue(user?.email)}`,
-      `LLM provider: ${displayValue(getConfigValue(aiConfig, "llm_provider"))}`,
-      `Generation model: ${displayValue(
-        getConfigValue(aiConfig, "generation_model"),
-      )}`,
-      `Embedding provider: ${displayValue(
-        getConfigValue(aiConfig, "embedding_provider"),
-      )}`,
-      `Embedding model: ${displayValue(getConfigValue(aiConfig, "embedding_model"))}`,
-      `Reranking enabled: ${displayValue(
-        getConfigValue(aiConfig, "enable_reranking"),
-      )}`,
-    ].join("\n");
-
-    try {
-      await navigator.clipboard.writeText(diagnosticSummary);
-      setCopyStatus("Diagnostic summary copied.");
-    } catch {
-      setCopyStatus("Unable to copy diagnostic summary from this browser.");
-    }
-  }
+    void loadSettings();
+  }, [loadSettings]);
 
   function handleLogout() {
     removeToken();
-    setTokenExists(false);
     router.replace("/login");
-  }
-
-  if (isCheckingAuth) {
-    return (
-      <DashboardShell
-        activeItem="settings"
-        title="Settings"
-        description="System configuration, authentication, and runtime diagnostics."
-      >
-        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <LoadingState label="Checking authentication..." />
-        </section>
-      </DashboardShell>
-    );
   }
 
   return (
     <DashboardShell
       activeItem="settings"
       title="Settings"
-      description="System configuration, authentication, and runtime diagnostics."
+      description="Profile, AI runtime configuration, security, and developer information."
     >
-      <div className="grid gap-6 lg:grid-cols-2">
-        <UserCard
-          error={userError}
-          isLoading={userLoading}
-          onRefresh={refreshUser}
-          user={user}
-        />
-        <ApiStatusCard
-          apiUrl={API_BASE_URL}
-          data={health}
-          error={healthError}
-          isLoading={healthLoading}
-          lastChecked={healthLastChecked}
-          onRefresh={refreshHealth}
-        />
-        <AiConfigCard
-          config={aiConfig}
-          error={aiConfigError}
-          isLoading={aiConfigLoading}
-          onRefresh={refreshAiConfig}
-        />
-        <WorkspaceCard
-          currentUserId={user?.id ?? null}
-          error={workspaceError}
-          isCreatingDefault={isCreatingWorkspace}
-          isLoading={workspaceLoading}
-          onCreateDefault={handleCreateDefaultWorkspace}
-          onRefresh={refreshWorkspaces}
-          workspaces={workspaces}
-        />
-        <FrontendConfigCard
-          apiUrl={API_BASE_URL}
-          currentRoute={currentRoute}
-          frontendOrigin={frontendOrigin}
-          localStorageAvailable={isLocalStorageAvailable}
-          tokenExists={tokenExists}
-          tokenKey={TOKEN_STORAGE_KEY}
-        />
-        <AuthDebugCard
-          copyStatus={copyStatus}
-          isValidating={isValidatingToken}
-          onClearToken={handleClearToken}
-          onCopyDiagnostic={handleCopyDiagnostic}
-          onValidateToken={handleValidateToken}
-          validationStatus={tokenValidationStatus}
-        />
-        <DangerZoneCard className="lg:col-span-2" onLogout={handleLogout} />
+      <div className="grid gap-6">
+        <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <Badge tone="ai">System Settings</Badge>
+              <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+                DevPilot AI configuration
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                A safe, demo-ready view of account, model, runtime, and session
+                settings. Secrets and raw tokens are never displayed.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => void loadSettings()}
+              isLoading={state.isLoading}
+              variant="secondary"
+            >
+              {state.isLoading ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
+        </section>
+
+        {state.isLoading ? (
+          <LoadingSkeleton label="Loading settings" rows={6} />
+        ) : (
+          <>
+            <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+              <Card>
+                <CardHeader
+                  title="Profile"
+                  description="Current account information from the authenticated session."
+                />
+                <ErrorState
+                  action={
+                    state.userError ? (
+                      <Button type="button" variant="secondary" onClick={() => void loadSettings()}>
+                        Retry
+                      </Button>
+                    ) : undefined
+                  }
+                  message={state.userError}
+                  title="Profile unavailable"
+                />
+                {state.user ? (
+                  <dl className="mt-2">
+                    <ConfigRow label="Email" value={displayValue(state.user.email)} />
+                    <ConfigRow label="Full name" value={displayValue(state.user.full_name)} />
+                    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-[190px_1fr] sm:gap-4">
+                      <dt className="text-slate-500">Role</dt>
+                      <dd>
+                        <RoleBadge role={state.user.role} />
+                      </dd>
+                    </div>
+                    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-[190px_1fr] sm:gap-4">
+                      <dt className="text-slate-500">Account status</dt>
+                      <dd>
+                        <StatusBadge
+                          label={state.user.is_active ? "Active" : "Inactive"}
+                          tone={state.user.is_active ? "success" : "critical"}
+                        />
+                      </dd>
+                    </div>
+                  </dl>
+                ) : null}
+              </Card>
+
+              <Card>
+                <CardHeader
+                  title="AI Configuration"
+                  description="Runtime model and retrieval settings from /api/v1/system/ai-config."
+                />
+                <ErrorState
+                  action={
+                    state.aiConfigError ? (
+                      <Button type="button" variant="secondary" onClick={() => void loadSettings()}>
+                        Retry
+                      </Button>
+                    ) : undefined
+                  }
+                  message={state.aiConfigError}
+                  title="AI config unavailable"
+                />
+                {state.aiConfig ? (
+                  <div className="mt-2">
+                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                      <RuntimeCard
+                        label="Generation"
+                        description={displayValue(state.aiConfig.generation_model)}
+                        status={displayValue(state.aiConfig.llm_provider)}
+                      />
+                      <RuntimeCard
+                        label="Embeddings"
+                        description={displayValue(state.aiConfig.embedding_model)}
+                        status={displayValue(state.aiConfig.embedding_provider)}
+                      />
+                    </div>
+                    <dl>
+                      {aiConfigRows.map((row) => (
+                        <ConfigRow key={row.key} label={row.label} value={row.value} />
+                      ))}
+                      {ollamaBaseUrl !== "Not available" ? (
+                        <ConfigRow label="Ollama base URL" value={ollamaBaseUrl} />
+                      ) : null}
+                    </dl>
+                    <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
+                      Sensitive fields such as API keys, JWTs, secrets, passwords,
+                      and database URLs are intentionally omitted.
+                    </p>
+                  </div>
+                ) : null}
+              </Card>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card>
+                <CardHeader
+                  title="Security"
+                  description="Session status and local browser security context."
+                />
+                <dl>
+                  <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-[190px_1fr] sm:gap-4">
+                    <dt className="text-slate-500">Token status</dt>
+                    <dd>
+                      <StatusBadge
+                        label={tokenStatus}
+                        tone={tokenStatus === "Valid" ? "success" : "warning"}
+                      />
+                    </dd>
+                  </div>
+                  <ConfigRow
+                    label="Token value"
+                    value={state.tokenExists ? "Hidden for security" : "Not stored"}
+                  />
+                  <ConfigRow
+                    label="Local storage"
+                    value={state.localStorageAvailable ? "Available" : "Unavailable"}
+                  />
+                </dl>
+                <div className="mt-4 flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm leading-6 text-slate-600">
+                    Your session token is stored locally by the browser and is
+                    cleared when you log out. The token itself is not printed here.
+                  </p>
+                  <Button type="button" onClick={handleLogout} variant="secondary">
+                    Logout
+                  </Button>
+                </div>
+              </Card>
+
+              <Card>
+                <CardHeader
+                  title="Developer Info"
+                  description="Non-sensitive runtime values useful during demos."
+                />
+                <ErrorState
+                  action={
+                    state.healthError ? (
+                      <Button type="button" variant="secondary" onClick={() => void loadSettings()}>
+                        Retry
+                      </Button>
+                    ) : undefined
+                  }
+                  message={state.healthError}
+                  title="Backend status unavailable"
+                />
+                <dl>
+                  <ConfigRow label="Backend URL" value={API_BASE_URL} />
+                  <ConfigRow label="Frontend URL" value={state.frontendUrl} />
+                  <ConfigRow
+                    label="Environment"
+                    value={displayValue(state.health?.environment)}
+                  />
+                  <ConfigRow
+                    label="Backend status"
+                    value={displayValue(state.health?.status)}
+                  />
+                  <ConfigRow
+                    label="Service"
+                    value={displayValue(state.health?.service ?? state.health?.app)}
+                  />
+                  <ConfigRow label="App version" value={APP_VERSION} />
+                </dl>
+              </Card>
+            </div>
+          </>
+        )}
       </div>
     </DashboardShell>
   );

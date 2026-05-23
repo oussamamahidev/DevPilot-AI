@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { LoadingState } from "@/components/LoadingState";
 import { WorkspaceDocumentsPanel } from "@/components/WorkspaceDocumentsPanel";
-import { ApiRequestError } from "@/lib/api";
+import { ApiRequestError } from "@/lib/api-client";
 import { removeToken } from "@/lib/auth";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { getWorkspace } from "@/lib/workspaces";

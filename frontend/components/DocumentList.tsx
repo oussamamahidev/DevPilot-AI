@@ -1,3 +1,4 @@
+import { Button, EmptyState, LoadingSkeleton, StatusBadge } from "@/components/ui";
 import type { Document } from "@/types";
 
 type DocumentListProps = {
@@ -13,40 +14,21 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function statusClass(status: Document["status"]) {
-  if (status === "indexed") {
-    return "bg-emerald-100 text-emerald-800";
-  }
-
-  if (status === "failed") {
-    return "bg-red-100 text-red-800";
-  }
-
-  if (status === "queued" || status === "processing") {
-    return "bg-amber-100 text-amber-800";
-  }
-
-  return "bg-slate-100 text-slate-700";
-}
-
 export function DocumentList({
   documents,
   isLoading = false,
   onDelete,
 }: DocumentListProps) {
   if (isLoading) {
-    return (
-      <div className="rounded-md border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
-        Loading documents...
-      </div>
-    );
+    return <LoadingSkeleton label="Loading documents" rows={3} />;
   }
 
   if (documents.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
-        No documents uploaded yet.
-      </div>
+      <EmptyState
+        title="No documents uploaded yet"
+        description="Upload documents to create searchable chunks and enable RAG chat."
+      />
     );
   }
 
@@ -71,26 +53,21 @@ export function DocumentList({
                 </td>
                 <td className="px-4 py-3 text-slate-600">{document.file_type}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(
-                      document.status,
-                    )}`}
-                  >
-                    {document.status}
-                  </span>
+                  <StatusBadge status={document.status} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                   {formatDate(document.created_at)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {onDelete ? (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => onDelete(document.id)}
-                      className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      size="sm"
+                      variant="secondary"
                     >
                       Remove
-                    </button>
+                    </Button>
                   ) : (
                     <span className="text-xs text-slate-400">None</span>
                   )}

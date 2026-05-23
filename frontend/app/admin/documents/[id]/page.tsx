@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   AdminAccessMessage,
@@ -12,7 +13,7 @@ import {
   formatNumber,
   StatusBadge,
 } from "@/components/admin/AdminUI";
-import { LoadingState } from "@/components/LoadingState";
+import { EmptyState, LoadingSkeleton } from "@/components/ui";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { deleteAdminDocument, getAdminDocument } from "@/lib/admin";
 import type { AdminDocumentDetail } from "@/types";
@@ -74,11 +75,9 @@ export default function AdminDocumentDetailPage() {
 
   return (
     <AdminShell title="Document Detail" description="Inspect document ingestion and indexing state.">
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error} onRetry={() => void load()} />
       {isFetching && !document ? (
-        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <LoadingState label="Loading document" />
-        </section>
+        <LoadingSkeleton label="Loading document" rows={3} />
       ) : null}
 
       {document ? (
@@ -93,6 +92,12 @@ export default function AdminDocumentDetailPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <StatusBadge status={document.status} />
+                <Link
+                  href={`/admin/ragops/documents/${document.id}`}
+                  className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                >
+                  Open Pipeline
+                </Link>
                 <button
                   type="button"
                   onClick={() => setIsConfirmingDelete(true)}
@@ -133,6 +138,11 @@ export default function AdminDocumentDetailPage() {
             </div>
           </section>
         </div>
+      ) : !isFetching && !error ? (
+        <EmptyState
+          title="Document not found"
+          description="This document may have been deleted or the identifier is invalid."
+        />
       ) : null}
 
       <ConfirmReasonModal

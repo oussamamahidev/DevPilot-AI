@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AdminAccessMessage,
   AdminShell,
+  ConfirmReasonModal,
   ErrorBanner,
   formatDate,
   formatNumber,
@@ -13,22 +14,37 @@ import {
   StatusBadge,
   Toolbar,
 } from "@/components/admin/AdminUI";
-import { LoadingState } from "@/components/LoadingState";
+import { Button, EmptyState, LoadingSkeleton } from "@/components/ui";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { listAdminUsers } from "@/lib/admin";
-import type { AdminUserSummary } from "@/types";
+import {
+  deactivateAdminUser,
+  deleteAdminUser,
+  listAdminUsers,
+  reactivateAdminUser,
+  updateAdminUserRole,
+} from "@/lib/admin";
+import type { AdminUserDetail, AdminUserSummary } from "@/types";
 
 const PAGE_SIZE = 10;
+type PendingAction =
+  | { type: "role"; user: AdminUserSummary; nextRole: "user" | "admin" }
+  | { type: "deactivate"; user: AdminUserSummary }
+  | { type: "reactivate"; user: AdminUserSummary }
+  | { type: "delete"; user: AdminUserSummary }
+  | null;
 
 export default function AdminUsersPage() {
-  const { isAdmin, isLoading } = useAdminAccess();
+  const { isAdmin, isLoading, isSuperAdmin, user: actor } = useAdminAccess();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   const load = useCallback(async () => {
     if (!isAdmin) {
@@ -73,6 +89,64 @@ export default function AdminUsersPage() {
     setPage(0);
   }, [role, search, status]);
 
+  function applyUpdatedUser(updatedUser: AdminUserDetail) {
+    setUsers((current) =>
+      current.map((user) =>
+        user.id === updatedUser.id
+          ? {
+              ...user,
+              deleted_at: updatedUser.deleted_at,
+              deactivated_at: updatedUser.deactivated_at,
+              document_count: updatedUser.document_count,
+              email: updatedUser.email,
+              full_name: updatedUser.full_name,
+              is_active: updatedUser.is_active,
+              last_login_at: updatedUser.last_login_at,
+              role: updatedUser.role,
+              workspace_count: updatedUser.workspace_count,
+            }
+          : user,
+      ),
+    );
+  }
+
+  async function submitAction(reason: string) {
+    if (!pendingAction) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setModalError(null);
+    try {
+      const updatedUser =
+        pendingAction.type === "role"
+          ? await updateAdminUserRole(
+              pendingAction.user.id,
+              pendingAction.nextRole,
+              reason,
+            )
+          : pendingAction.type === "deactivate"
+            ? await deactivateAdminUser(pendingAction.user.id, reason)
+            : pendingAction.type === "reactivate"
+              ? await reactivateAdminUser(pendingAction.user.id, reason)
+              : await deleteAdminUser(pendingAction.user.id, reason);
+
+      applyUpdatedUser(updatedUser);
+      setPendingAction(null);
+    } catch (requestError) {
+      setModalError(requestError instanceof Error ? requestError.message : "Action failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function canManageUser(user: AdminUserSummary) {
+    if (actor?.id === user.id) {
+      return false;
+    }
+    return isSuperAdmin || user.role === "user";
+  }
+
   if (isLoading) {
     return <AdminAccessMessage title="Users" label="Checking admin access." />;
   }
@@ -83,7 +157,7 @@ export default function AdminUsersPage() {
 
   return (
     <AdminShell title="Users" description="Manage global user access and roles.">
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error} onRetry={() => void load()} />
       <Toolbar search={search} setSearch={setSearch}>
         <select
           value={role}
@@ -115,18 +189,24 @@ export default function AdminUsersPage() {
           </span>
         </div>
 
-        {isFetching ? <LoadingState label="Loading users" /> : null}
+        {isFetching ? <LoadingSkeleton label="Loading users" rows={4} /> : null}
 
-        <div className="overflow-x-auto">
+        {!isFetching && visibleUsers.length === 0 ? (
+          <EmptyState
+            title="No users found"
+            description="Try changing the search, role, or status filters."
+          />
+        ) : (
+        <div className="overflow-x-auto rounded-md border border-slate-200">
           <table className="min-w-full text-left text-sm">
-            <thead className="text-xs uppercase text-slate-500">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">User</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Role</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Status</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Workspaces</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Last Login</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -148,19 +228,69 @@ export default function AdminUsersPage() {
                   <td className="whitespace-nowrap px-3 py-3 text-slate-500">
                     {formatDate(user.last_login_at)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3">
-                    <Link
-                      href={`/admin/users/${user.id}`}
-                      className="text-sm font-medium text-slate-950 underline-offset-4 hover:underline"
-                    >
-                      View
-                    </Link>
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Link
+                        href={`/admin/users/${user.id}`}
+                        className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                      >
+                        View
+                      </Link>
+                      {canManageUser(user) && !user.deleted_at ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            setPendingAction({
+                              nextRole: user.role === "user" ? "admin" : "user",
+                              type: "role",
+                              user,
+                            })
+                          }
+                        >
+                          {user.role === "user" ? "Make admin" : "Make user"}
+                        </Button>
+                      ) : null}
+                      {canManageUser(user) && !user.deleted_at ? (
+                        user.is_active ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setPendingAction({ type: "deactivate", user })}
+                          >
+                            Deactivate
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setPendingAction({ type: "reactivate", user })}
+                          >
+                            Reactivate
+                          </Button>
+                        )
+                      ) : null}
+                      {canManageUser(user) && !user.deleted_at ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="danger"
+                          onClick={() => setPendingAction({ type: "delete", user })}
+                        >
+                          Delete
+                        </Button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        )}
 
         <PaginationControls
           page={page}
@@ -169,6 +299,29 @@ export default function AdminUsersPage() {
           canNext={(page + 1) * PAGE_SIZE < filteredUsers.length}
         />
       </section>
+      <ConfirmReasonModal
+        isOpen={pendingAction !== null}
+        actionLabel={
+          pendingAction?.type === "role"
+            ? `Change role for ${pendingAction.user.email}`
+            : pendingAction?.type === "deactivate"
+              ? `Deactivate ${pendingAction.user.email}`
+              : pendingAction?.type === "reactivate"
+                ? `Reactivate ${pendingAction.user.email}`
+                : pendingAction?.type === "delete"
+                  ? `Delete ${pendingAction.user.email}`
+                  : "Confirm user action"
+        }
+        confirmLabel={pendingAction?.type === "delete" ? "Delete" : "Confirm"}
+        error={modalError}
+        isSubmitting={isSubmitting}
+        requireConfirmText={pendingAction?.type === "delete"}
+        onClose={() => {
+          setPendingAction(null);
+          setModalError(null);
+        }}
+        onConfirm={submitAction}
+      />
     </AdminShell>
   );
 }

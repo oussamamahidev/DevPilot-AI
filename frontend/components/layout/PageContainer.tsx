@@ -1,0 +1,14 @@
+import type { ReactNode } from "react";
+
+type PageContainerProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+export function PageContainer({ children, className = "" }: PageContainerProps) {
+  return (
+    <div className={`mx-auto w-full min-w-0 max-w-7xl px-4 sm:px-6 ${className}`}>
+      {children}
+    </div>
+  );
+}

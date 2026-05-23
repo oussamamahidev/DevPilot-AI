@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ChatQueryRequest(BaseModel):
     question: str = Field(min_length=1)
+    retrieval_strategy: Literal["semantic", "keyword", "hybrid"] = "hybrid"
     conversation_id: UUID | None = None
 
     @field_validator("question")

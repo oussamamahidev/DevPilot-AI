@@ -3,18 +3,25 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { CitationCard, EvaluationMetrics } from "@/components/ai";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ErrorMessage } from "@/components/ErrorMessage";
-import { LoadingState } from "@/components/LoadingState";
-import { ApiConnectionError, ApiRequestError } from "@/lib/api";
+import {
+  Button,
+  Card,
+  EmptyState,
+  LoadingSkeleton,
+  Textarea,
+} from "@/components/ui";
+import { ApiConnectionError, ApiRequestError } from "@/lib/api-client";
 import { removeToken } from "@/lib/auth";
 import {
   getConversation,
   listWorkspaceConversations,
-  queryWorkspaceChat,
 } from "@/lib/chat";
 import { listDocuments } from "@/lib/documents";
 import { useAuthUser } from "@/hooks/useAuthUser";
+import { useChatStream } from "@/hooks/useChatStream";
 import { getWorkspace } from "@/lib/workspaces";
 import type {
   AnswerEvaluation,
@@ -32,6 +39,8 @@ type ChatMessage = {
   createdAt?: string;
   evaluation?: AnswerEvaluation;
   isPending?: boolean;
+  isCorrected?: boolean;
+  streamStatus?: string;
 };
 
 function formatDate(value: string) {
@@ -39,10 +48,6 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function formatScore(score: number) {
-  return Number.isFinite(score) ? score.toFixed(3) : "0.000";
 }
 
 function informationNotFound(answer: string) {
@@ -76,30 +81,7 @@ function CitationList({ citations }: { citations: Citation[] }) {
   return (
     <div className="mt-4 grid gap-2">
       {citations.map((citation) => (
-        <div
-          key={`${citation.id}-${citation.chunk_id}`}
-          className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700"
-        >
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="font-semibold text-slate-950">[{citation.id}]</span>
-            <span className="max-w-full truncate font-medium">
-              {citation.filename}
-            </span>
-            <span>Chunk {citation.chunk_index}</span>
-            <span>Score {formatScore(citation.score)}</span>
-          </div>
-
-          {citation.content ? (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-slate-600 hover:text-slate-950">
-                Preview
-              </summary>
-              <p className="mt-2 whitespace-pre-wrap break-words rounded-md bg-white p-3 leading-5 text-slate-700">
-                {citation.content}
-              </p>
-            </details>
-          ) : null}
-        </div>
+        <CitationCard key={`${citation.id}-${citation.chunk_id}`} citation={citation} />
       ))}
     </div>
   );
@@ -111,16 +93,8 @@ function EvaluationPill({ evaluation }: { evaluation?: AnswerEvaluation }) {
   }
 
   return (
-    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-        Faithfulness {formatScore(evaluation.faithfulness)}
-      </span>
-      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-        Relevance {formatScore(evaluation.relevance)}
-      </span>
-      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-        Hallucination {formatScore(evaluation.hallucination_score)}
-      </span>
+    <div className="mt-3">
+      <EvaluationMetrics evaluation={evaluation} />
     </div>
   );
 }
@@ -133,20 +107,27 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     <article
       className={
         isAssistant
-          ? "max-w-3xl rounded-md border border-slate-200 bg-white p-4 shadow-sm"
-          : "ml-auto max-w-3xl rounded-md bg-slate-950 p-4 text-white shadow-sm"
+          ? "w-full max-w-3xl rounded-md border border-slate-200 bg-white p-4 shadow-sm"
+          : "ml-auto w-full max-w-3xl rounded-md bg-slate-950 p-4 text-white shadow-sm sm:w-fit"
       }
     >
       <div className="flex items-start justify-between gap-3">
-        <p
-          className={
-            isAssistant
-              ? "text-xs font-semibold uppercase tracking-wide text-slate-500"
-              : "text-xs font-semibold uppercase tracking-wide text-slate-300"
-          }
-        >
-          {isAssistant ? "Assistant" : "You"}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p
+            className={
+              isAssistant
+                ? "text-xs font-semibold uppercase tracking-wide text-slate-500"
+                : "text-xs font-semibold uppercase tracking-wide text-slate-300"
+            }
+          >
+            {isAssistant ? "Assistant" : "You"}
+          </p>
+          {message.isCorrected ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+              Corrected
+            </span>
+          ) : null}
+        </div>
         {message.createdAt ? (
           <time
             className={
@@ -172,11 +153,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         }
       >
         {message.content}
+        {message.isPending ? (
+          <span className="ml-0.5 inline-block animate-pulse text-slate-500">|</span>
+        ) : null}
       </p>
 
       {message.isPending ? (
-        <div className="mt-3">
-          <LoadingState label="Generating answer" />
+        <div className="mt-3 text-xs font-medium text-slate-500">
+          {message.streamStatus ?? "Generating answer..."}
         </div>
       ) : null}
 
@@ -204,8 +188,14 @@ export default function WorkspaceChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const {
+    error: streamError,
+    isStreaming,
+    sendStreamingMessage,
+    stage: streamStage,
+    stopStreaming,
+  } = useChatStream();
 
   const handleAuthError = useCallback(
     (requestError: unknown) => {
@@ -301,17 +291,35 @@ export default function WorkspaceChatPage() {
   }
 
   function handleNewChat() {
+    if (isStreaming) {
+      stopStreaming();
+    }
     setConversationId(null);
     setMessages([]);
     setQuestion("");
     setError(null);
   }
 
+  function handleStopStreaming() {
+    stopStreaming();
+    setMessages((current) =>
+      current.map((message) =>
+        message.isPending
+          ? {
+              ...message,
+              isPending: false,
+              streamStatus: "Stopped",
+            }
+          : message,
+      ),
+    );
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const normalizedQuestion = question.trim();
-    if (!normalizedQuestion || isSending || documents.length === 0) {
+    if (!normalizedQuestion || isStreaming || documents.length === 0) {
       return;
     }
 
@@ -327,30 +335,122 @@ export default function WorkspaceChatPage() {
       content: "",
       citations: [],
       isPending: true,
+      streamStatus: "Starting...",
     };
+    let assistantMessageKey = pendingMessage.id;
+
+    function updateAssistantMessage(
+      updater: (message: ChatMessage) => ChatMessage,
+    ) {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessageKey ? updater(message) : message,
+        ),
+      );
+    }
 
     setMessages((current) => [...current, userMessage, pendingMessage]);
     setQuestion("");
     setError(null);
-    setIsSending(true);
 
     try {
-      const response = await queryWorkspaceChat(workspaceId, {
+      await sendStreamingMessage({
+        workspaceId,
         question: normalizedQuestion,
-        conversation_id: conversationId,
+        conversationId,
+        retrievalStrategy: "hybrid",
+        onStart: (data) => {
+          setConversationId(data.conversation_id);
+          updateAssistantMessage((message) => ({
+            ...message,
+            streamStatus: "Preparing trace...",
+          }));
+        },
+        onTrace: (_trace, label) => {
+          updateAssistantMessage((message) => ({
+            ...message,
+            streamStatus: label,
+          }));
+        },
+        onToken: (text) => {
+          updateAssistantMessage((message) => ({
+            ...message,
+            content: `${message.content}${text}`,
+            streamStatus: "Generating answer...",
+          }));
+        },
+        onCitations: (citations) => {
+          updateAssistantMessage((message) => ({
+            ...message,
+            citations,
+          }));
+        },
+        onEvaluation: (evaluation) => {
+          updateAssistantMessage((message) => ({
+            ...message,
+            evaluation,
+          }));
+        },
+        onCorrection: (correction) => {
+          if (!correction.corrected || !correction.final_answer) {
+            return;
+          }
+
+          updateAssistantMessage((message) => ({
+            ...message,
+            content: correction.final_answer ?? message.content,
+            isCorrected: true,
+          }));
+        },
+        onMessage: (data) => {
+          const previousKey = assistantMessageKey;
+          assistantMessageKey = data.message_id;
+          setConversationId(data.conversation_id);
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === previousKey
+                ? {
+                    ...message,
+                    id: data.message_id,
+                    isPending: false,
+                    streamStatus: undefined,
+                  }
+                : message,
+            ),
+          );
+        },
+        onDone: () => {
+          updateAssistantMessage((message) => ({
+            ...message,
+            isPending: false,
+            streamStatus: undefined,
+          }));
+        },
+        onError: (message) => {
+          setError(message);
+        },
+        onFallbackResponse: (response) => {
+          const previousKey = assistantMessageKey;
+          assistantMessageKey = response.message_id;
+          setConversationId(response.conversation_id);
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === previousKey
+                ? {
+                    ...message,
+                    id: response.message_id,
+                    content: response.answer,
+                    citations: response.citations,
+                    evaluation: response.evaluation,
+                    isPending: false,
+                    streamStatus: undefined,
+                  }
+                : message,
+            ),
+          );
+        },
       });
 
-      setConversationId(response.conversation_id);
-      setMessages((current) => [
-        ...current.filter((message) => message.id !== pendingMessage.id),
-        {
-          id: response.message_id,
-          role: "assistant",
-          content: response.answer,
-          citations: response.citations,
-          evaluation: response.evaluation,
-        },
-      ]);
       await refreshConversations();
     } catch (requestError) {
       if (handleAuthError(requestError)) {
@@ -358,11 +458,12 @@ export default function WorkspaceChatPage() {
       }
 
       setMessages((current) =>
-        current.filter((message) => message.id !== pendingMessage.id),
+        current.filter(
+          (message) =>
+            message.id !== pendingMessage.id && message.id !== assistantMessageKey,
+        ),
       );
       setError(errorMessage(requestError, "Unable to send message."));
-    } finally {
-      setIsSending(false);
     }
   }
 
@@ -372,9 +473,9 @@ export default function WorkspaceChatPage() {
   if (isBusy) {
     return (
       <DashboardShell activeItem="chat" title="Chat" workspaceId={workspaceId}>
-        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <LoadingState label="Loading chat" />
-        </section>
+        <Card>
+          <LoadingSkeleton label="Loading chat" rows={3} />
+        </Card>
       </DashboardShell>
     );
   }
@@ -391,25 +492,24 @@ export default function WorkspaceChatPage() {
       workspaceId={workspaceId}
     >
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-md border border-slate-200 bg-white p-4 shadow-sm lg:h-fit">
+        <Card className="p-4 lg:h-fit">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-slate-950">
               Conversations
             </h2>
-            <button
+            <Button
               type="button"
               onClick={handleNewChat}
-              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              size="sm"
+              variant="secondary"
             >
               New
-            </button>
+            </Button>
           </div>
 
           <div className="mt-4 grid gap-2">
             {conversations.length === 0 ? (
-              <p className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600">
-                No conversations yet.
-              </p>
+              <EmptyState title="No conversations yet" />
             ) : (
               conversations.map((conversation) => (
                 <button
@@ -438,11 +538,11 @@ export default function WorkspaceChatPage() {
               ))
             )}
           </div>
-        </aside>
+        </Card>
 
-        <section className="min-h-[680px] rounded-md border border-slate-200 bg-slate-100 shadow-sm">
-          <div className="flex min-h-[680px] flex-col">
-            <div className="border-b border-slate-200 bg-white px-5 py-4">
+        <section className="min-h-[70dvh] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-sm lg:min-h-[680px]">
+          <div className="flex min-h-[70dvh] flex-col lg:min-h-[680px]">
+            <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-slate-950">
@@ -456,7 +556,7 @@ export default function WorkspaceChatPage() {
                 </div>
                 <Link
                   href={`/workspaces/${workspaceId}/documents`}
-                  className="h-9 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
                 >
                   Documents
                 </Link>
@@ -475,29 +575,37 @@ export default function WorkspaceChatPage() {
               </div>
             ) : null}
 
+            {streamError && !error ? (
+              <div className="px-5 pt-5">
+                <ErrorMessage message={streamError} />
+              </div>
+            ) : null}
+
             {!hasDocuments ? (
               <div className="flex flex-1 items-center justify-center px-5">
-                <div className="max-w-md rounded-md border border-dashed border-slate-300 bg-white p-6 text-center shadow-sm">
-                  <h3 className="text-base font-semibold text-slate-950">
-                    Upload documents before asking questions.
-                  </h3>
-                  <Link
-                    href={`/workspaces/${workspaceId}/documents`}
-                    className="mt-4 inline-flex h-10 items-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white hover:bg-slate-800"
-                  >
-                    Upload documents
-                  </Link>
-                </div>
+                <EmptyState
+                  title="Upload documents before asking questions"
+                  description="The chat workspace needs indexed documents before retrieval can run."
+                  action={
+                    <Link
+                      href={`/workspaces/${workspaceId}/documents`}
+                      className="inline-flex h-10 items-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      Upload documents
+                    </Link>
+                  }
+                />
               </div>
             ) : (
               <>
-                <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
                   {isLoadingConversation ? (
-                    <LoadingState label="Loading conversation" />
+                    <LoadingSkeleton label="Loading conversation" rows={3} />
                   ) : messages.length === 0 ? (
-                    <div className="rounded-md border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-                      Ask a question to start a conversation.
-                    </div>
+                    <EmptyState
+                      title="Ask a question to start a conversation"
+                      description="Streaming answers, citations, and evaluation metrics will appear here."
+                    />
                   ) : (
                     <div className="grid gap-4">
                       {messages.map((message) => (
@@ -510,25 +618,43 @@ export default function WorkspaceChatPage() {
 
                 <form
                   onSubmit={handleSubmit}
-                  className="border-t border-slate-200 bg-white p-4"
+                  className="border-t border-slate-200 bg-white p-3 sm:p-4"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <textarea
+                  <div className="flex flex-col gap-3 lg:flex-row">
+                    <Textarea
                       value={question}
                       onChange={(event) => setQuestion(event.target.value)}
-                      disabled={isSending}
+                      disabled={isStreaming}
                       rows={3}
                       placeholder="Ask a question"
-                      className="min-h-[92px] flex-1 resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-50"
+                      containerClassName="flex-1"
+                      className="min-h-[92px] resize-none"
                     />
-                    <button
-                      type="submit"
-                      disabled={isSending || !question.trim()}
-                      className="h-11 rounded-md bg-slate-950 px-5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:self-end"
-                    >
-                      {isSending ? "Sending..." : "Send"}
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row lg:self-end">
+                      {isStreaming ? (
+                        <Button
+                          type="button"
+                          onClick={handleStopStreaming}
+                          size="lg"
+                          variant="secondary"
+                        >
+                          Stop
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="submit"
+                        disabled={isStreaming || !question.trim()}
+                        size="lg"
+                      >
+                        {isStreaming ? "Sending..." : "Send"}
+                      </Button>
+                    </div>
                   </div>
+                  {isStreaming || streamStage ? (
+                    <p className="mt-2 text-xs font-medium text-slate-500">
+                      {streamStage ?? "Generating answer..."}
+                    </p>
+                  ) : null}
                 </form>
               </>
             )}

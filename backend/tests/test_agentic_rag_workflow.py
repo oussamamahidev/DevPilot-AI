@@ -201,6 +201,38 @@ async def test_corrector_refuses_unrelated_question_with_weak_context() -> None:
 
 
 @pytest.mark.asyncio
+async def test_corrector_replaces_false_refusal_when_context_matches_question() -> None:
+    result = await CorrectorAgent().run(
+        question="What technologies does DevPilot AI use?",
+        answer="I could not find this information in the uploaded documents.",
+        evaluation={
+            "faithfulness": 0.8,
+            "relevance": 0.1,
+            "context_precision": 1.0,
+            "hallucination_score": 0.05,
+            "explanation": "The model refused.",
+        },
+        contexts=[
+            {
+                "filename": "project-stack.txt",
+                "chunk_index": 0,
+                "content": (
+                    "DevPilot AI uses FastAPI, PostgreSQL, Redis, Celery, "
+                    "Qdrant, Ollama embeddings, and Gemini generation."
+                ),
+                "score": 0.75,
+            }
+        ],
+    )
+
+    assert result["correction_applied"] is True
+    assert "FastAPI" in result["answer"]
+    assert "Qdrant" in result["answer"]
+    assert "[1]" in result["answer"]
+    assert "refusal" in result["reason"]
+
+
+@pytest.mark.asyncio
 async def test_workflow_does_not_replace_valid_technology_answer_on_low_relevance() -> None:
     async def fake_retriever(**kwargs: object) -> list[dict[str, object]]:
         assert kwargs["query"] == "What technologies does DevPilot AI use?"
@@ -266,6 +298,66 @@ async def test_workflow_does_not_replace_valid_technology_answer_on_low_relevanc
     assert "Qdrant" in result.final_answer
     assert result.correction_applied is False
     assert result.evaluation["hallucination_score"] == 0.05
+
+
+@pytest.mark.asyncio
+async def test_workflow_respects_explicit_retrieval_strategy_override() -> None:
+    async def fake_retriever(**kwargs: object) -> list[dict[str, object]]:
+        assert kwargs["strategy"] == "keyword"
+        return [
+            {
+                "chunk_id": uuid4(),
+                "document_id": uuid4(),
+                "filename": "phase13.txt",
+                "content": TECH_CONTEXT,
+                "chunk_index": 0,
+                "score": 0.91,
+                "metadata": {},
+            }
+        ]
+
+    class FakeLLMProvider:
+        async def generate(self, prompt: str, system_prompt: str) -> LLMResponse:
+            assert "FastAPI, PostgreSQL, Redis, Celery, Ollama, and Qdrant" in prompt
+            assert "private-document assistant" in system_prompt
+            return LLMResponse(
+                content=TECH_ANSWER,
+                model="test-model",
+                prompt_tokens=10,
+                completion_tokens=12,
+                total_tokens=22,
+                latency_ms=50,
+            )
+
+    async def fake_evaluator(**kwargs: object) -> dict[str, object]:
+        assert kwargs["answer"] == TECH_ANSWER
+        return {
+            "faithfulness": 0.85,
+            "relevance": 0.8,
+            "context_precision": 1.0,
+            "hallucination_score": 0.05,
+            "explanation": "Grounded answer.",
+        }
+
+    async def fake_reranker(**kwargs: object) -> list[dict[str, object]]:
+        return list(kwargs["contexts"])  # type: ignore[arg-type]
+
+    workflow = AgenticRAGWorkflow(
+        retriever=fake_retriever,
+        reranker=fake_reranker,
+        llm_provider_factory=lambda: FakeLLMProvider(),
+        evaluator=fake_evaluator,
+    )
+
+    result = await workflow.run(
+        db=None,
+        workspace_id=uuid4(),
+        question="What technologies does DevPilot AI use?",
+        retrieval_strategy="keyword",
+    )
+
+    assert result.retrieval_strategy == "keyword"
+    assert result.final_answer == TECH_ANSWER
 
 
 @pytest.mark.asyncio

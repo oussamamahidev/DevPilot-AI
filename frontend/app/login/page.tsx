@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ApiRequestError } from "@/lib/api";
+import { ApiRequestError } from "@/lib/api-client";
 import { Navbar } from "@/components/Navbar";
-import { useAuth } from "@/contexts/AuthContext";
+import { Button, Card, ErrorState, Input } from "@/components/ui";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function LoginPage() {
     <main className="min-h-screen bg-slate-50">
       <Navbar />
       <section className="mx-auto max-w-xl px-6 py-10">
-        <div className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+        <Card className="p-6">
           <p className="text-sm font-medium text-emerald-700">Login</p>
           <h1 className="mt-3 text-2xl font-semibold text-slate-950">
             Sign in to DevPilot AI
@@ -62,43 +63,29 @@ export default function LoginPage() {
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Email
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                autoComplete="email"
-                required
-                className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
+            <Input
+              autoComplete="email"
+              label="Email"
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              type="email"
+              value={email}
+            />
 
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Password
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                autoComplete="current-password"
-                required
-                className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
+            <Input
+              autoComplete="current-password"
+              label="Password"
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
 
-            {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {error}
-              </div>
-            ) : null}
+            <ErrorState message={error} title="Unable to sign in" />
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="h-11 rounded-md bg-slate-950 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
+            <Button type="submit" disabled={isSubmitting} isLoading={isSubmitting} size="lg">
               {isSubmitting ? "Signing in..." : "Sign in"}
-            </button>
+            </Button>
 
             <p className="text-sm text-slate-600">
               No account yet?{" "}
@@ -110,7 +97,7 @@ export default function LoginPage() {
               </Link>
             </p>
           </form>
-        </div>
+        </Card>
       </section>
     </main>
   );

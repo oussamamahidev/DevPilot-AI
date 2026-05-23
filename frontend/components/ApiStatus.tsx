@@ -2,7 +2,7 @@
 
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { LoadingState } from "@/components/LoadingState";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api-client";
 import { useApiStatus } from "@/hooks/useApiStatus";
 
 export function ApiStatus() {

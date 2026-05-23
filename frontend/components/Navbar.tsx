@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
+import { canAccessAdmin } from "@/lib/permissions";
 
 const protectedNavigationItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -10,10 +11,6 @@ const protectedNavigationItems = [
   { href: "/chat", label: "Chat" },
   { href: "/settings", label: "Settings" },
 ];
-
-function isAdminRole(role: string | undefined) {
-  return role === "admin" || role === "super_admin";
-}
 
 function roleBadgeClass(role: string) {
   if (role === "super_admin") {
@@ -33,12 +30,12 @@ export function Navbar() {
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <Link href="/" className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-950 text-sm font-semibold text-white">
             DP
           </span>
-          <span>
+          <span className="min-w-0">
             <span className="block text-sm font-semibold text-slate-950">
               DevPilot AI
             </span>
@@ -48,7 +45,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav className="flex flex-wrap items-center gap-1">
+        <nav className="flex w-full max-w-full items-center gap-1 overflow-x-auto pb-1 lg:w-auto lg:flex-wrap lg:overflow-visible lg:pb-0">
           {isLoading ? (
             <span className="rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500">
               Checking session...
@@ -61,29 +58,29 @@ export function Navbar() {
                   href={item.href}
                   className={
                     pathname === item.href || pathname?.startsWith(`${item.href}/`)
-                      ? "rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
-                      : "rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                      ? "shrink-0 rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
+                      : "shrink-0 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                   }
                 >
                   {item.label}
                 </Link>
               ))}
-              {isAdminRole(user.role) ? (
+              {canAccessAdmin(user) ? (
                 <Link
                   href="/admin"
                   className={
                     pathname === "/admin" || pathname?.startsWith("/admin/")
-                      ? "rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
-                      : "rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                      ? "shrink-0 rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
+                      : "shrink-0 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                   }
                 >
                   Admin
                 </Link>
               ) : null}
-              <span className="ml-0 flex max-w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 lg:ml-2">
-                <span className="max-w-40 truncate">{user.full_name || user.email}</span>
+              <span className="ml-0 flex max-w-[220px] shrink-0 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 sm:max-w-xs lg:ml-2">
+                <span className="min-w-0 max-w-32 truncate sm:max-w-40">{user.full_name || user.email}</span>
                 <span
-                  className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${roleBadgeClass(
+                  className={`inline-flex shrink-0 rounded-md border px-2 py-0.5 text-xs font-medium ${roleBadgeClass(
                     user.role,
                   )}`}
                 >
@@ -93,7 +90,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
                 Logout
               </button>
@@ -104,8 +101,8 @@ export function Navbar() {
                 href="/login"
                 className={
                   pathname === "/login"
-                    ? "rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
-                    : "rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                    ? "shrink-0 rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
+                    : "shrink-0 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                 }
               >
                 Login
@@ -114,8 +111,8 @@ export function Navbar() {
                 href="/register"
                 className={
                   pathname === "/register"
-                    ? "rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
-                    : "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    ? "shrink-0 rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
+                    : "shrink-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
                 }
               >
                 Register

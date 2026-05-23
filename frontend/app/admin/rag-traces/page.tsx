@@ -12,8 +12,8 @@ import {
   PaginationControls,
 } from "@/components/admin/AdminUI";
 import {
-  BarChartCard,
   chartPalette,
+  DonutChartCard,
   EmptyState,
   ErrorCard,
   FilterBar,
@@ -50,6 +50,7 @@ export default function RagTracesPage() {
   const [retrievalStrategy, setRetrievalStrategy] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
   const [minFaithfulness, setMinFaithfulness] = useState("");
+  const [maxHallucination, setMaxHallucination] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
@@ -60,8 +61,13 @@ export default function RagTracesPage() {
     () => ({
       date_from: dateFrom || undefined,
       date_to: dateTo || undefined,
-      max_hallucination_score:
-        riskFilter === "low" ? 0.3 : riskFilter === "medium" ? 0.6 : undefined,
+      max_hallucination_score: maxHallucination
+        ? Number(maxHallucination)
+        : riskFilter === "low"
+          ? 0.3
+          : riskFilter === "medium"
+            ? 0.6
+            : undefined,
       min_faithfulness: minFaithfulness ? Number(minFaithfulness) : undefined,
       page: page + 1,
       page_size: PAGE_SIZE,
@@ -69,7 +75,17 @@ export default function RagTracesPage() {
       search: search || undefined,
       workspace_id: workspaceId || undefined,
     }),
-    [dateFrom, dateTo, minFaithfulness, page, retrievalStrategy, riskFilter, search, workspaceId],
+    [
+      dateFrom,
+      dateTo,
+      maxHallucination,
+      minFaithfulness,
+      page,
+      retrievalStrategy,
+      riskFilter,
+      search,
+      workspaceId,
+    ],
   );
 
   const load = useCallback(async () => {
@@ -100,7 +116,16 @@ export default function RagTracesPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, workspaceId, retrievalStrategy, riskFilter, minFaithfulness, dateFrom, dateTo]);
+  }, [
+    search,
+    workspaceId,
+    retrievalStrategy,
+    riskFilter,
+    minFaithfulness,
+    maxHallucination,
+    dateFrom,
+    dateTo,
+  ]);
 
   if (isLoading) {
     return <AdminAccessMessage title="RAG Trace Explorer" label="Checking admin access." />;
@@ -224,6 +249,16 @@ export default function RagTracesPage() {
           className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
         />
         <input
+          value={maxHallucination}
+          onChange={(event) => setMaxHallucination(event.target.value)}
+          placeholder="Max hallucination"
+          type="number"
+          min="0"
+          max="1"
+          step="0.05"
+          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+        />
+        <input
           value={dateFrom}
           onChange={(event) => setDateFrom(event.target.value)}
           type="date"
@@ -250,11 +285,19 @@ export default function RagTracesPage() {
           }))}
           onPointClick={(messageId) => router.push(`/admin/rag-traces/${messageId}`)}
         />
-        <BarChartCard
+        <DonutChartCard
           title="Hallucination Risk Buckets"
-          data={riskBucketData(traces)}
-          xKey="risk"
-          bars={[{ key: "count", name: "Answers", color: chartPalette.red }]}
+          centerLabel="Risk"
+          data={riskBucketData(traces).map((bucket) => ({
+            color:
+              bucket.risk === "Low"
+                ? chartPalette.emerald
+                : bucket.risk === "Medium"
+                  ? chartPalette.amber
+                  : chartPalette.red,
+            name: bucket.risk,
+            value: bucket.count,
+          }))}
         />
       </div>
 
@@ -264,7 +307,7 @@ export default function RagTracesPage() {
           <span className="text-sm text-slate-500">{formatNumber(total)} traces</span>
         </div>
         {traces.length === 0 && !isFetching ? (
-          <EmptyState label="No RAG traces found for these filters." />
+          <EmptyState label="No traces available yet. Ask a question to generate traces." />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">

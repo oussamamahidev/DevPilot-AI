@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ApiRequestError, apiGet, apiPost } from "@/lib/api";
+import { ApiRequestError, apiGet, apiPost } from "@/lib/api-client";
 import {
   AUTH_TOKEN_CHANGED_EVENT,
   TOKEN_STORAGE_KEY,
@@ -17,11 +17,17 @@ import {
   removeToken,
   saveToken,
 } from "@/lib/auth";
+import { AUTHENTICATED_HOME_PATH, LOGIN_PATH, PROTECTED_PATH_PREFIXES } from "@/lib/constants";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 import type { TokenResponse, User } from "@/types";
 
 type LoginInput = {
   email: string;
   password: string;
+};
+
+type RegisterInput = LoginInput & {
+  full_name: string;
 };
 
 type AuthContextValue = {
@@ -30,6 +36,7 @@ type AuthContextValue = {
   isLoading: boolean;
   login: (input: LoginInput) => Promise<User>;
   logout: () => void;
+  register: (input: RegisterInput) => Promise<User>;
   refreshUser: () => Promise<User | null>;
   user: User | null;
 };
@@ -37,11 +44,10 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getAuthErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Unable to verify authentication. Check that the API is running.";
+  return getFriendlyErrorMessage(
+    error,
+    "Unable to verify authentication. Check that the API is running.",
+  );
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -87,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
-      setUser(null);
       setError(getAuthErrorMessage(requestError));
       return null;
     } finally {
@@ -119,10 +124,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refreshUser],
   );
 
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        await apiPost<User>("/api/v1/auth/register", input, {
+          token: null,
+        });
+        return await login({
+          email: input.email,
+          password: input.password,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [login],
+  );
+
   const logout = useCallback(() => {
     clearAuth();
-    router.replace("/login");
+    router.replace(LOGIN_PATH);
   }, [clearAuth, router]);
+
+  useEffect(() => {
+    if (
+      !isLoading &&
+      user &&
+      (pathname === LOGIN_PATH || pathname === "/register" || pathname === "/auth")
+    ) {
+      router.replace(AUTHENTICATED_HOME_PATH);
+    }
+  }, [isLoading, pathname, router, user]);
 
   useEffect(() => {
     void refreshUser();
@@ -139,14 +174,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         setIsLoading(false);
 
-        if (
-          pathname?.startsWith("/dashboard") ||
-          pathname?.startsWith("/documents") ||
-          pathname?.startsWith("/chat") ||
-          pathname?.startsWith("/settings") ||
-          pathname?.startsWith("/admin")
-        ) {
-          router.replace("/login");
+        if (pathname && PROTECTED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+          router.replace(LOGIN_PATH);
         }
 
         return;
@@ -175,10 +204,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       login,
       logout,
+      register,
       refreshUser,
       user,
     }),
-    [error, isLoading, login, logout, refreshUser, user],
+    [error, isLoading, login, logout, refreshUser, register, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

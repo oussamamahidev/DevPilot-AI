@@ -11,7 +11,7 @@ import {
   PaginationControls,
   Toolbar,
 } from "@/components/admin/AdminUI";
-import { LoadingState } from "@/components/LoadingState";
+import { EmptyState, LoadingSkeleton } from "@/components/ui";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { listAdminWorkspaces } from "@/lib/admin";
 import type { AdminWorkspaceSummary } from "@/types";
@@ -70,24 +70,30 @@ export default function AdminWorkspacesPage() {
 
   return (
     <AdminShell title="Workspaces" description="Inspect tenant workspaces and ownership.">
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error} onRetry={() => void load()} />
       <Toolbar search={search} setSearch={setSearch} />
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-950">Workspace Directory</h2>
           <span className="text-sm text-slate-500">{formatNumber(filtered.length)} workspaces</span>
         </div>
-        {isFetching ? <LoadingState label="Loading workspaces" /> : null}
-        <div className="overflow-x-auto">
+        {isFetching ? <LoadingSkeleton label="Loading workspaces" rows={4} /> : null}
+        {!isFetching && visible.length === 0 ? (
+          <EmptyState
+            title="No workspaces found"
+            description="Try changing the workspace or owner search term."
+          />
+        ) : (
+        <div className="overflow-x-auto rounded-md border border-slate-200">
           <table className="min-w-full text-left text-sm">
-            <thead className="text-xs uppercase text-slate-500">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Workspace</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Owner</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Members</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">Owner email</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Documents</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Updated</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">Members</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">Created</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -103,18 +109,18 @@ export default function AdminWorkspacesPage() {
                     {workspace.owner_email}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-slate-700">
-                    {formatNumber(workspace.member_count)}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
                     {formatNumber(workspace.document_count)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-500">
-                    {formatDate(workspace.updated_at)}
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                    {formatNumber(workspace.member_count)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3">
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                    {formatDate(workspace.created_at)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
                     <Link
                       href={`/admin/workspaces/${workspace.id}`}
-                      className="text-sm font-medium text-slate-950 underline-offset-4 hover:underline"
+                      className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
                     >
                       View
                     </Link>
@@ -124,6 +130,7 @@ export default function AdminWorkspacesPage() {
             </tbody>
           </table>
         </div>
+        )}
         <PaginationControls
           page={page}
           setPage={setPage}
