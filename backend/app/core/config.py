@@ -218,5 +218,6 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     return Settings()
 
-
+def get_safe_log_context() -> dict[str, Any]:
+    return get_settings().safe_log_context()
 settings = get_settings()
