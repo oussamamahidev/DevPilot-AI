@@ -181,8 +181,8 @@ export default function AdminUsersPage() {
         </select>
       </Toolbar>
 
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-slate-950">User Directory</h2>
           <span className="text-sm text-slate-500">
             {formatNumber(filteredUsers.length)} users
@@ -197,8 +197,8 @@ export default function AdminUsersPage() {
             description="Try changing the search, role, or status filters."
           />
         ) : (
-        <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="min-w-full text-left text-sm">
+        <div className="admin-table-scroll">
+          <table className="admin-table">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">User</th>
@@ -213,8 +213,8 @@ export default function AdminUsersPage() {
               {visibleUsers.map((user) => (
                 <tr key={user.id}>
                   <td className="px-3 py-3">
-                    <div className="font-medium text-slate-950">{user.full_name}</div>
-                    <div className="text-xs text-slate-500">{user.email}</div>
+                    <div className="break-words font-medium text-slate-950">{user.full_name}</div>
+                    <div className="break-all text-xs text-slate-500">{user.email}</div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <RoleBadge role={user.role} />

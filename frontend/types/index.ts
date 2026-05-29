@@ -11,6 +11,21 @@ export type DashboardMetric = {
   detail: string;
 };
 
+export type OperationalServiceHealth = {
+  id: string;
+  label: string;
+  status: "healthy" | "degraded" | "down" | string;
+  detail: string;
+  latency_ms: number | null;
+  metadata: Record<string, unknown>;
+};
+
+export type OperationalHealthResponse = {
+  generated_at: string;
+  status: "healthy" | "degraded" | "down" | string;
+  services: OperationalServiceHealth[];
+};
+
 export type User = {
   id: string;
   email: string;

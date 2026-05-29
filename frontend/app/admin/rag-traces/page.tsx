@@ -150,7 +150,7 @@ export default function RagTracesPage() {
       />
       <ErrorCard message={error} onRetry={() => void load()} />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total RAG Queries"
           value={formatNumber(summary?.total_rag_queries ?? total)}
@@ -274,7 +274,7 @@ export default function RagTracesPage() {
 
       {isFetching && !data ? <LoadingSkeleton rows={4} /> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-2">
         <QualityScatterChart
           data={traces.map((trace) => ({
             faithfulness: trace.faithfulness,
@@ -301,16 +301,16 @@ export default function RagTracesPage() {
         />
       </div>
 
-      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="mt-6 min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-base font-semibold text-slate-950">Trace Table</h3>
           <span className="text-sm text-slate-500">{formatNumber(total)} traces</span>
         </div>
         {traces.length === 0 && !isFetching ? (
           <EmptyState label="No traces available yet. Ask a question to generate traces." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+          <div className="admin-table-scroll">
+            <table className="admin-table">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>

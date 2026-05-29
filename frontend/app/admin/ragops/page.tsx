@@ -83,7 +83,7 @@ export default function RagOpsPage() {
       {isFetching && workspaces.length === 0 ? <LoadingSkeleton rows={4} /> : null}
 
       <div className="grid gap-6">
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Healthy Workspaces"
             value={formatNumber(summary.healthy)}
@@ -129,7 +129,7 @@ export default function RagOpsPage() {
           />
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge
@@ -192,8 +192,8 @@ export default function RagOpsPage() {
           ]}
         />
 
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-base font-semibold text-slate-950">Workspace Readiness</h3>
             <span className="text-sm text-slate-500">
               {formatNumber(workspaces.length)} workspaces
@@ -202,8 +202,8 @@ export default function RagOpsPage() {
           {workspaces.length === 0 && !isFetching ? (
             <EmptyState label="No workspaces found." />
           ) : (
-            <div className="overflow-x-auto rounded-md border border-slate-200">
-              <table className="min-w-full text-left text-sm">
+            <div className="admin-table-scroll">
+              <table className="admin-table">
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Workspace</th>
@@ -232,7 +232,7 @@ export default function RagOpsPage() {
                         <td className="whitespace-nowrap px-3 py-3 text-slate-700">
                           {workspace.owner_email}
                         </td>
-                        <td className="min-w-44 px-3 py-3">
+                        <td className="px-3 py-3">
                           <div className="mb-2 flex items-center justify-between text-xs">
                             <span className="text-slate-500">score</span>
                             <span className="font-semibold text-slate-950">{score}/100</span>
@@ -242,7 +242,7 @@ export default function RagOpsPage() {
                             tone={score >= 85 ? "success" : score >= 60 ? "warning" : "critical"}
                           />
                         </td>
-                        <td className="min-w-44 px-3 py-3">
+                        <td className="px-3 py-3">
                           <div className="mb-2 flex items-center justify-between text-xs">
                             <span className="text-slate-500">vectors</span>
                             <span className="font-semibold text-slate-950">

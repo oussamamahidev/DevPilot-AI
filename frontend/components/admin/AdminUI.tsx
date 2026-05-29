@@ -149,14 +149,16 @@ export function Toolbar({
   setSearch: (value: string) => void;
 }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+    <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
       <Input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search"
-        containerClassName="md:max-w-sm"
+        containerClassName="w-full md:max-w-sm"
       />
-      <div className="flex w-full flex-wrap gap-2 md:w-auto">{children}</div>
+      <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:w-auto md:flex-wrap [&>*]:min-w-0 [&>*]:max-w-full">
+        {children}
+      </div>
     </div>
   );
 }

@@ -14,7 +14,7 @@ export function Card({ children, className = "", ...props }: CardProps) {
   return (
     <section
       {...props}
-      className={`min-w-0 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}
+      className={`min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}
     >
       {children}
     </section>

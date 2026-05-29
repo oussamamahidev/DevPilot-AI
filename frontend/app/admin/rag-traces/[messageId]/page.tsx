@@ -149,8 +149,8 @@ export default function RagTraceDetailPage() {
 
       {trace ? (
         <div className="grid gap-6">
-          <section className="sticky top-2 z-10 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+          <section className="sticky top-2 z-10 min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <SummaryItem label="Message" value={shortenId(trace.message_id)} />
               <SummaryItem label="Workspace" value={trace.workspace.name} />
               <SummaryItem label="User" value={trace.user.email ?? "Unknown"} />
@@ -258,7 +258,7 @@ export default function RagTraceDetailPage() {
             />
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <EvaluationRadarChart
               faithfulness={metric(evaluation?.faithfulness, trace.evaluation.faithfulness)}
               relevance={metric(evaluation?.relevance, trace.evaluation.relevance)}
@@ -267,7 +267,7 @@ export default function RagTraceDetailPage() {
               retrievalCoverage={trace.evaluation.context_precision}
               title="Evaluation Radar"
             />
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-base font-semibold text-slate-950">Evaluation Explanation</h3>
               <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                 {evaluation?.explanation ?? trace.evaluation.explanation}
@@ -370,10 +370,10 @@ export default function RagTraceDetailPage() {
           <RerankingComparisonChart items={reranking?.items ?? []} />
 
           {reranking && reranking.items.length > 0 ? (
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-base font-semibold text-slate-950">Reranking Detail</h3>
-              <div className="mt-4 overflow-x-auto rounded-md border border-slate-200">
-                <table className="min-w-full text-left text-sm">
+              <div className="admin-table-scroll mt-4">
+                <table className="admin-table">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="whitespace-nowrap px-3 py-3 font-medium">Original rank</th>

@@ -1,4 +1,9 @@
+import asyncio
+from datetime import UTC, datetime
+from time import perf_counter
+
 import httpx
+import redis.asyncio as redis
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
@@ -6,6 +11,7 @@ from app.core.config import settings
 from app.core.exceptions import AppException
 from app.services.ai.ollama import list_ollama_models
 from app.services.vector_store_service import VectorStoreError, get_collection_status
+from app.workers.celery_app import celery_app
 
 
 router = APIRouter(prefix="/system", tags=["system"])
@@ -124,5 +130,136 @@ async def get_vector_health() -> dict[str, object]:
         ) from exc
 
 
+@router.get("/ops-health")
+async def get_ops_health() -> dict[str, object]:
+    redis_health, celery_health, vector_health = await asyncio.gather(
+        _check_redis_health(),
+        _check_celery_health(),
+        _check_qdrant_health(),
+    )
+    services = [
+        _service_health(
+            service_id="api",
+            label="API",
+            status_value="healthy",
+            detail="FastAPI is responding.",
+        ),
+        redis_health,
+        celery_health,
+        vector_health,
+    ]
+    degraded_count = sum(1 for service in services if service["status"] == "degraded")
+    down_count = sum(1 for service in services if service["status"] == "down")
+    overall_status = "down" if down_count else "degraded" if degraded_count else "healthy"
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "status": overall_status,
+        "services": services,
+    }
+
+
 def _model_is_available(model_name: str, available_models: list[str]) -> bool:
     return model_name in available_models or f"{model_name}:latest" in available_models
+
+
+def _service_health(
+    *,
+    service_id: str,
+    label: str,
+    status_value: str,
+    detail: str,
+    latency_ms: float | None = None,
+    metadata: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return {
+        "id": service_id,
+        "label": label,
+        "status": status_value,
+        "detail": detail,
+        "latency_ms": latency_ms,
+        "metadata": metadata or {},
+    }
+
+
+async def _check_redis_health() -> dict[str, object]:
+    started_at = perf_counter()
+    client = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1)
+    try:
+        pong = await client.ping()
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
+        return _service_health(
+            service_id="redis",
+            label="Redis",
+            status_value="healthy" if pong else "degraded",
+            detail="Redis accepted a ping." if pong else "Redis ping returned an unexpected value.",
+            latency_ms=latency_ms,
+        )
+    except Exception as exc:
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
+        return _service_health(
+            service_id="redis",
+            label="Redis",
+            status_value="down",
+            detail=str(exc),
+            latency_ms=latency_ms,
+        )
+    finally:
+        await client.aclose()
+
+
+async def _check_celery_health() -> dict[str, object]:
+    started_at = perf_counter()
+    try:
+        stats = await asyncio.to_thread(
+            lambda: celery_app.control.inspect(timeout=1.0).stats() or {},
+        )
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
+        worker_count = len(stats)
+        return _service_health(
+            service_id="celery",
+            label="Celery",
+            status_value="healthy" if worker_count > 0 else "degraded",
+            detail=(
+                f"{worker_count} worker{'s' if worker_count != 1 else ''} reporting."
+                if worker_count > 0
+                else "Broker reachable, but no Celery workers reported stats."
+            ),
+            latency_ms=latency_ms,
+            metadata={"workers": worker_count},
+        )
+    except Exception as exc:
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
+        return _service_health(
+            service_id="celery",
+            label="Celery",
+            status_value="down",
+            detail=str(exc),
+            latency_ms=latency_ms,
+        )
+
+
+async def _check_qdrant_health() -> dict[str, object]:
+    started_at = perf_counter()
+    try:
+        collection = await get_collection_status()
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
+        collection_status = str(collection.get("status") or "unknown")
+        exists = bool(collection.get("exists", True))
+        is_healthy = exists and collection_status.lower() not in {"red", "missing", "error"}
+        return _service_health(
+            service_id="qdrant",
+            label="Qdrant",
+            status_value="healthy" if is_healthy else "degraded",
+            detail=f"Collection status: {collection_status}.",
+            latency_ms=latency_ms,
+            metadata=collection,
+        )
+    except Exception as exc:
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
+        return _service_health(
+            service_id="qdrant",
+            label="Qdrant",
+            status_value="down",
+            detail=str(exc),
+            latency_ms=latency_ms,
+        )

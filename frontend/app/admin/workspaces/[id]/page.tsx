@@ -82,9 +82,9 @@ export default function AdminWorkspaceDetailPage() {
 
       {workspace ? (
         <div className="grid gap-6">
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-xl font-semibold text-slate-950">{workspace.name}</h2>
                 <p className="mt-1 text-sm text-slate-600">{workspace.description ?? "No description"}</p>
                 <p className="mt-2 text-sm text-slate-500">Owner: {workspace.owner_email}</p>
@@ -105,7 +105,7 @@ export default function AdminWorkspaceDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold text-slate-950">Document Status</h2>
             <div className="mt-5 flex flex-wrap gap-2">
               {Object.entries(workspace.documents_by_status).map(([status, count]) => (
@@ -117,7 +117,7 @@ export default function AdminWorkspaceDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-slate-950">Members</h2>
               <span className="text-sm text-slate-500">
@@ -129,8 +129,8 @@ export default function AdminWorkspaceDetailPage() {
                 No members found.
               </p>
             ) : (
-              <div className="mt-5 overflow-x-auto rounded-md border border-slate-200">
-                <table className="min-w-full text-left text-sm">
+              <div className="admin-table-scroll mt-5">
+                <table className="admin-table">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="whitespace-nowrap px-3 py-2 font-medium">Member</th>
@@ -159,7 +159,7 @@ export default function AdminWorkspaceDetailPage() {
             )}
           </section>
 
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-slate-950">Documents</h2>
               <span className="text-sm text-slate-500">
@@ -171,8 +171,8 @@ export default function AdminWorkspaceDetailPage() {
                 No documents found.
               </p>
             ) : (
-              <div className="mt-5 overflow-x-auto rounded-md border border-slate-200">
-                <table className="min-w-full text-left text-sm">
+              <div className="admin-table-scroll mt-5">
+                <table className="admin-table">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="whitespace-nowrap px-3 py-2 font-medium">Filename</th>
@@ -185,7 +185,7 @@ export default function AdminWorkspaceDetailPage() {
                   <tbody className="divide-y divide-slate-100">
                     {workspace.documents.map((document) => (
                       <tr key={document.id}>
-                        <td className="max-w-md truncate px-3 py-3 font-medium text-slate-950">
+                        <td className="px-3 py-3 font-medium text-slate-950">
                           {document.filename}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3">
@@ -213,7 +213,7 @@ export default function AdminWorkspaceDetailPage() {
             )}
           </section>
 
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold text-slate-950">Lifecycle</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Info label="Created" value={formatDate(workspace.created_at)} />

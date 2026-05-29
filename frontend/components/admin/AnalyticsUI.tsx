@@ -231,7 +231,7 @@ export function PageHeader({
   title: string;
 }) {
   return (
-    <section className="mb-6 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
+    <section className="mb-6 min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
@@ -242,7 +242,7 @@ export function PageHeader({
           </h2>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{subtitle}</p>
         </div>
-        {actions ? <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0">{actions}</div> : null}
+        {actions ? <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0">{actions}</div> : null}
       </div>
     </section>
   );
@@ -260,7 +260,7 @@ export function RefreshButton({
       type="button"
       onClick={onClick}
       disabled={isFetching}
-      className="h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+      className="h-10 max-w-full rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
     >
       {isFetching ? "Refreshing..." : "Refresh"}
     </button>
@@ -279,7 +279,7 @@ export function StatusBadge({
   const resolvedTone = tone ?? getStatusTone(status);
   return (
     <span
-      className={`inline-flex max-w-full items-center rounded-md border px-2 py-1 text-xs font-medium capitalize ${toneClasses[resolvedTone]}`}
+      className={`inline-flex max-w-full items-center overflow-hidden rounded-md border px-2 py-1 text-xs font-medium capitalize ${toneClasses[resolvedTone]}`}
     >
       <span className="truncate">{label ?? status ?? "unknown"}</span>
     </span>
@@ -384,17 +384,17 @@ export function StatCard({
   value: string;
 }) {
   const content = (
-    <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
+    <section className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <p className="min-w-0 break-words text-sm font-medium text-slate-500">{label}</p>
         {badge ? <StatusBadge label={badge} tone={tone} /> : null}
       </div>
       <p className="mt-3 break-words text-2xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-2 text-sm leading-5 text-slate-600">{description}</p>
+      <p className="mt-2 break-words text-sm leading-5 text-slate-600">{description}</p>
       {progress !== undefined ? (
         <ProgressBar value={progress} tone={tone} className="mt-4" />
       ) : null}
-      {trend ? <p className="mt-3 text-xs font-medium text-slate-500">{trend}</p> : null}
+      {trend ? <p className="mt-3 break-words text-xs font-medium text-slate-500">{trend}</p> : null}
     </section>
   );
 
@@ -402,7 +402,7 @@ export function StatCard({
     return content;
   }
   return (
-    <Link href={href} className="block">
+    <Link href={href} className="block h-full min-w-0">
       {content}
     </Link>
   );
@@ -904,13 +904,13 @@ export function RerankingComparisonChart({ items }: { items: RagTraceRerankingIt
             {items.slice(0, 8).map((item) => (
               <div
                 key={`${item.chunk_id ?? item.filename}-${item.original_rank}-${item.final_rank}`}
-                className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm md:grid-cols-[80px_minmax(0,1fr)_80px]"
+                className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm md:grid-cols-4"
               >
                 <div>
                   <p className="text-xs font-medium uppercase text-slate-500">Original</p>
                   <p className="font-semibold text-slate-950">#{item.original_rank ?? "n/a"}</p>
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 md:col-span-2">
                   <p className="truncate font-medium text-slate-950">{item.filename}</p>
                   <p className="mt-1 text-xs text-slate-500">
                     {safePreview(item.content_preview, 120)}
@@ -972,7 +972,7 @@ export function PipelineStepper({ steps }: { steps: RagOpsPipelineStage[] }) {
   return (
     <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-base font-semibold text-slate-950">Document Pipeline</h3>
-      <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {steps.map((step) => (
           <TimelineStep key={step.name} step={step} />
         ))}
@@ -989,7 +989,7 @@ export function TraceFlowDiagram({
   return (
     <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-base font-semibold text-slate-950">Trace Flow</h3>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, index) => {
           const tone = getStatusTone(step.status);
           return (
@@ -1026,15 +1026,15 @@ export function AgentTimeline({ runs }: { runs: RagTraceAgentRun[] }) {
       ) : (
         <div className="mt-5 grid gap-4">
           {runs.map((run, index) => (
-            <article key={run.id} className="grid gap-4 md:grid-cols-[32px_minmax(0,1fr)]">
-              <div className="hidden md:grid md:justify-items-center">
+            <article key={run.id} className="flex min-w-0 gap-4">
+              <div className="hidden shrink-0 md:grid md:justify-items-center">
                 <span
                   className="mt-2 h-3 w-3 rounded-full"
                   style={{ backgroundColor: getStatusColor(run.status) }}
                 />
                 {index < runs.length - 1 ? <span className="mt-2 w-px bg-slate-200" /> : null}
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-semibold text-slate-950">{run.agent_type}</h4>
@@ -1117,7 +1117,9 @@ function formatPreviewValue(value: unknown): string {
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
     <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">{children}</div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0 [&>*]:max-w-full">
+        {children}
+      </div>
     </section>
   );
 }
@@ -1130,9 +1132,9 @@ export function DataTable({
   title?: string;
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       {title ? <h3 className="text-base font-semibold text-slate-950">{title}</h3> : null}
-      <div className={title ? "mt-4 overflow-x-auto" : "overflow-x-auto"}>{children}</div>
+      <div className={title ? "admin-table-scroll mt-4" : "admin-table-scroll"}>{children}</div>
     </section>
   );
 }

@@ -72,8 +72,8 @@ export default function AdminWorkspacesPage() {
     <AdminShell title="Workspaces" description="Inspect tenant workspaces and ownership.">
       <ErrorBanner message={error} onRetry={() => void load()} />
       <Toolbar search={search} setSearch={setSearch} />
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-slate-950">Workspace Directory</h2>
           <span className="text-sm text-slate-500">{formatNumber(filtered.length)} workspaces</span>
         </div>
@@ -84,8 +84,8 @@ export default function AdminWorkspacesPage() {
             description="Try changing the workspace or owner search term."
           />
         ) : (
-        <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="min-w-full text-left text-sm">
+        <div className="admin-table-scroll">
+          <table className="admin-table">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Workspace</th>
@@ -100,8 +100,8 @@ export default function AdminWorkspacesPage() {
               {visible.map((workspace) => (
                 <tr key={workspace.id}>
                   <td className="px-3 py-3">
-                    <div className="font-medium text-slate-950">{workspace.name}</div>
-                    <div className="max-w-sm truncate text-xs text-slate-500">
+                    <div className="break-words font-medium text-slate-950">{workspace.name}</div>
+                    <div className="break-words text-xs text-slate-500">
                       {workspace.description ?? "No description"}
                     </div>
                   </td>

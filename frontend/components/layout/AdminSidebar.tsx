@@ -9,6 +9,7 @@ export const adminNavigationItems = [
   { href: "/admin/rag-traces", id: "rag-traces", label: "RAG Traces" },
   { href: "/admin/quality", id: "quality", label: "Quality" },
   { href: "/admin/users", id: "users", label: "Users" },
+  { href: "/admin/settings", id: "settings", label: "Settings" },
   { href: "/admin/workspaces", id: "workspaces", label: "Workspaces" },
   { href: "/admin/documents", id: "documents", label: "Documents" },
   { href: "/admin/audit-logs", id: "audit-logs", label: "Audit Logs" },

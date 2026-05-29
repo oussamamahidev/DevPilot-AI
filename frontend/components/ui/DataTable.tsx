@@ -39,17 +39,17 @@ export function DataTable<TItem>({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+    <div className="admin-table-scroll bg-white shadow-sm">
+      <table className="admin-table">
+        <thead className="border-b border-slate-200">
           <tr>
             {columns.map((column) => (
               <th
                 key={column.key}
                 className={
                   column.align === "right"
-                    ? "whitespace-nowrap px-3 py-3 text-right font-medium"
-                    : "whitespace-nowrap px-3 py-3 font-medium"
+                    ? "text-right"
+                    : undefined
                 }
               >
                 {column.header}
@@ -75,8 +75,8 @@ export function DataTable<TItem>({
                     key={column.key}
                     className={
                       column.align === "right"
-                        ? "whitespace-nowrap px-3 py-3 text-right text-slate-700"
-                        : "px-3 py-3 text-slate-700"
+                        ? "text-right text-slate-700"
+                        : "text-slate-700"
                     }
                   >
                     {column.render(item)}

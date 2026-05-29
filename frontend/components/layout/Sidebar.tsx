@@ -15,7 +15,7 @@ export function Sidebar({ activeKey, items }: SidebarProps) {
   const activeItem = items.find((item) => item.key === activeKey) ?? items[0];
 
   return (
-    <aside className="min-w-0 rounded-md border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6 lg:h-fit">
+    <aside className="w-full min-w-0 rounded-md border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6 lg:h-fit">
       <details className="group lg:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white">
           <span className="truncate">{activeItem?.label ?? "Navigation"}</span>
@@ -45,8 +45,8 @@ export function Sidebar({ activeKey, items }: SidebarProps) {
             href={item.href}
             className={
               item.key === activeKey
-                ? "whitespace-nowrap rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
-                : "whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                ? "rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white"
+                : "rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
             }
           >
             <span className="block truncate">{item.label}</span>

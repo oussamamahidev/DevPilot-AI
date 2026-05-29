@@ -41,7 +41,7 @@ export function Button({
       {...props}
       type={type}
       disabled={disabled || isLoading}
-      className={`inline-flex items-center justify-center gap-2 rounded-md font-medium transition disabled:cursor-not-allowed ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
+      className={`inline-flex max-w-full items-center justify-center gap-2 rounded-md font-medium transition disabled:cursor-not-allowed ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
     >
       {isLoading ? (
         <span className="h-2 w-2 rounded-full bg-current motion-safe:animate-pulse" />

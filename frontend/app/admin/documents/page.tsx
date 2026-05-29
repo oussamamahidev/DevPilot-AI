@@ -124,8 +124,8 @@ export default function AdminDocumentsPage() {
         </select>
       </Toolbar>
 
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-slate-950">Document Directory</h2>
           <span className="text-sm text-slate-500">{formatNumber(filtered.length)} documents</span>
         </div>
@@ -136,8 +136,8 @@ export default function AdminDocumentsPage() {
             description="Try changing the filename, workspace, uploader, or status filter."
           />
         ) : (
-        <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="min-w-full text-left text-sm">
+        <div className="admin-table-scroll">
+          <table className="admin-table">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Filename</th>
@@ -154,7 +154,7 @@ export default function AdminDocumentsPage() {
               {visible.map((document) => (
                 <tr key={document.id}>
                   <td className="px-3 py-3">
-                    <div className="font-medium text-slate-950">{document.filename}</div>
+                    <div className="break-words font-medium text-slate-950">{document.filename}</div>
                     <div className="text-xs text-slate-500">
                       {formatBytes(document.file_size)} · {formatDate(document.created_at)}
                     </div>

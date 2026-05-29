@@ -30,7 +30,7 @@ export function Navbar() {
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-950 text-sm font-semibold text-white">
             DP
@@ -45,7 +45,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav className="flex w-full max-w-full items-center gap-1 overflow-x-auto pb-1 lg:w-auto lg:flex-wrap lg:overflow-visible lg:pb-0">
+        <nav className="flex w-full max-w-full flex-wrap items-center gap-1 lg:w-auto">
           {isLoading ? (
             <span className="rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500">
               Checking session...

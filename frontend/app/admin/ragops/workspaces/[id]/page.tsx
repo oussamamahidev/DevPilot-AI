@@ -91,7 +91,7 @@ export default function RagOpsWorkspacePage() {
 
       {detail ? (
         <div className="grid gap-6">
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Workspace Status"
               value={detail.summary.rag_health_status}
@@ -144,7 +144,7 @@ export default function RagOpsWorkspacePage() {
             />
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <HealthScoreGauge
               score={score}
               description={`This workspace is ${
@@ -189,7 +189,7 @@ export default function RagOpsWorkspacePage() {
             </section>
           </div>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Qdrant Sync Panel</h3>
@@ -212,7 +212,7 @@ export default function RagOpsWorkspacePage() {
                 }
               />
             </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <InfoTile
                 label="Expected vectors"
                 value={formatNumber(detail.qdrant_summary.expected_chunks_count)}
@@ -285,15 +285,15 @@ export default function RagOpsWorkspacePage() {
             bars={[{ key: "latency", name: "Latency ms", color: chartPalette.blue }]}
           />
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">Recent RAG Queries</h3>
             {detail.recent_rag_queries.length === 0 ? (
               <div className="mt-5">
                 <EmptyState label="No RAG queries found for this workspace." />
               </div>
             ) : (
-              <div className="mt-5 overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
+              <div className="admin-table-scroll mt-5">
+                <table className="admin-table">
                   <thead className="text-xs uppercase text-slate-500">
                     <tr>
                       <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
@@ -318,7 +318,7 @@ export default function RagOpsWorkspacePage() {
                         <td className="whitespace-nowrap px-3 py-3 text-slate-700">
                           {formatNumber(query.retrieved_chunks_count)}
                         </td>
-                        <td className="min-w-36 px-3 py-3">
+                        <td className="px-3 py-3">
                           <ProgressBar
                             value={query.faithfulness * 100}
                             tone={query.faithfulness >= 0.75 ? "success" : "warning"}
@@ -327,7 +327,7 @@ export default function RagOpsWorkspacePage() {
                             {formatDecimal(query.faithfulness, 2)}
                           </span>
                         </td>
-                        <td className="min-w-36 px-3 py-3">
+                        <td className="px-3 py-3">
                           <ProgressBar
                             value={query.relevance * 100}
                             tone={query.relevance >= 0.75 ? "success" : "warning"}

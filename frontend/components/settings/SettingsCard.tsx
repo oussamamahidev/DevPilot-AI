@@ -37,19 +37,19 @@ export function SettingsCard({
   return (
     <section
       className={[
-        "rounded-md border p-5 shadow-sm",
+        "min-w-0 overflow-hidden rounded-md border p-5 shadow-sm",
         toneClass,
         className ?? "",
       ].join(" ")}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-base font-semibold text-slate-950">{title}</h2>
           {description ? (
             <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
           ) : null}
         </div>
-        {action ? <div className="flex shrink-0 flex-wrap gap-2">{action}</div> : null}
+        {action ? <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto sm:shrink-0">{action}</div> : null}
       </div>
 
       <div className="mt-5">{children}</div>
@@ -114,9 +114,9 @@ export function StatusBadge({ children, tone = "slate" }: StatusBadgeProps) {
 
 export function FieldRow({ label, value }: FieldRowProps) {
   return (
-    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-[180px_1fr] sm:gap-4">
+    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-3 sm:gap-4">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="min-w-0 break-words font-medium text-slate-950">{value}</dd>
+      <dd className="min-w-0 break-words font-medium text-slate-950 sm:col-span-2">{value}</dd>
     </div>
   );
 }

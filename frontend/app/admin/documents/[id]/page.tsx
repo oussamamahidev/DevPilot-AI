@@ -82,9 +82,9 @@ export default function AdminDocumentDetailPage() {
 
       {document ? (
         <div className="grid gap-6">
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="min-w-0">
                 <h2 className="break-words text-xl font-semibold text-slate-950">
                   {document.filename}
                 </h2>
@@ -116,7 +116,7 @@ export default function AdminDocumentDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold text-slate-950">Vector Coverage</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Info
@@ -130,7 +130,7 @@ export default function AdminDocumentDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold text-slate-950">Lifecycle</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Info label="Created" value={formatDate(document.created_at)} />

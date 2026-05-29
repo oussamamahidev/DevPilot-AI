@@ -43,9 +43,11 @@ export function DashboardShell({
 
   return (
     <AppLayout>
-      <PageContainer className="grid min-w-0 gap-4 py-4 sm:gap-6 sm:py-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <Sidebar activeKey={activeItem} items={shellNavigation} />
-        <main className="w-full min-w-0">
+      <PageContainer className="flex min-w-0 flex-col gap-4 py-4 sm:gap-6 sm:py-6 lg:flex-row lg:items-start">
+        <div className="w-full min-w-0 lg:w-52 lg:shrink-0">
+          <Sidebar activeKey={activeItem} items={shellNavigation} />
+        </div>
+        <main className="w-full min-w-0 flex-1">
           <PageHeader title={title} description={description} />
           {children}
         </main>

@@ -16,7 +16,7 @@ type TabsProps = {
 export function Tabs({ activeId, items, onChange }: TabsProps) {
   return (
     <div className="border-b border-slate-200">
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex flex-wrap gap-2">
         {items.map((item) => (
           <button
             key={item.id}
@@ -24,8 +24,8 @@ export function Tabs({ activeId, items, onChange }: TabsProps) {
             onClick={() => onChange(item.id)}
             className={
               item.id === activeId
-                ? "whitespace-nowrap border-b-2 border-slate-950 px-3 py-3 text-sm font-medium text-slate-950"
-                : "whitespace-nowrap border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-950"
+                ? "max-w-full border-b-2 border-slate-950 px-3 py-3 text-sm font-medium text-slate-950"
+                : "max-w-full border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-950"
             }
           >
             {item.label}
