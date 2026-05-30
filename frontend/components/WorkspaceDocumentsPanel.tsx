@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUploadForm } from "@/components/DocumentUploadForm";
-import { LoadingState } from "@/components/LoadingState";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Icon } from "@/components/ui/Icon";
 import { ApiConnectionError, ApiRequestError } from "@/lib/api-client";
 import { removeToken } from "@/lib/auth";
 import { deleteDocument, listDocuments } from "@/lib/documents";
@@ -16,242 +17,138 @@ type WorkspaceDocumentsPanelProps = {
   workspaceId: string;
 };
 
-type RequestErrorMessages = {
-  network: string;
-  unexpected: string;
-};
+type RefreshMode = "error" | "uploadStatusWarning";
 
-type RefreshFailureMode = "error" | "uploadStatusWarning";
-
-type RefreshDocumentsOptions = {
-  failureMode?: RefreshFailureMode;
-  showSpinner?: boolean;
-};
-
-const UPLOAD_STATUS_REFRESH_WARNING =
-  "Upload succeeded, but status refresh failed.";
-
-function hasActiveDocument(documents: Document[]) {
-  return documents.some((document) =>
-    ["queued", "processing", "uploaded"].includes(document.status),
-  );
+function hasInFlight(docs: Document[]) {
+  return docs.some((d) => ["queued", "processing", "uploaded"].includes(d.status));
 }
 
-export function WorkspaceDocumentsPanel({
-  showUpload = false,
-  workspaceId,
-}: WorkspaceDocumentsPanelProps) {
+export function WorkspaceDocumentsPanel({ showUpload = false, workspaceId }: WorkspaceDocumentsPanelProps) {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [shouldWarnStatusRefreshFailure, setShouldWarnStatusRefreshFailure] =
-    useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [warnOnStatusRefresh, setWarnOnStatusRefresh] = useState(false);
 
-  const handleRequestError = useCallback(
-    (requestError: unknown, messages: RequestErrorMessages) => {
-      if (requestError instanceof ApiRequestError) {
-        if (requestError.status === 401) {
-          removeToken();
-          router.replace("/login");
-          return;
-        }
+  const handleErr = useCallback((e: unknown, fallback: string) => {
+    if (e instanceof ApiRequestError) {
+      if (e.status === 401) { removeToken(); router.replace("/login"); return; }
+      setError(e.message);
+    } else if (e instanceof ApiConnectionError) {
+      setError(fallback);
+    } else {
+      setError(fallback);
+    }
+  }, [router]);
 
-        setError(requestError.message);
-        return;
+  const refresh = useCallback(async ({ mode = "error", spinner = false }: { mode?: RefreshMode; spinner?: boolean } = {}) => {
+    if (spinner) setIsRefreshing(true);
+    try {
+      const res = await listDocuments(workspaceId);
+      setDocuments(res);
+      setError(null);
+      setWarning(null);
+      if (!hasInFlight(res)) setWarnOnStatusRefresh(false);
+      return true;
+    } catch (e) {
+      if (mode === "uploadStatusWarning") {
+        if (e instanceof ApiRequestError && e.status === 401) { removeToken(); router.replace("/login"); return false; }
+        setWarning("Upload succeeded but status refresh failed.");
+      } else {
+        handleErr(e, "Unable to load documents.");
       }
+      return false;
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [workspaceId, handleErr, router]);
 
-      if (requestError instanceof ApiConnectionError) {
-        setError(messages.network);
-        return;
-      }
-
-      setError(messages.unexpected);
-    },
-    [router],
-  );
-
-  const handleStatusRefreshError = useCallback(
-    (requestError: unknown) => {
-      if (requestError instanceof ApiRequestError && requestError.status === 401) {
-        removeToken();
-        router.replace("/login");
-        return;
-      }
-
-      setWarning(UPLOAD_STATUS_REFRESH_WARNING);
-    },
-    [router],
-  );
-
-  const refreshDocuments = useCallback(
-    async ({
-      failureMode = "error",
-      showSpinner = false,
-    }: RefreshDocumentsOptions = {}) => {
-      if (showSpinner) {
-        setIsRefreshing(true);
-      }
-
-      try {
-        const response = await listDocuments(workspaceId);
-        setDocuments(response);
-        setError(null);
-        setWarning(null);
-
-        if (!hasActiveDocument(response)) {
-          setShouldWarnStatusRefreshFailure(false);
-        }
-
-        return true;
-      } catch (requestError) {
-        if (failureMode === "uploadStatusWarning") {
-          handleStatusRefreshError(requestError);
-        } else {
-          handleRequestError(requestError, {
-            network: "Unable to load documents. Check that the API is running.",
-            unexpected: "Unable to load documents.",
-          });
-        }
-
-        return false;
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
-    },
-    [handleRequestError, handleStatusRefreshError, workspaceId],
-  );
+  useEffect(() => { setIsLoading(true); void refresh(); }, [refresh]);
 
   useEffect(() => {
-    setIsLoading(true);
-    void refreshDocuments();
-  }, [refreshDocuments]);
+    if (!hasInFlight(documents)) return;
+    const mode: RefreshMode = warnOnStatusRefresh ? "uploadStatusWarning" : "error";
+    const id = window.setInterval(() => void refresh({ mode }), 3000);
+    return () => window.clearInterval(id);
+  }, [documents, refresh, warnOnStatusRefresh]);
 
-  useEffect(() => {
-    if (!hasActiveDocument(documents)) {
-      return;
-    }
-
-    const failureMode: RefreshFailureMode = shouldWarnStatusRefreshFailure
-      ? "uploadStatusWarning"
-      : "error";
-
-    const intervalId = window.setInterval(() => {
-      void refreshDocuments({ failureMode });
-    }, 3000);
-
-    return () => window.clearInterval(intervalId);
-  }, [documents, refreshDocuments, shouldWarnStatusRefreshFailure]);
-
-  async function handleDeleteConfirmed() {
-    if (!pendingDeleteId) {
-      return;
-    }
-
+  async function handleDelete() {
+    if (!pendingDeleteId) return;
     setError(null);
     setWarning(null);
     setIsDeleting(true);
-
     try {
       await deleteDocument(pendingDeleteId);
-      setDocuments((current) =>
-        current.filter((document) => document.id !== pendingDeleteId),
-      );
+      setDocuments((c) => c.filter((d) => d.id !== pendingDeleteId));
       setPendingDeleteId(null);
-    } catch (requestError) {
-      handleRequestError(requestError, {
-        network: "Unable to remove the document. Check that the API is running.",
-        unexpected: "Unable to remove the document.",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
+    } catch (e) {
+      handleErr(e, "Unable to remove the document.");
+    } finally { setIsDeleting(false); }
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       {showUpload ? (
         <DocumentUploadForm
           workspaceId={workspaceId}
-          onUploadStarted={() => {
+          onUploadStarted={() => { setError(null); setWarning(null); }}
+          onUploaded={async (doc) => {
             setError(null);
             setWarning(null);
-          }}
-          onUploaded={async (document) => {
-            setError(null);
-            setWarning(null);
-            setShouldWarnStatusRefreshFailure(true);
-            setDocuments((current) => [
-              document,
-              ...current.filter((item) => item.id !== document.id),
-            ]);
-            await refreshDocuments({ failureMode: "uploadStatusWarning" });
+            setWarnOnStatusRefresh(true);
+            setDocuments((c) => [doc, ...c.filter((d) => d.id !== doc.id)]);
+            await refresh({ mode: "uploadStatusWarning" });
           }}
         />
       ) : null}
 
-      <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div>
-            <h2 className="text-base font-semibold text-fg">
-              Documents
-            </h2>
-            <p className="mt-1 text-sm text-fg-muted">
-              Uploaded files and indexing status.
-            </p>
+            <p className="text-sm font-semibold text-fg">Documents</p>
+            {hasInFlight(documents) ? (
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-warning-surface-fg">
+                <span className="h-1.5 w-1.5 rounded-full bg-warning motion-safe:animate-pulse" />
+                Processing — auto-refreshes every 3 s
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-fg-muted">Uploaded files and ingestion status</p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => void refreshDocuments({ showSpinner: true })}
-            disabled={isRefreshing}
-            className="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted hover:bg-hover disabled:cursor-not-allowed disabled:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-          >
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <Button variant="ghost" size="sm" isLoading={isRefreshing} onClick={() => void refresh({ spinner: true })}>
+            <Icon name="refreshCw" size={14} />
+            {isRefreshing ? "Refreshing" : "Refresh"}
+          </Button>
         </div>
-
-        {hasActiveDocument(documents) ? (
-          <p className="mt-3 text-xs text-warning-surface-fg">
-            Processing documents refresh every 3 seconds.
-          </p>
-        ) : null}
 
         {error ? (
-          <div className="mt-4 rounded-md border border-danger-line bg-danger-subtle px-4 py-3 text-sm text-danger-surface-fg">
-            {error}
-          </div>
+          <div className="border-b border-line bg-danger-subtle px-4 py-2.5 text-xs text-danger-surface-fg">{error}</div>
         ) : null}
-
         {warning ? (
-          <div className="mt-4 rounded-md border border-warning-line bg-warning-subtle px-4 py-3 text-sm text-warning-surface-fg">
-            {warning}
-          </div>
+          <div className="border-b border-line bg-warning-subtle px-4 py-2.5 text-xs text-warning-surface-fg">{warning}</div>
         ) : null}
 
-        <div className="mt-5">
-          {isLoading ? (
-            <LoadingState label="Loading documents" />
-          ) : (
-            <DocumentList
-              documents={documents}
-              onDelete={(documentId) => setPendingDeleteId(documentId)}
-            />
-          )}
+        <div className="p-4">
+          <DocumentList
+            documents={documents.filter((d) => d.status !== "deleted")}
+            isLoading={isLoading}
+            onDelete={(id) => setPendingDeleteId(id)}
+          />
         </div>
-      </section>
+      </div>
 
       <ConfirmDialog
         confirmLabel="Remove document"
-        description="This removes the document from the workspace. Continue only if you no longer need this file indexed for chat."
+        description="This removes the document from the workspace and it will no longer be used for retrieval."
         isOpen={Boolean(pendingDeleteId)}
         isSubmitting={isDeleting}
         onCancel={() => setPendingDeleteId(null)}
-        onConfirm={() => void handleDeleteConfirmed()}
+        onConfirm={() => void handleDelete()}
         title="Remove document?"
       />
     </div>

@@ -1,5 +1,36 @@
-import { Button, EmptyState, LoadingSkeleton, StatusBadge } from "@/components/ui";
 import type { Document } from "@/types";
+import { Icon } from "@/components/ui/Icon";
+import { EmptyState, LoadingSkeleton, StatusBadge } from "@/components/ui";
+
+function fmtBytes(v: number) {
+  if (!Number.isFinite(v) || v <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const exp = Math.min(Math.floor(Math.log(v) / Math.log(1024)), units.length - 1);
+  const amount = v / 1024 ** exp;
+  return `${amount.toFixed(amount >= 10 || exp === 0 ? 0 : 1)} ${units[exp]}`;
+}
+
+function fmtDate(v: string) {
+  try {
+    const diff = (Date.now() - new Date(v).getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(v));
+  } catch { return v; }
+}
+
+function ext(name: string) {
+  const i = name.lastIndexOf(".");
+  return i >= 0 ? name.slice(i).toLowerCase() : "";
+}
+
+function FileIcon({ filename }: { filename: string }) {
+  const e = ext(filename);
+  if (e === ".pdf") return <Icon name="filePdf" size={16} className="text-danger-fg" />;
+  if (e === ".txt") return <Icon name="fileText" size={16} className="text-info-fg" />;
+  return <Icon name="fileText" size={16} className="text-brand-fg" />;
+}
 
 type DocumentListProps = {
   documents: Document[];
@@ -7,18 +38,7 @@ type DocumentListProps = {
   onDelete?: (documentId: string) => void;
 };
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-export function DocumentList({
-  documents,
-  isLoading = false,
-  onDelete,
-}: DocumentListProps) {
+export function DocumentList({ documents, isLoading = false, onDelete }: DocumentListProps) {
   if (isLoading) {
     return <LoadingSkeleton label="Loading documents" rows={3} />;
   }
@@ -27,56 +47,42 @@ export function DocumentList({
     return (
       <EmptyState
         title="No documents uploaded yet"
-        description="Upload documents to create searchable chunks and enable RAG chat."
+        description="Upload documents to enable RAG chat for this workspace."
       />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-line text-sm">
-          <thead className="bg-sunken text-left text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-            <tr>
-              <th className="px-4 py-3">Filename</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {documents.map((document) => (
-              <tr key={document.id}>
-                <td className="max-w-[280px] truncate px-4 py-3 font-medium text-fg">
-                  {document.filename}
-                </td>
-                <td className="px-4 py-3 text-fg-muted">{document.file_type}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={document.status} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-fg-muted">
-                  {formatDate(document.created_at)}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {onDelete ? (
-                    <Button
-                      type="button"
-                      onClick={() => onDelete(document.id)}
-                      size="sm"
-                      variant="secondary"
-                    >
-                      Remove
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-fg-subtle">None</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="grid gap-2">
+      {documents.map((doc) => {
+        const isIndexed = doc.status === "indexed";
+        const isFailed = doc.status === "failed";
+        return (
+          <div
+            key={doc.id}
+            className={`flex items-center gap-3 rounded-lg border bg-surface px-3 py-2.5 ${isFailed ? "border-danger-line" : isIndexed ? "border-success-line" : "border-line"}`}
+          >
+            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${isFailed ? "bg-danger-subtle" : isIndexed ? "bg-success-subtle" : "bg-sunken"}`}>
+              <FileIcon filename={doc.filename} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-fg">{doc.filename}</p>
+              <p className="text-xs text-fg-subtle">{fmtBytes(doc.file_size)} · {fmtDate(doc.created_at)}</p>
+            </div>
+            <StatusBadge status={doc.status} />
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(doc.id)}
+                aria-label="Remove document"
+                className="ml-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-subtle transition hover:bg-danger-subtle hover:text-danger-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              >
+                <Icon name="trash" size={13} />
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
