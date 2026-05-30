@@ -34,8 +34,8 @@ export function ProgressRing({ label = "Progress", size = 120, value }: Progress
         />
       </svg>
       <div className="absolute text-center">
-        <p className="text-xl font-semibold text-slate-950">{Math.round(normalizedValue)}%</p>
-        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-xl font-semibold text-fg">{Math.round(normalizedValue)}%</p>
+        <p className="text-xs text-fg-subtle">{label}</p>
       </div>
     </div>
   );

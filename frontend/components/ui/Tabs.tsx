@@ -15,22 +15,27 @@ type TabsProps = {
 
 export function Tabs({ activeId, items, onChange }: TabsProps) {
   return (
-    <div className="border-b border-slate-200">
+    <div role="tablist" className="border-b border-line">
       <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onChange(item.id)}
-            className={
-              item.id === activeId
-                ? "max-w-full border-b-2 border-slate-950 px-3 py-3 text-sm font-medium text-slate-950"
-                : "max-w-full border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-950"
-            }
-          >
-            {item.label}
-          </button>
-        ))}
+        {items.map((item) => {
+          const isActive = item.id === activeId;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onChange(item.id)}
+              className={`max-w-full rounded-t-md border-b-2 px-3 py-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${
+                isActive
+                  ? "border-brand text-fg"
+                  : "border-transparent text-fg-muted hover:border-line-strong hover:text-fg"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

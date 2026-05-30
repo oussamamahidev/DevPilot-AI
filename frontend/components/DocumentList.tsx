@@ -33,10 +33,10 @@ export function DocumentList({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <table className="min-w-full divide-y divide-line text-sm">
+          <thead className="bg-sunken text-left text-xs font-semibold uppercase tracking-wide text-fg-subtle">
             <tr>
               <th className="px-4 py-3">Filename</th>
               <th className="px-4 py-3">Type</th>
@@ -45,17 +45,17 @@ export function DocumentList({
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-line">
             {documents.map((document) => (
               <tr key={document.id}>
-                <td className="max-w-[280px] truncate px-4 py-3 font-medium text-slate-950">
+                <td className="max-w-[280px] truncate px-4 py-3 font-medium text-fg">
                   {document.filename}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{document.file_type}</td>
+                <td className="px-4 py-3 text-fg-muted">{document.file_type}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={document.status} />
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 text-fg-muted">
                   {formatDate(document.created_at)}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -69,7 +69,7 @@ export function DocumentList({
                       Remove
                     </Button>
                   ) : (
-                    <span className="text-xs text-slate-400">None</span>
+                    <span className="text-xs text-fg-subtle">None</span>
                   )}
                 </td>
               </tr>

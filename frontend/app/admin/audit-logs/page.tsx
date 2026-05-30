@@ -87,7 +87,7 @@ export default function AdminAuditLogsPage() {
         <select
           value={action}
           onChange={(event) => setAction(event.target.value)}
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           <option value="">All actions</option>
           {actions.map((item) => (
@@ -99,7 +99,7 @@ export default function AdminAuditLogsPage() {
         <select
           value={targetType}
           onChange={(event) => setTargetType(event.target.value)}
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           <option value="">All targets</option>
           <option value="user">User</option>
@@ -108,10 +108,10 @@ export default function AdminAuditLogsPage() {
         </select>
       </Toolbar>
 
-      <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
         <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold text-slate-950">Audit Trail</h2>
-          <span className="text-sm text-slate-500">{formatNumber(filtered.length)} logs</span>
+          <h2 className="text-base font-semibold text-fg">Audit Trail</h2>
+          <span className="text-sm text-fg-subtle">{formatNumber(filtered.length)} logs</span>
         </div>
         {isFetching ? <LoadingSkeleton label="Loading audit logs" rows={4} /> : null}
         {!isFetching && visible.length === 0 ? (
@@ -122,7 +122,7 @@ export default function AdminAuditLogsPage() {
         ) : (
         <div className="admin-table-scroll">
           <table className="admin-table">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="bg-sunken text-xs uppercase text-fg-subtle">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Actor</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
@@ -132,31 +132,31 @@ export default function AdminAuditLogsPage() {
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Metadata</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line-subtle">
               {visible.map((log) => (
                 <tr key={log.id}>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {log.actor_email ?? "System"}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <StatusBadge label={log.action} tone="neutral" />
                   </td>
                   <td className="px-3 py-3">
-                    <div className="font-medium text-slate-700">{log.target_type}</div>
-                    <div className="break-all text-xs text-slate-500">
+                    <div className="font-medium text-fg-muted">{log.target_type}</div>
+                    <div className="break-all text-xs text-fg-subtle">
                       {log.target_id ?? "No target"}
                     </div>
                   </td>
-                  <td className="max-w-sm px-3 py-3 text-slate-600">
+                  <td className="max-w-sm px-3 py-3 text-fg-muted">
                     {log.reason ?? "No reason"}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-subtle">
                     {formatDate(log.created_at)}
                   </td>
                   <td className="px-3 py-3">
                     {log.metadata && Object.keys(log.metadata).length > 0 ? (
                       <details className="min-w-0">
-                        <summary className="cursor-pointer text-xs font-medium text-slate-700">
+                        <summary className="cursor-pointer text-xs font-medium text-fg-muted">
                           View metadata
                         </summary>
                         <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-100">
@@ -164,7 +164,7 @@ export default function AdminAuditLogsPage() {
                         </pre>
                       </details>
                     ) : (
-                      <span className="text-xs text-slate-400">None</span>
+                      <span className="text-xs text-fg-subtle">None</span>
                     )}
                   </td>
                 </tr>

@@ -204,12 +204,12 @@ export default function RagTracesPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search question"
-          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 xl:col-span-2"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas xl:col-span-2"
         />
         <select
           value={workspaceId}
           onChange={(event) => setWorkspaceId(event.target.value)}
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           <option value="">All workspaces</option>
           {workspaces.map((workspace) => (
@@ -221,7 +221,7 @@ export default function RagTracesPage() {
         <select
           value={retrievalStrategy}
           onChange={(event) => setRetrievalStrategy(event.target.value)}
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           <option value="">All strategies</option>
           <option value="semantic">Semantic</option>
@@ -231,7 +231,7 @@ export default function RagTracesPage() {
         <select
           value={riskFilter}
           onChange={(event) => setRiskFilter(event.target.value)}
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           <option value="">All risk</option>
           <option value="low">Low risk</option>
@@ -246,7 +246,7 @@ export default function RagTracesPage() {
           min="0"
           max="1"
           step="0.05"
-          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         />
         <input
           value={maxHallucination}
@@ -256,19 +256,19 @@ export default function RagTracesPage() {
           min="0"
           max="1"
           step="0.05"
-          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         />
         <input
           value={dateFrom}
           onChange={(event) => setDateFrom(event.target.value)}
           type="date"
-          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         />
         <input
           value={dateTo}
           onChange={(event) => setDateTo(event.target.value)}
           type="date"
-          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         />
       </FilterBar>
 
@@ -301,17 +301,17 @@ export default function RagTracesPage() {
         />
       </div>
 
-      <section className="mt-6 min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mt-6 min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
         <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-base font-semibold text-slate-950">Trace Table</h3>
-          <span className="text-sm text-slate-500">{formatNumber(total)} traces</span>
+          <h3 className="text-base font-semibold text-fg">Trace Table</h3>
+          <span className="text-sm text-fg-subtle">{formatNumber(total)} traces</span>
         </div>
         {traces.length === 0 && !isFetching ? (
           <EmptyState label="No traces available yet. Ask a question to generate traces." />
         ) : (
           <div className="admin-table-scroll">
             <table className="admin-table">
-              <thead className="text-xs uppercase text-slate-500">
+              <thead className="text-xs uppercase text-fg-subtle">
                 <tr>
                   <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
                   <th className="whitespace-nowrap px-3 py-2 font-medium">Answer</th>
@@ -324,7 +324,7 @@ export default function RagTracesPage() {
                   <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-subtle">
                 {traces.map((trace) => (
                   <TraceRow key={trace.message_id} trace={trace} />
                 ))}
@@ -347,15 +347,15 @@ function TraceRow({ trace }: { trace: RagTraceListItem }) {
   return (
     <tr>
       <td className="max-w-sm px-3 py-3">
-        <p className="font-medium text-slate-950">{safePreview(trace.question_preview, 90)}</p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="font-medium text-fg">{safePreview(trace.question_preview, 90)}</p>
+        <p className="mt-1 text-xs text-fg-subtle">
           {trace.workspace_name} - {formatDate(trace.created_at)}
         </p>
       </td>
-      <td className="max-w-sm px-3 py-3 text-slate-700">
+      <td className="max-w-sm px-3 py-3 text-fg-muted">
         {safePreview(trace.answer_preview, 100)}
       </td>
-      <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+      <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
         {trace.retrieval_strategy ?? "unknown"}
       </td>
       <td className="whitespace-nowrap px-3 py-3">
@@ -376,13 +376,13 @@ function TraceRow({ trace }: { trace: RagTraceListItem }) {
           tone={trace.corrected ? "ai" : "neutral"}
         />
       </td>
-      <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+      <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
         {formatLatency(trace.total_latency_ms)}
       </td>
       <td className="whitespace-nowrap px-3 py-3">
         <Link
           href={`/admin/rag-traces/${trace.message_id}`}
-          className="font-medium text-slate-950 underline-offset-4 hover:underline"
+          className="font-medium text-fg underline-offset-4 hover:underline"
         >
           View trace
         </Link>

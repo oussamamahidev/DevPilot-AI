@@ -30,7 +30,7 @@ export function AdminSidebar() {
   return (
     <div className="mb-6">
       <label className="block md:hidden">
-        <span className="mb-2 block text-xs font-semibold uppercase text-slate-500">
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-fg-subtle">
           Admin section
         </span>
         <select
@@ -41,7 +41,7 @@ export function AdminSidebar() {
               router.push(next.href);
             }
           }}
-          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950"
+          className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none transition focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           {adminNavigationItems.map((item) => (
             <option key={item.id} value={item.id}>

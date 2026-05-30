@@ -107,8 +107,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     <article
       className={
         isAssistant
-          ? "w-full max-w-3xl rounded-md border border-slate-200 bg-white p-4 shadow-sm"
-          : "ml-auto w-full max-w-3xl rounded-md bg-slate-950 p-4 text-white shadow-sm sm:w-fit"
+          ? "w-full max-w-3xl rounded-md border border-line bg-surface p-4 shadow-sm"
+          : "ml-auto w-full max-w-3xl rounded-md bg-brand p-4 text-white shadow-sm sm:w-fit"
       }
     >
       <div className="flex items-start justify-between gap-3">
@@ -116,14 +116,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <p
             className={
               isAssistant
-                ? "text-xs font-semibold uppercase tracking-wide text-slate-500"
-                : "text-xs font-semibold uppercase tracking-wide text-slate-300"
+                ? "text-xs font-semibold uppercase tracking-wide text-fg-subtle"
+                : "text-xs font-semibold uppercase tracking-wide text-white/70"
             }
           >
             {isAssistant ? "Assistant" : "You"}
           </p>
           {message.isCorrected ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+            <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-xs font-medium text-warning-surface-fg">
               Corrected
             </span>
           ) : null}
@@ -131,7 +131,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {message.createdAt ? (
           <time
             className={
-              isAssistant ? "text-xs text-slate-400" : "text-xs text-slate-300"
+              isAssistant ? "text-xs text-fg-subtle" : "text-xs text-white/70"
             }
           >
             {formatDate(message.createdAt)}
@@ -140,7 +140,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
 
       {notFound ? (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+        <div className="mt-3 rounded-md border border-warning-line bg-warning-subtle px-3 py-2 text-sm font-medium text-warning-surface-fg">
           Information not found in uploaded documents.
         </div>
       ) : null}
@@ -148,18 +148,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <p
         className={
           isAssistant
-            ? "mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800"
+            ? "mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-fg"
             : "mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-white"
         }
       >
         {message.content}
         {message.isPending ? (
-          <span className="ml-0.5 inline-block animate-pulse text-slate-500">|</span>
+          <span className="ml-0.5 inline-block animate-pulse text-fg-subtle">|</span>
         ) : null}
       </p>
 
       {message.isPending ? (
-        <div className="mt-3 text-xs font-medium text-slate-500">
+        <div className="mt-3 text-xs font-medium text-fg-subtle">
           {message.streamStatus ?? "Generating answer..."}
         </div>
       ) : null}
@@ -494,7 +494,7 @@ export default function WorkspaceChatPage() {
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <Card className="p-4 lg:h-fit">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-slate-950">
+            <h2 className="text-base font-semibold text-fg">
               Conversations
             </h2>
             <Button
@@ -518,8 +518,8 @@ export default function WorkspaceChatPage() {
                   onClick={() => void handleLoadConversation(conversation.id)}
                   className={
                     conversation.id === conversationId
-                      ? "rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-left text-sm text-white"
-                      : "rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      ? "rounded-md border border-brand bg-brand px-3 py-2 text-left text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+                      : "rounded-md border border-line bg-surface px-3 py-2 text-left text-sm text-fg-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                   }
                 >
                   <span className="block truncate font-medium">
@@ -528,8 +528,8 @@ export default function WorkspaceChatPage() {
                   <span
                     className={
                       conversation.id === conversationId
-                        ? "mt-1 block text-xs text-slate-300"
-                        : "mt-1 block text-xs text-slate-500"
+                        ? "mt-1 block text-xs text-white/70"
+                        : "mt-1 block text-xs text-fg-subtle"
                     }
                   >
                     {formatDate(conversation.updated_at)}
@@ -540,15 +540,15 @@ export default function WorkspaceChatPage() {
           </div>
         </Card>
 
-        <section className="min-h-[70dvh] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-sm lg:min-h-[680px]">
+        <section className="min-h-[70dvh] overflow-hidden rounded-lg border border-line bg-sunken shadow-sm lg:min-h-[680px]">
           <div className="flex min-h-[70dvh] flex-col lg:min-h-[680px]">
-            <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+            <div className="border-b border-line bg-surface px-4 py-4 sm:px-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-base font-semibold text-slate-950">
+                  <h2 className="text-base font-semibold text-fg">
                     {conversationId ? "Conversation" : "New conversation"}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-fg-muted">
                     {hasDocuments
                       ? `${documents.length} document${documents.length === 1 ? "" : "s"} available`
                       : "Upload documents before asking questions."}
@@ -556,7 +556,7 @@ export default function WorkspaceChatPage() {
                 </div>
                 <Link
                   href={`/workspaces/${workspaceId}/documents`}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-fg-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                 >
                   Documents
                 </Link>
@@ -589,7 +589,7 @@ export default function WorkspaceChatPage() {
                   action={
                     <Link
                       href={`/workspaces/${workspaceId}/documents`}
-                      className="inline-flex h-10 items-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white hover:bg-slate-800"
+                      className="inline-flex h-10 items-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                     >
                       Upload documents
                     </Link>
@@ -618,7 +618,7 @@ export default function WorkspaceChatPage() {
 
                 <form
                   onSubmit={handleSubmit}
-                  className="border-t border-slate-200 bg-white p-3 sm:p-4"
+                  className="border-t border-line bg-surface p-3 sm:p-4"
                 >
                   <div className="flex flex-col gap-3 lg:flex-row">
                     <Textarea
@@ -651,7 +651,7 @@ export default function WorkspaceChatPage() {
                     </div>
                   </div>
                   {isStreaming || streamStage ? (
-                    <p className="mt-2 text-xs font-medium text-slate-500">
+                    <p className="mt-2 text-xs font-medium text-fg-subtle">
                       {streamStage ?? "Generating answer..."}
                     </p>
                   ) : null}

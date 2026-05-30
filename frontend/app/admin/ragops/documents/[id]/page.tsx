@@ -132,7 +132,7 @@ export default function RagOpsDocumentPage() {
               <button
                 type="button"
                 onClick={() => setIsRetrying(true)}
-                className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white shadow-sm"
+                className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-hover"
               >
                 Retry
               </button>
@@ -196,8 +196,8 @@ export default function RagOpsDocumentPage() {
           <PipelineStepper steps={pipelineSteps(pipeline)} />
 
           <div className="grid min-w-0 gap-6 xl:grid-cols-2">
-            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950">Embedding Coverage Ring</h3>
+            <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-fg">Embedding Coverage Ring</h3>
               <div className="mt-6 grid place-items-center">
                 <ProgressRing
                   label={`${formatNumber(pipeline.stats.chunks_with_vector_id)} of ${formatNumber(
@@ -226,12 +226,12 @@ export default function RagOpsDocumentPage() {
           </div>
 
           {pipeline.errors.length > 0 ? (
-            <section className="rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm">
+            <section className="rounded-lg border border-danger-line bg-danger-subtle p-5 shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-base font-semibold text-red-950">Pipeline Errors</h3>
+                <h3 className="text-base font-semibold text-danger-surface-fg">Pipeline Errors</h3>
                 <StatusBadge label={`${formatNumber(pipeline.errors.length)} errors`} tone="critical" />
               </div>
-              <div className="mt-4 grid gap-2 text-sm text-red-800">
+              <div className="mt-4 grid gap-2 text-sm text-danger-surface-fg">
                 {pipeline.errors.map((item) => (
                   <p key={item}>{safePreview(item, 260)}</p>
                 ))}
@@ -239,10 +239,10 @@ export default function RagOpsDocumentPage() {
             </section>
           ) : null}
 
-          <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-base font-semibold text-slate-950">Chunk Preview Table</h3>
-              <span className="text-sm text-slate-500">{formatNumber(chunks?.total ?? 0)} chunks</span>
+              <h3 className="text-base font-semibold text-fg">Chunk Preview Table</h3>
+              <span className="text-sm text-fg-subtle">{formatNumber(chunks?.total ?? 0)} chunks</span>
             </div>
             {chunks && chunks.items.length === 0 ? (
               <EmptyState label="No chunks found for this document." />
@@ -250,7 +250,7 @@ export default function RagOpsDocumentPage() {
               <>
                 <div className="admin-table-scroll">
                   <table className="admin-table">
-                    <thead className="text-xs uppercase text-slate-500">
+                    <thead className="text-xs uppercase text-fg-subtle">
                       <tr>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Index</th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Preview</th>
@@ -260,13 +260,13 @@ export default function RagOpsDocumentPage() {
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Created</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-line-subtle">
                       {chunks.items.map((chunk) => (
                         <tr key={chunk.chunk_id}>
-                          <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                             {formatNumber(chunk.chunk_index)}
                           </td>
-                          <td className="max-w-xl px-3 py-3 text-slate-700">
+                          <td className="max-w-xl px-3 py-3 text-fg-muted">
                             {safePreview(chunk.content_preview, 180)}
                           </td>
                           <td className="whitespace-nowrap px-3 py-3">
@@ -275,13 +275,13 @@ export default function RagOpsDocumentPage() {
                               tone={chunk.vector_id_exists ? "success" : "critical"}
                             />
                           </td>
-                          <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                             {chunk.token_count === null ? "Unknown" : formatNumber(chunk.token_count)}
                           </td>
-                          <td className="max-w-sm px-3 py-3 text-xs text-slate-500">
+                          <td className="max-w-sm px-3 py-3 text-xs text-fg-subtle">
                             {metadataPreview(chunk.metadata)}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                          <td className="whitespace-nowrap px-3 py-3 text-fg-subtle">
                             {formatDate(chunk.created_at)}
                           </td>
                         </tr>
@@ -323,9 +323,9 @@ export default function RagOpsDocumentPage() {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="text-sm font-semibold text-slate-950">{value}</span>
+    <div className="flex items-center justify-between gap-3 rounded-md border border-line bg-sunken p-3">
+      <span className="text-sm text-fg-muted">{label}</span>
+      <span className="text-sm font-semibold text-fg">{value}</span>
     </div>
   );
 }

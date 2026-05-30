@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { Providers } from "@/providers/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,15 +12,21 @@ export const viewport: Viewport = {
   width: "device-width",
 };
 
+// Set the theme class before paint to prevent a flash of the wrong theme.
+const themeScript = `(function(){try{var t=localStorage.getItem('dp-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

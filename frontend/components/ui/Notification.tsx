@@ -16,11 +16,11 @@ export function Notification({
   tone = "info",
 }: NotificationProps) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <section role="status" className="rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Badge tone={tone}>{title}</Badge>
-          <p className="mt-3 text-sm leading-6 text-slate-600">{message}</p>
+          <p className="mt-3 text-sm leading-6 text-fg-muted">{message}</p>
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>

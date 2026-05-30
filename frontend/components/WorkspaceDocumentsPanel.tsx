@@ -195,13 +195,13 @@ export function WorkspaceDocumentsPanel({
         />
       ) : null}
 
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-slate-950">
+            <h2 className="text-base font-semibold text-fg">
               Documents
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-fg-muted">
               Uploaded files and indexing status.
             </p>
           </div>
@@ -209,26 +209,26 @@ export function WorkspaceDocumentsPanel({
             type="button"
             onClick={() => void refreshDocuments({ showSpinner: true })}
             disabled={isRefreshing}
-            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted hover:bg-hover disabled:cursor-not-allowed disabled:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
           >
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
         {hasActiveDocument(documents) ? (
-          <p className="mt-3 text-xs text-amber-700">
+          <p className="mt-3 text-xs text-warning-surface-fg">
             Processing documents refresh every 3 seconds.
           </p>
         ) : null}
 
         {error ? (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mt-4 rounded-md border border-danger-line bg-danger-subtle px-4 py-3 text-sm text-danger-surface-fg">
             {error}
           </div>
         ) : null}
 
         {warning ? (
-          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mt-4 rounded-md border border-warning-line bg-warning-subtle px-4 py-3 text-sm text-warning-surface-fg">
             {warning}
           </div>
         ) : null}

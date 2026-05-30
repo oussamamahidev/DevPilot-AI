@@ -39,7 +39,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="h-9 rounded-md border border-red-300 bg-white px-3 text-sm font-medium text-red-800"
+                className="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
               >
                 Retry
               </button>

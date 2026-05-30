@@ -3,17 +3,19 @@ import type { ReactNode } from "react";
 type EmptyStateProps = {
   action?: ReactNode;
   description?: string;
+  icon?: ReactNode;
   title: string;
 };
 
-export function EmptyState({ action, description, title }: EmptyStateProps) {
+export function EmptyState({ action, description, icon, title }: EmptyStateProps) {
   return (
-    <section className="rounded-md border border-dashed border-slate-300 bg-white p-6 text-center shadow-sm">
-      <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+    <section className="rounded-lg border border-dashed border-line bg-surface p-6 text-center">
+      {icon ? <div className="mx-auto mb-3 text-fg-subtle">{icon}</div> : null}
+      <h2 className="text-base font-semibold text-fg">{title}</h2>
       {description ? (
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{description}</p>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-fg-muted">{description}</p>
       ) : null}
-      {action ? <div className="mt-4">{action}</div> : null}
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </section>
   );
 }

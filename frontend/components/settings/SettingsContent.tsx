@@ -130,9 +130,9 @@ function ConfigRow({
   value: string;
 }) {
   return (
-    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-3 sm:gap-4">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="min-w-0 break-words font-medium text-slate-950 sm:col-span-2">{value}</dd>
+    <div className="grid gap-1 border-t border-line-subtle py-3 text-sm sm:grid-cols-3 sm:gap-4">
+      <dt className="text-fg-subtle">{label}</dt>
+      <dd className="min-w-0 break-words font-medium text-fg sm:col-span-2">{value}</dd>
     </div>
   );
 }
@@ -147,11 +147,11 @@ function RuntimeCard({
   status: string;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-lg border border-line bg-sunken p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-950">{label}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+          <p className="text-sm font-semibold text-fg">{label}</p>
+          <p className="mt-1 text-xs leading-5 text-fg-subtle">{description}</p>
         </div>
         <StatusBadge status={status} tone={status === "ok" ? "success" : undefined} />
       </div>
@@ -273,14 +273,14 @@ export function SettingsContent() {
 
   return (
     <div className="grid min-w-0 gap-6">
-        <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-lg border border-line bg-surface p-6 shadow-sm">
           <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
               <Badge tone="ai">System Settings</Badge>
-              <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+              <h1 className="mt-4 text-2xl font-semibold text-fg">
                 DevPilot AI configuration
               </h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-fg-muted">
                 A safe, demo-ready view of account, model, runtime, and session
                 settings. Secrets and raw tokens are never displayed.
               </p>
@@ -321,14 +321,14 @@ export function SettingsContent() {
                   <dl className="mt-2">
                     <ConfigRow label="Email" value={displayValue(state.user.email)} />
                     <ConfigRow label="Full name" value={displayValue(state.user.full_name)} />
-                    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-3 sm:gap-4">
-                      <dt className="text-slate-500">Role</dt>
+                    <div className="grid gap-1 border-t border-line-subtle py-3 text-sm sm:grid-cols-3 sm:gap-4">
+                      <dt className="text-fg-subtle">Role</dt>
                       <dd className="min-w-0 sm:col-span-2">
                         <RoleBadge role={state.user.role} />
                       </dd>
                     </div>
-                    <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-3 sm:gap-4">
-                      <dt className="text-slate-500">Account status</dt>
+                    <div className="grid gap-1 border-t border-line-subtle py-3 text-sm sm:grid-cols-3 sm:gap-4">
+                      <dt className="text-fg-subtle">Account status</dt>
                       <dd className="min-w-0 sm:col-span-2">
                         <StatusBadge
                           label={state.user.is_active ? "Active" : "Inactive"}
@@ -378,7 +378,7 @@ export function SettingsContent() {
                         <ConfigRow label="Ollama base URL" value={ollamaBaseUrl} />
                       ) : null}
                     </dl>
-                    <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
+                    <p className="mt-4 rounded-md border border-line bg-sunken px-4 py-3 text-xs leading-5 text-fg-subtle">
                       Sensitive fields such as API keys, JWTs, secrets, passwords,
                       and database URLs are intentionally omitted.
                     </p>
@@ -394,8 +394,8 @@ export function SettingsContent() {
                   description="Session status and local browser security context."
                 />
                 <dl>
-                  <div className="grid gap-1 border-t border-slate-100 py-3 text-sm sm:grid-cols-3 sm:gap-4">
-                    <dt className="text-slate-500">Token status</dt>
+                  <div className="grid gap-1 border-t border-line-subtle py-3 text-sm sm:grid-cols-3 sm:gap-4">
+                    <dt className="text-fg-subtle">Token status</dt>
                     <dd className="min-w-0 sm:col-span-2">
                       <StatusBadge
                         label={tokenStatus}
@@ -412,8 +412,8 @@ export function SettingsContent() {
                     value={state.localStorageAvailable ? "Available" : "Unavailable"}
                   />
                 </dl>
-                <div className="mt-4 flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm leading-6 text-slate-600">
+                <div className="mt-4 flex flex-col gap-3 rounded-lg border border-line bg-sunken p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm leading-6 text-fg-muted">
                     Your session token is stored locally by the browser and is
                     cleared when you log out. The token itself is not printed here.
                   </p>

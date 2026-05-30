@@ -64,13 +64,13 @@ export function DocumentUploadForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+      className="rounded-lg border border-line bg-surface p-5 shadow-sm"
     >
       <div>
-        <h2 className="text-base font-semibold text-slate-950">
+        <h2 className="text-base font-semibold text-fg">
           Upload document
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-fg-muted">
           PDF, TXT, and Markdown files are supported.
         </p>
       </div>
@@ -80,17 +80,17 @@ export function DocumentUploadForm({
           type="file"
           accept={acceptedTypes}
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          className="block w-full rounded-md border border-slate-300 bg-white text-sm text-slate-700 file:mr-4 file:border-0 file:bg-slate-950 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800"
+          className="block w-full rounded-md border border-line-strong bg-surface text-sm text-fg-muted file:mr-4 file:border-0 file:bg-brand file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
         />
 
         {error ? (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="rounded-md border border-danger-line bg-danger-subtle px-4 py-3 text-sm text-danger-surface-fg">
             {error}
           </div>
         ) : null}
 
         {success ? (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <div className="rounded-md border border-success-line bg-success-subtle px-4 py-3 text-sm text-success-surface-fg">
             {success}
           </div>
         ) : null}
@@ -98,7 +98,7 @@ export function DocumentUploadForm({
         <button
           type="submit"
           disabled={isUploading}
-          className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
         >
           {isUploading ? "Uploading..." : "Upload document"}
         </button>

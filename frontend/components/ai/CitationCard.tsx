@@ -18,18 +18,18 @@ export function CitationCard({ citation }: CitationCardProps) {
 
   return (
     <Card className="p-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-700">
-        <span className="font-semibold text-slate-950">[{citationNumber}]</span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
+        <span className="font-semibold text-fg">[{citationNumber}]</span>
         <span className="max-w-full truncate font-medium">{citation.filename}</span>
         <span>Chunk {citation.chunk_index}</span>
         <span>Score {Number(citation.score ?? 0).toFixed(3)}</span>
       </div>
       {content ? (
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-slate-600 hover:text-slate-950">
+          <summary className="cursor-pointer text-xs text-fg-muted hover:text-fg">
             Preview
           </summary>
-          <p className="mt-2 whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-700">
+          <p className="mt-2 whitespace-pre-wrap break-words rounded-md bg-sunken p-3 text-xs leading-5 text-fg-muted">
             {content}
           </p>
         </details>

@@ -1,343 +1,143 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AdminAccessMessage,
-  AdminShell,
-  formatDate,
-  formatDecimal,
-  formatNumber,
-} from "@/components/admin/AdminUI";
-import {
-  BarChartCard,
-  chartPalette,
-  computeWorkspaceHealthScore,
-  DonutChartCard,
-  EmptyState,
-  ErrorCard,
-  formatPercent,
-  LoadingSkeleton,
-  PageHeader,
-  ProgressBar,
-  RefreshButton,
-  StatCard,
-  StatusBadge,
-} from "@/components/admin/AnalyticsUI";
+import { AdminAccessMessage, AdminShell } from "@/components/admin/AdminUI";
+import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { Icon } from "@/components/ui/Icon";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { getRagOpsQdrantHealth, listRagOpsWorkspaces } from "@/lib/admin";
-import type { RagOpsQdrantHealth, RagOpsWorkspaceSummary } from "@/types";
+import { useControlTower } from "@/features/ragops/hooks";
+import { SectionCard } from "@/features/ragops/components/primitives";
+import { ExecutiveOverview } from "@/features/ragops/components/ExecutiveOverview";
+import { AiInsight } from "@/features/ragops/components/AiInsight";
+import { PipelineObservatory } from "@/features/ragops/components/PipelineObservatory";
+import { WorkspaceHealthCenter } from "@/features/ragops/components/WorkspaceHealthCenter";
+import { RetrievalIntelligence } from "@/features/ragops/components/RetrievalIntelligence";
+import { EmbeddingAnalytics } from "@/features/ragops/components/EmbeddingAnalytics";
+import { EvaluationIntelligence } from "@/features/ragops/components/EvaluationIntelligence";
+import { AgentPerformance } from "@/features/ragops/components/AgentPerformance";
+import { FailureCenter } from "@/features/ragops/components/FailureCenter";
+import { OperationsCenter } from "@/features/ragops/components/OperationsCenter";
 
-export default function RagOpsPage() {
+export default function RagOpsControlTowerPage() {
   const { isAdmin, isLoading } = useAdminAccess();
-  const [workspaces, setWorkspaces] = useState<RagOpsWorkspaceSummary[]>([]);
-  const [qdrant, setQdrant] = useState<RagOpsQdrantHealth | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!isAdmin) {
-      return;
-    }
-    setIsFetching(true);
-    setError(null);
-    try {
-      const [workspaceData, qdrantData] = await Promise.all([
-        listRagOpsWorkspaces(),
-        getRagOpsQdrantHealth(),
-      ]);
-      setWorkspaces(workspaceData);
-      setQdrant(qdrantData);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load RAGOps data.");
-    } finally {
-      setIsFetching(false);
-    }
-  }, [isAdmin]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const summary = useMemo(() => summarize(workspaces), [workspaces]);
+  const tower = useControlTower(isAdmin);
 
   if (isLoading) {
-    return <AdminAccessMessage title="RAGOps Dashboard" label="Checking admin access." />;
+    return <AdminAccessMessage title="AI Control Tower" label="Checking admin access." />;
   }
   if (!isAdmin) {
-    return <AdminAccessMessage title="RAGOps Dashboard" label="Admin access required." />;
+    return <AdminAccessMessage title="AI Control Tower" label="Admin access required." />;
   }
 
   return (
     <AdminShell
-      title="DevPilot AI Control Center"
-      description="RAGOps readiness, document ingestion health, vector coverage, and Qdrant synchronization."
+      title="AI Control Tower"
+      description="Real-time RAG platform health: ingestion, embeddings, retrieval, evaluation, agents, and operations."
     >
-      <PageHeader
-        title="RAGOps Dashboard"
-        subtitle="Operational health of document ingestion, chunking, embeddings, vector indexing, and RAG readiness."
-        actions={<RefreshButton isFetching={isFetching} onClick={() => void load()} />}
-      />
-      <ErrorCard message={error} onRetry={() => void load()} />
-
-      {isFetching && workspaces.length === 0 ? <LoadingSkeleton rows={4} /> : null}
-
-      <div className="grid gap-6">
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Healthy Workspaces"
-            value={formatNumber(summary.healthy)}
-            description={`${formatPercent(percentOf(summary.healthy, workspaces.length))} of tracked workspaces`}
-            badge="Healthy"
-            tone="success"
-          />
-          <StatCard
-            label="Warning Workspaces"
-            value={formatNumber(summary.warning)}
-            description={`${formatPercent(percentOf(summary.warning, workspaces.length))} need attention`}
-            badge="Warning"
-            tone="warning"
-          />
-          <StatCard
-            label="Critical Workspaces"
-            value={formatNumber(summary.critical)}
-            description={`${formatPercent(percentOf(summary.critical, workspaces.length))} blocking RAG readiness`}
-            badge="Critical"
-            tone={summary.critical > 0 ? "critical" : "success"}
-          />
-          <StatCard
-            label="Failed Documents"
-            value={formatNumber(summary.failedDocuments)}
-            description="Documents with failed ingestion state"
-            badge={summary.failedDocuments > 0 ? "Retry" : "Clear"}
-            tone={summary.failedDocuments > 0 ? "critical" : "success"}
-          />
-          <StatCard
-            label="Total Chunks"
-            value={formatNumber(summary.totalChunks)}
-            description="Chunk records available for retrieval"
-            badge="Indexed"
-            tone="info"
-          />
-          <StatCard
-            label="Global Embedding Coverage"
-            value={formatPercent(summary.embeddingCoverage)}
-            description={`${formatNumber(summary.chunksWithVectors)} chunks have vectors`}
-            progress={summary.embeddingCoverage * 100}
-            badge={summary.embeddingCoverage >= 0.85 ? "Synced" : "Gap"}
-            tone={summary.embeddingCoverage >= 0.85 ? "success" : "warning"}
-          />
-        </section>
-
-        <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge
-                label={qdrant?.reachable ? "Qdrant reachable" : "Qdrant unreachable"}
-                tone={qdrant?.reachable ? "success" : "critical"}
-              />
-              <span className="text-sm text-slate-600">
-                Collection {qdrant?.collection_name ?? "unknown"}
-              </span>
-            </div>
-            <span className="text-sm text-slate-500">
-              Mismatch {qdrant?.mismatch_count === null || qdrant?.mismatch_count === undefined
-                ? "unknown"
-                : formatNumber(qdrant.mismatch_count)}
-            </span>
-          </div>
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-3">
-          <DonutChartCard
-            title="Workspace Health Distribution"
-            centerLabel="Workspaces"
-            data={[
-              { name: "healthy", value: summary.healthy, color: chartPalette.emerald },
-              { name: "warning", value: summary.warning, color: chartPalette.amber },
-              { name: "critical", value: summary.critical, color: chartPalette.red },
-            ]}
-          />
-          <div className="xl:col-span-2">
-            <BarChartCard
-              title="Embedding Coverage By Workspace"
-              data={workspaces.map((workspace) => ({
-                coverage: workspace.embedding_coverage_percent,
-                workspace: workspace.workspace_name,
-              }))}
-              xKey="workspace"
-              bars={[{ key: "coverage", name: "Coverage %", color: chartPalette.emerald }]}
-            />
-          </div>
-        </div>
-
-        <BarChartCard
-          title="Document Indexing State By Workspace"
-          data={workspaces.map((workspace) => ({
-            deleted: workspace.documents_deleted,
-            failed: workspace.documents_failed,
-            indexed: workspace.documents_indexed,
-            processing: workspace.documents_processing,
-            queued: workspace.documents_queued,
-            workspace: workspace.workspace_name,
-          }))}
-          xKey="workspace"
-          stacked
-          bars={[
-            { key: "indexed", name: "Indexed", color: chartPalette.emerald },
-            { key: "queued", name: "Queued", color: chartPalette.amber },
-            { key: "processing", name: "Processing", color: chartPalette.blue },
-            { key: "failed", name: "Failed", color: chartPalette.red },
-            { key: "deleted", name: "Deleted", color: chartPalette.slate },
-          ]}
-        />
-
-        <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-base font-semibold text-slate-950">Workspace Readiness</h3>
-            <span className="text-sm text-slate-500">
-              {formatNumber(workspaces.length)} workspaces
-            </span>
-          </div>
-          {workspaces.length === 0 && !isFetching ? (
-            <EmptyState label="No workspaces found." />
-          ) : (
-            <div className="admin-table-scroll">
-              <table className="admin-table">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Workspace</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Owner</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Health score</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Embedding coverage</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Indexed docs</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Failed docs</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Last indexed</th>
-                    <th className="whitespace-nowrap px-3 py-3 text-right font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {workspaces.map((workspace) => {
-                    const score = computeWorkspaceHealthScore(workspace);
-                    return (
-                      <tr key={workspace.workspace_id}>
-                        <td className="max-w-sm px-3 py-3">
-                          <div className="flex flex-col gap-2">
-                            <p className="break-words font-semibold text-slate-950">
-                              {workspace.workspace_name}
-                            </p>
-                            <StatusBadge status={workspace.rag_health_status} />
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
-                          {workspace.owner_email}
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="mb-2 flex items-center justify-between text-xs">
-                            <span className="text-slate-500">score</span>
-                            <span className="font-semibold text-slate-950">{score}/100</span>
-                          </div>
-                          <ProgressBar
-                            value={score}
-                            tone={score >= 85 ? "success" : score >= 60 ? "warning" : "critical"}
-                          />
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="mb-2 flex items-center justify-between text-xs">
-                            <span className="text-slate-500">vectors</span>
-                            <span className="font-semibold text-slate-950">
-                              {formatDecimal(workspace.embedding_coverage_percent, 1)}%
-                            </span>
-                          </div>
-                          <ProgressBar
-                            value={workspace.embedding_coverage_percent}
-                            tone={
-                              workspace.embedding_coverage_percent >= 85
-                                ? "success"
-                                : workspace.embedding_coverage_percent >= 60
-                                  ? "warning"
-                                  : "critical"
-                            }
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
-                          {formatNumber(workspace.documents_indexed)} / {formatNumber(workspace.documents_total)}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3">
-                          <WorkspaceMetric
-                            label="failed"
-                            value={formatNumber(workspace.documents_failed)}
-                            tone={workspace.documents_failed > 0 ? "critical" : "success"}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-500">
-                          {formatDate(workspace.last_document_indexed_at)}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right">
-                          <Link
-                            href={`/admin/ragops/workspaces/${workspace.workspace_id}`}
-                            className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
-                          >
-                            Open
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="inline-flex items-center gap-2 text-sm text-fg-muted">
+          <span className="h-2 w-2 rounded-full bg-success motion-safe:animate-pulse" />
+          Live from the platform API · auto-refreshes every 60s
+        </p>
+        <Button variant="secondary" size="sm" onClick={() => tower.refetch()} isLoading={tower.isFetching}>
+          <Icon name="activity" size={15} />
+          {tower.isFetching ? "Refreshing" : "Refresh"}
+        </Button>
       </div>
+
+      {tower.isError ? (
+        <div className="mb-5">
+          <ErrorState
+            title="Some telemetry failed to load"
+            message={tower.error}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => tower.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        </div>
+      ) : null}
+
+      {tower.isLoading ? (
+        <div className="grid gap-6">
+          <LoadingSkeleton rows={2} variant="metric" />
+          <LoadingSkeleton rows={1} variant="card" />
+          <LoadingSkeleton rows={3} />
+        </div>
+      ) : (
+        <div className="grid gap-8">
+          <SectionCard title="Executive Overview" subtitle="Is the platform healthy right now?" icon="activity">
+            <ExecutiveOverview overview={tower.overview} />
+          </SectionCard>
+
+          <SectionCard
+            title="AI Platform Summary"
+            subtitle="Synthesized findings, risks, and recommendations"
+            icon="sparkles"
+          >
+            <AiInsight insights={tower.insights} overview={tower.overview} />
+          </SectionCard>
+
+          <SectionCard
+            title="Document Pipeline Observatory"
+            subtitle="Upload → Extraction → Chunking → Embedding → Indexing → Ready"
+            icon="layers"
+          >
+            <PipelineObservatory overview={tower.overview} qdrant={tower.qdrant} />
+          </SectionCard>
+
+          <SectionCard title="Workspace Health Center" subtitle="Worst-performing workspaces first" icon="grid">
+            <WorkspaceHealthCenter workspaces={tower.workspaces} />
+          </SectionCard>
+
+          <SectionCard
+            title="Retrieval Intelligence"
+            subtitle="Retrieval readiness, latency, and throughput"
+            icon="search"
+          >
+            <RetrievalIntelligence overview={tower.overview} stats={tower.stats} workspaces={tower.workspaces} />
+          </SectionCard>
+
+          <SectionCard
+            title="Embedding Analytics"
+            subtitle="Vector coverage and Qdrant synchronization"
+            icon="box"
+          >
+            <EmbeddingAnalytics overview={tower.overview} qdrant={tower.qdrant} />
+          </SectionCard>
+
+          <SectionCard
+            title="Evaluation Intelligence"
+            subtitle="Faithfulness, relevance, context precision, hallucination"
+            icon="shield"
+          >
+            <EvaluationIntelligence overview={tower.overview} quality={tower.quality} />
+          </SectionCard>
+
+          <SectionCard title="Agent Performance" subtitle="Latency across the RAG agent pipeline" icon="activity">
+            <AgentPerformance stats={tower.stats} quality={tower.quality} />
+          </SectionCard>
+
+          <SectionCard
+            title="Failure Center"
+            subtitle="Incidents across ingestion, retrieval, and evaluation"
+            icon="alertCircle"
+          >
+            <FailureCenter
+              overview={tower.overview}
+              quality={tower.quality}
+              errors={tower.errors}
+              workspaces={tower.workspaces}
+            />
+          </SectionCard>
+
+          <SectionCard title="Operations Center" subtitle="Subsystem health" icon="monitor">
+            <OperationsCenter qdrant={tower.qdrant} hasStats={Boolean(tower.stats)} />
+          </SectionCard>
+        </div>
+      )}
     </AdminShell>
-  );
-}
-
-function summarize(workspaces: RagOpsWorkspaceSummary[]) {
-  const healthy = workspaces.filter((item) => item.rag_health_status === "healthy").length;
-  const warning = workspaces.filter((item) => item.rag_health_status === "warning").length;
-  const critical = workspaces.filter((item) => item.rag_health_status === "critical").length;
-  const totalChunks = workspaces.reduce((total, item) => total + item.total_chunks, 0);
-  const chunksWithVectors = workspaces.reduce(
-    (total, item) => total + item.chunks_with_vector_id,
-    0,
-  );
-  const failedDocuments = workspaces.reduce(
-    (total, item) => total + item.documents_failed,
-    0,
-  );
-  return {
-    chunksWithVectors,
-    critical,
-    embeddingCoverage: totalChunks > 0 ? chunksWithVectors / totalChunks : 1,
-    failedDocuments,
-    healthy,
-    totalChunks,
-    warning,
-  };
-}
-
-function percentOf(value: number, total: number) {
-  return total > 0 ? value / total : 0;
-}
-
-function WorkspaceMetric({
-  label,
-  tone = "neutral",
-  value,
-}: {
-  label: string;
-  tone?: "success" | "critical" | "neutral";
-  value: string;
-}) {
-  const color =
-    tone === "success" ? "text-emerald-700" : tone === "critical" ? "text-red-700" : "text-slate-950";
-
-  return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className={`mt-2 text-sm font-semibold ${color}`}>{value}</p>
-    </div>
   );
 }

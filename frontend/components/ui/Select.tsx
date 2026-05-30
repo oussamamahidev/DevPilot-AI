@@ -1,24 +1,40 @@
 import type { SelectHTMLAttributes } from "react";
 
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
+  containerClassName?: string;
   error?: string | null;
   label?: string;
 };
 
-export function Select({ children, className = "", error, id, label, ...props }: SelectProps) {
+export function Select({
+  children,
+  className = "",
+  containerClassName = "",
+  error,
+  id,
+  label,
+  ...props
+}: SelectProps) {
   const inputId = id ?? props.name;
+  const errorId = error && inputId ? `${inputId}-error` : undefined;
 
   return (
-    <label className="grid gap-2 text-sm font-medium text-slate-700">
+    <label className={`grid min-w-0 gap-2 text-sm font-medium text-fg ${containerClassName}`}>
       {label ? <span>{label}</span> : null}
       <select
         {...props}
         id={inputId}
-        className={`h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-50 ${className}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={errorId}
+        className={`h-10 min-w-0 rounded-md border bg-surface px-3 text-sm text-fg outline-none transition focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60 ${error ? "border-danger" : "border-line focus:border-line-strong"} ${className}`}
       >
         {children}
       </select>
-      {error ? <span className="text-xs font-medium text-red-700">{error}</span> : null}
+      {error ? (
+        <span id={errorId} className="text-xs font-medium text-danger-fg">
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }

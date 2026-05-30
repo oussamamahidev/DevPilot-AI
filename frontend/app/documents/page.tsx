@@ -499,10 +499,10 @@ export default function DocumentsPage() {
             <div className="grid gap-5 lg:grid-cols-[1fr_260px] lg:items-end">
               <div>
                 <Badge tone="ai">Document Ingestion</Badge>
-                <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+                <h1 className="mt-4 text-2xl font-semibold text-fg">
                   Upload and monitor knowledge documents
                 </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-fg-muted">
                   Choose a workspace, upload supported files, and watch Celery
                   ingestion progress until documents are indexed and ready for
                   chat retrieval.
@@ -531,11 +531,11 @@ export default function DocumentsPage() {
           </Card>
 
           <Card>
-            <p className="text-sm font-medium text-slate-500">Selected workspace</p>
-            <p className="mt-2 truncate text-xl font-semibold text-slate-950">
+            <p className="text-sm font-medium text-fg-subtle">Selected workspace</p>
+            <p className="mt-2 truncate text-xl font-semibold text-fg">
               {selectedWorkspace?.name ?? "No workspace selected"}
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
+            <p className="mt-2 text-sm leading-6 text-fg-muted">
               {selectedWorkspace
                 ? selectedWorkspace.description ?? "No description"
                 : "Create a workspace first to upload documents."}
@@ -543,14 +543,14 @@ export default function DocumentsPage() {
             {selectedWorkspace ? (
               <Link
                 href={`/workspaces/${selectedWorkspace.id}/chat`}
-                className="mt-4 inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                className="mt-4 inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
               >
                 Ask a question
               </Link>
             ) : (
               <Link
                 href="/dashboard#create-workspace"
-                className="mt-4 inline-flex h-9 items-center rounded-md bg-slate-950 px-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                className="mt-4 inline-flex h-9 items-center rounded-md bg-brand px-3 text-sm font-medium text-white transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
               >
                 Create workspace
               </Link>
@@ -565,7 +565,7 @@ export default function DocumentsPage() {
             action={
               <Link
                 href="/dashboard#create-workspace"
-                className="inline-flex h-10 items-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+                className="inline-flex h-10 items-center rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
               >
                 Create workspace
               </Link>
@@ -587,8 +587,8 @@ export default function DocumentsPage() {
                 className={[
                   "flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-6 text-center transition",
                   isDragging
-                    ? "border-slate-950 bg-slate-100"
-                    : "border-slate-300 bg-slate-50 hover:border-slate-400",
+                    ? "border-brand bg-sunken"
+                    : "border-line-strong bg-sunken hover:border-line-strong",
                   !selectedWorkspaceId ? "cursor-not-allowed opacity-60" : "",
                 ].join(" ")}
               >
@@ -599,21 +599,21 @@ export default function DocumentsPage() {
                   disabled={!selectedWorkspaceId || isUploading}
                   onChange={handleInputChange}
                 />
-                <span className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-950 shadow-sm">
+                <span className="rounded-md bg-surface px-3 py-2 text-sm font-semibold text-fg shadow-sm">
                   {selectedFile ? selectedFile.name : "Choose or drop a file"}
                 </span>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
+                <p className="mt-3 text-sm leading-6 text-fg-muted">
                   Supports PDF, TXT, Markdown, and MD files up to{" "}
                   {formatBytes(MAX_UPLOAD_BYTES)}.
                 </p>
                 {selectedFile ? (
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-fg-subtle">
                     {formatBytes(selectedFile.size)}
                   </p>
                 ) : null}
               </label>
 
-              <div className="grid gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
+              <div className="grid gap-2 rounded-md bg-sunken p-3 text-sm text-fg-muted">
                 <div className="flex flex-wrap gap-2">
                   {SUPPORTED_EXTENSIONS.map((extension) => (
                     <Badge key={extension}>{extension}</Badge>
@@ -624,20 +624,20 @@ export default function DocumentsPage() {
 
               <ErrorState message={fileError} title="File validation failed" />
               {success ? (
-                <section className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                <section className="rounded-md border border-success-line bg-success-subtle px-4 py-3 text-sm text-success-surface-fg">
                   {success}
                 </section>
               ) : null}
 
               {(isUploading || uploadProgress > 0) && selectedFile ? (
                 <div>
-                  <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                  <div className="flex items-center justify-between text-xs font-medium text-fg-subtle">
                     <span>{isUploading ? "Uploading..." : "Upload complete"}</span>
                     <span>{uploadProgress}%</span>
                   </div>
-                  <div className="mt-2 h-2 rounded-full bg-slate-100">
+                  <div className="mt-2 h-2 rounded-full bg-sunken">
                     <div
-                      className="h-2 rounded-full bg-slate-950 transition-all"
+                      className="h-2 rounded-full bg-brand transition-all"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -662,10 +662,10 @@ export default function DocumentsPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               {(["queued", "processing", "indexed", "failed"] as DocumentStatus[]).map(
                 (status) => (
-                  <div key={status} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <div key={status} className="rounded-md border border-line bg-sunken p-4">
                     <div className="flex items-center justify-between gap-3">
                       <StatusBadge status={status} />
-                      <span className="text-sm font-semibold text-slate-950">
+                      <span className="text-sm font-semibold text-fg">
                         {status === "indexed"
                           ? documentStats.indexed
                           : status === "processing"
@@ -675,7 +675,7 @@ export default function DocumentsPage() {
                               : documentStats.failed}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                    <p className="mt-3 text-sm leading-6 text-fg-muted">
                       {statusDetails[status].description}
                     </p>
                   </div>
@@ -687,26 +687,26 @@ export default function DocumentsPage() {
 
         <section className="grid gap-4 md:grid-cols-4">
           <Card>
-            <p className="text-sm font-medium text-slate-500">Total</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">
+            <p className="text-sm font-medium text-fg-subtle">Total</p>
+            <p className="mt-2 text-2xl font-semibold text-fg">
               {documentStats.total}
             </p>
           </Card>
           <Card>
-            <p className="text-sm font-medium text-slate-500">Ready for RAG</p>
-            <p className="mt-2 text-2xl font-semibold text-emerald-700">
+            <p className="text-sm font-medium text-fg-subtle">Ready for RAG</p>
+            <p className="mt-2 text-2xl font-semibold text-success-surface-fg">
               {documentStats.indexed}
             </p>
           </Card>
           <Card>
-            <p className="text-sm font-medium text-slate-500">In Progress</p>
-            <p className="mt-2 text-2xl font-semibold text-blue-700">
+            <p className="text-sm font-medium text-fg-subtle">In Progress</p>
+            <p className="mt-2 text-2xl font-semibold text-info-surface-fg">
               {documentStats.processing + documentStats.queued}
             </p>
           </Card>
           <Card>
-            <p className="text-sm font-medium text-slate-500">Failed</p>
-            <p className="mt-2 text-2xl font-semibold text-red-700">
+            <p className="text-sm font-medium text-fg-subtle">Failed</p>
+            <p className="mt-2 text-2xl font-semibold text-danger-surface-fg">
               {documentStats.failed}
             </p>
           </Card>
@@ -741,9 +741,9 @@ export default function DocumentsPage() {
               description="After upload, this table will show queued, processing, indexed, and failed states."
             />
           ) : (
-            <div className="overflow-x-auto rounded-md border border-slate-200">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="overflow-x-auto rounded-lg border border-line">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-sunken text-left text-xs font-semibold uppercase tracking-wide text-fg-subtle">
                   <tr>
                     <th className="px-4 py-3">Document</th>
                     <th className="px-4 py-3">Status</th>
@@ -753,32 +753,32 @@ export default function DocumentsPage() {
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-line">
                   {documents.map((document) => (
                     <tr key={document.id} className="align-top">
                       <td className="max-w-[300px] px-4 py-3">
-                        <p className="truncate font-medium text-slate-950">
+                        <p className="truncate font-medium text-fg">
                           {document.filename}
                         </p>
-                        <p className="mt-1 text-xs uppercase text-slate-500">
+                        <p className="mt-1 text-xs uppercase text-fg-subtle">
                           {document.file_type || getExtension(document.filename)}
                         </p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="grid gap-2">
                           <StatusBadge status={document.status} />
-                          <p className="max-w-[260px] text-xs leading-5 text-slate-500">
+                          <p className="max-w-[260px] text-xs leading-5 text-fg-subtle">
                             {statusDetails[document.status].description}
                           </p>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-fg-muted">
                         {formatBytes(document.file_size)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-fg-muted">
                         {formatDate(document.created_at)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-fg-muted">
                         {formatDate(document.processed_at)}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -806,7 +806,7 @@ export default function DocumentsPage() {
                           {canUseAdminActions ? (
                             <Link
                               href={`/admin/ragops/documents/${document.id}`}
-                              className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                              className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                             >
                               Pipeline
                             </Link>

@@ -61,13 +61,13 @@ type DashboardData = {
 type ChartDatum = Record<string, string | number | null>;
 
 const chartColors = {
-  amber: "#d97706",
-  blue: "#2563eb",
-  cyan: "#0891b2",
-  emerald: "#059669",
-  red: "#dc2626",
-  slate: "#64748b",
-  violet: "#7c3aed",
+  amber: "#F59E0B",
+  blue: "#3B82F6",
+  cyan: "#06B6D4",
+  emerald: "#10B981",
+  red: "#EF4444",
+  slate: "#64748B",
+  violet: "#7C4DFF",
 } as const;
 
 const documentStatusColors: Record<string, string> = {
@@ -80,9 +80,9 @@ const documentStatusColors: Record<string, string> = {
 };
 
 const serviceToneClasses: Record<string, string> = {
-  degraded: "border-amber-200 bg-amber-50 text-amber-800",
-  down: "border-red-200 bg-red-50 text-red-800",
-  healthy: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  degraded: "border-warning-line bg-warning-subtle text-warning-surface-fg",
+  down: "border-danger-line bg-danger-subtle text-danger-surface-fg",
+  healthy: "border-success-line bg-success-subtle text-success-surface-fg",
 };
 
 function requestErrorMessage(error: unknown, fallback: string) {
@@ -362,17 +362,17 @@ export default function DashboardPage() {
       description="Operational analytics, RAG quality, ingestion health, and infrastructure readiness."
     >
       <div className="grid min-w-0 gap-6">
-        <section className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-slate-950 px-4 py-5 text-white sm:px-5">
+        <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+          <div className="border-b border-line bg-surface px-4 py-5 text-fg sm:px-5">
             <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-fg">
                   DevPilot AI Operations
                 </p>
                 <h1 className="mt-2 break-words text-2xl font-semibold tracking-normal sm:text-3xl">
                   Platform analytics console
                 </h1>
-                <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-fg-muted">
                   Live usage, document ingestion, answer quality, and runtime health from backend APIs.
                 </p>
               </div>
@@ -585,24 +585,24 @@ function KpiCard({
   value: string;
 }) {
   const toneClasses = {
-    amber: "border-amber-200 bg-amber-50 text-amber-700",
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    red: "border-red-200 bg-red-50 text-red-700",
-    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    amber: "border-warning-line bg-warning-subtle text-warning-surface-fg",
+    blue: "border-info-line bg-info-subtle text-info-surface-fg",
+    cyan: "border-info-line bg-info-subtle text-info-surface-fg",
+    emerald: "border-success-line bg-success-subtle text-success-surface-fg",
+    red: "border-danger-line bg-danger-subtle text-danger-surface-fg",
+    violet: "border-brand-subtle-line bg-brand-subtle text-brand-fg",
   }[tone];
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <p className="break-words text-sm font-medium text-slate-500">{label}</p>
+        <p className="break-words text-sm font-medium text-fg-subtle">{label}</p>
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full border ${toneClasses}`} />
       </div>
-      <p className="mt-3 break-words text-3xl font-semibold tracking-normal text-slate-950">
+      <p className="mt-3 break-words text-3xl font-semibold tracking-normal text-fg">
         {value}
       </p>
-      <p className="mt-2 break-words text-sm leading-5 text-slate-600">{detail}</p>
+      <p className="mt-2 break-words text-sm leading-5 text-fg-muted">{detail}</p>
     </section>
   );
 }
@@ -617,10 +617,10 @@ function ChartPanel({
   title: string;
 }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-4 shadow-sm sm:p-5">
       <div className="min-w-0">
-        <h2 className="break-words text-base font-semibold text-slate-950">{title}</h2>
-        <p className="mt-1 break-words text-sm leading-6 text-slate-600">{description}</p>
+        <h2 className="break-words text-base font-semibold text-fg">{title}</h2>
+        <p className="mt-1 break-words text-sm leading-6 text-fg-muted">{description}</p>
       </div>
       <div className="mt-4 min-w-0">{children}</div>
     </section>
@@ -629,10 +629,10 @@ function ChartPanel({
 
 function EmptyChart({ title }: { title: string }) {
   return (
-    <div className="grid h-72 place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+    <div className="grid h-72 place-items-center rounded-md border border-dashed border-line-strong bg-sunken p-4 text-center">
       <div>
-        <p className="text-sm font-medium text-slate-700">{title}</p>
-        <p className="mt-1 text-xs text-slate-500">Charts appear when the API returns records.</p>
+        <p className="text-sm font-medium text-fg-muted">{title}</p>
+        <p className="mt-1 text-xs text-fg-subtle">Charts appear when the API returns records.</p>
       </div>
     </div>
   );
@@ -662,9 +662,9 @@ function AreaChartBlock({
               <stop offset="95%" stopColor={color} stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 12 }} />
-          <YAxis allowDecimals={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+          <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fill: "#64748B", fontSize: 12 }} />
+          <YAxis allowDecimals={false} tick={{ fill: "#64748B", fontSize: 12 }} />
           <Tooltip />
           <Area
             dataKey={dataKey}
@@ -697,9 +697,9 @@ function BarChartBlock({
     <div className="h-72 min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ bottom: 4, left: 0, right: 12, top: 12 }}>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 12 }} />
-          <YAxis allowDecimals={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+          <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fill: "#64748B", fontSize: 12 }} />
+          <YAxis allowDecimals={false} tick={{ fill: "#64748B", fontSize: 12 }} />
           <Tooltip />
           <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} />
         </BarChart>
@@ -716,9 +716,9 @@ function EvaluationLineChart({ data }: { data: ChartDatum[] }) {
     <div className="h-72 min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ bottom: 4, left: 0, right: 12, top: 12 }}>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 12 }} />
-          <YAxis domain={[0, 1]} tick={{ fill: "#64748b", fontSize: 12 }} />
+          <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fill: "#64748B", fontSize: 12 }} />
+          <YAxis domain={[0, 1]} tick={{ fill: "#64748B", fontSize: 12 }} />
           <Tooltip formatter={(value) => formatDecimal(Number(value), 2)} />
           <Legend />
           <Line dataKey="faithfulness" dot={false} stroke={chartColors.emerald} strokeWidth={2} />
@@ -738,9 +738,9 @@ function HallucinationTrendChart({ data }: { data: ChartDatum[] }) {
     <div className="h-72 min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ bottom: 4, left: 0, right: 12, top: 12 }}>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 12 }} />
-          <YAxis domain={[0, 1]} tick={{ fill: "#64748b", fontSize: 12 }} />
+          <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fill: "#64748B", fontSize: 12 }} />
+          <YAxis domain={[0, 1]} tick={{ fill: "#64748B", fontSize: 12 }} />
           <Tooltip formatter={(value) => formatDecimal(Number(value), 2)} />
           <Line
             dataKey="hallucination"
@@ -804,13 +804,13 @@ function RadialHealthChart({ value }: { value: number }) {
           startAngle={90}
         >
           <PolarAngleAxis domain={[0, 100]} tick={false} type="number" />
-          <RadialBar background={{ fill: "#e2e8f0" }} dataKey="value" cornerRadius={12} />
+          <RadialBar background={{ fill: "#E2E8F0" }} dataKey="value" cornerRadius={12} />
           <Tooltip formatter={(tooltipValue) => `${formatDecimal(Number(tooltipValue), 0)}%`} />
         </RadialBarChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute text-center">
-        <p className="text-4xl font-semibold text-slate-950">{value}</p>
-        <p className="mt-1 text-xs font-semibold uppercase text-slate-500">health score</p>
+        <p className="text-4xl font-semibold text-fg">{value}</p>
+        <p className="mt-1 text-xs font-semibold uppercase text-fg-subtle">health score</p>
       </div>
     </div>
   );
@@ -828,15 +828,15 @@ function HealthCard({
   status: string;
 }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="break-words text-sm font-semibold text-slate-950">{label}</h2>
-          <p className="mt-2 break-words text-sm leading-5 text-slate-600">{detail}</p>
+          <h2 className="break-words text-sm font-semibold text-fg">{label}</h2>
+          <p className="mt-2 break-words text-sm leading-5 text-fg-muted">{detail}</p>
         </div>
         <StatusPill status={status}>{resolveServiceStatus(status)}</StatusPill>
       </div>
-      <p className="mt-5 break-words text-xl font-semibold text-slate-950">{metric}</p>
+      <p className="mt-5 break-words text-xl font-semibold text-fg">{metric}</p>
     </section>
   );
 }

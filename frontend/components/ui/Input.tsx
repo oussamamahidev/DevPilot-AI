@@ -15,16 +15,23 @@ export function Input({
   ...props
 }: InputProps) {
   const inputId = id ?? props.name;
+  const errorId = error && inputId ? `${inputId}-error` : undefined;
 
   return (
-    <label className={`grid min-w-0 gap-2 text-sm font-medium text-slate-700 ${containerClassName}`}>
+    <label className={`grid min-w-0 gap-2 text-sm font-medium text-fg ${containerClassName}`}>
       {label ? <span>{label}</span> : null}
       <input
         {...props}
         id={inputId}
-        className={`h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-50 ${className}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={errorId}
+        className={`h-10 min-w-0 rounded-md border bg-surface px-3 text-sm text-fg outline-none transition placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60 ${error ? "border-danger" : "border-line focus:border-line-strong"} ${className}`}
       />
-      {error ? <span className="text-xs font-medium text-red-700">{error}</span> : null}
+      {error ? (
+        <span id={errorId} className="text-xs font-medium text-danger-fg">
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }

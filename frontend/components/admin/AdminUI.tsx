@@ -31,7 +31,7 @@ export function AdminShell({
     <DashboardShell activeItem="admin" title={title} description={description}>
       <AdminSidebar />
       {user ? (
-        <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-fg-muted">
           <span>{user.email}</span>
           <RoleBadge role={user.role} />
         </div>
@@ -149,7 +149,7 @@ export function Toolbar({
   setSearch: (value: string) => void;
 }) {
   return (
-    <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+    <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-4 shadow-sm md:flex-row md:items-center md:justify-between">
       <Input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
@@ -184,7 +184,7 @@ export function PaginationControls({
       >
         Previous
       </Button>
-      <span className="text-sm text-slate-500">Page {page + 1}</span>
+      <span className="text-sm text-fg-muted">Page {page + 1}</span>
       <Button
         disabled={!canNext}
         onClick={() => setPage(page + 1)}
@@ -251,7 +251,7 @@ export function ConfirmReasonModal({
         </>
       }
     >
-      <p className="text-sm leading-6 text-slate-600">
+      <p className="text-sm leading-6 text-fg-muted">
         A reason is required and will be written to the audit log.
       </p>
       {error ? <div className="mt-4"><ErrorState message={error} /></div> : null}

@@ -8,7 +8,7 @@ type AppLayoutProps = {
 
 export function AppLayout({ children, className = "" }: AppLayoutProps) {
   return (
-    <div className={`min-h-screen bg-slate-50 ${className}`}>
+    <div className={`min-h-screen bg-canvas ${className}`}>
       <Navbar />
       {children}
     </div>

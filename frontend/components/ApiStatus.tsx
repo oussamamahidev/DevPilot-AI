@@ -2,6 +2,7 @@
 
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { LoadingState } from "@/components/LoadingState";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { API_BASE_URL } from "@/lib/api-client";
 import { useApiStatus } from "@/hooks/useApiStatus";
 
@@ -9,17 +10,13 @@ export function ApiStatus() {
   const { data, error, isLoading } = useApiStatus();
 
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-950">API status</h2>
-          <p className="mt-1 text-sm text-slate-500">{API_BASE_URL}</p>
+          <h2 className="text-sm font-semibold text-fg">API status</h2>
+          <p className="mt-1 text-sm text-fg-subtle">{API_BASE_URL}</p>
         </div>
-        {data ? (
-          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
-            {data.status}
-          </span>
-        ) : null}
+        {data ? <StatusBadge label={data.status} tone="success" /> : null}
       </div>
 
       <div className="mt-4">
@@ -28,16 +25,14 @@ export function ApiStatus() {
         {data ? (
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-slate-500">Service</dt>
-              <dd className="mt-1 font-medium text-slate-950">
+              <dt className="text-fg-subtle">Service</dt>
+              <dd className="mt-1 font-medium text-fg">
                 {data.service ?? data.app ?? "DevPilot AI API"}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Environment</dt>
-              <dd className="mt-1 font-medium text-slate-950">
-                {data.environment ?? "development"}
-              </dd>
+              <dt className="text-fg-subtle">Environment</dt>
+              <dd className="mt-1 font-medium text-fg">{data.environment ?? "development"}</dd>
             </div>
           </dl>
         ) : null}

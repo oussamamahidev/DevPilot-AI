@@ -94,14 +94,14 @@ async function parseResponse(response: Response): Promise<unknown> {
   return response.text();
 }
 
+const AUTH_PATHS = [LOGIN_PATH, "/register", "/forgot-password", "/session-expired"];
+
 function handleUnauthorized() {
   removeToken();
 
-  if (
-    typeof window !== "undefined" &&
-    ![LOGIN_PATH, "/register"].includes(window.location.pathname)
-  ) {
-    window.location.assign(LOGIN_PATH);
+  if (typeof window !== "undefined" && !AUTH_PATHS.includes(window.location.pathname)) {
+    const next = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.assign(`/session-expired?next=${next}`);
   }
 }
 

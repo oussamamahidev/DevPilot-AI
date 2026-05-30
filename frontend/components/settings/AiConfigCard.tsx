@@ -106,7 +106,7 @@ export function AiConfigCard({
                 {warnings.map((warning) => (
                   <div
                     key={warning}
-                    className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                    className="rounded-md border border-warning-line bg-warning-subtle px-4 py-3 text-sm text-warning-surface-fg"
                   >
                     {warning}
                   </div>
@@ -174,16 +174,16 @@ export function AiConfigCard({
             </dl>
 
             {rawSafeConfig ? (
-              <div className="border-t border-slate-100 pt-4">
+              <div className="border-t border-line-subtle pt-4">
                 <button
                   type="button"
                   onClick={() => setShowRawConfig((current) => !current)}
-                  className="text-sm font-medium text-slate-700 hover:text-slate-950"
+                  className="text-sm font-medium text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                 >
                   {showRawConfig ? "Hide raw safe config" : "Show raw safe config"}
                 </button>
                 {showRawConfig ? (
-                  <pre className="mt-3 max-h-72 overflow-auto rounded-md bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+                  <pre className="mt-3 max-h-72 overflow-auto rounded-md border border-line bg-sunken p-4 text-xs leading-5 text-fg">
                     {rawSafeConfig}
                   </pre>
                 ) : null}
@@ -193,7 +193,7 @@ export function AiConfigCard({
         ) : null}
 
         {!isLoading && !config && !error ? (
-          <p className="text-sm text-slate-600">Not available</p>
+          <p className="text-sm text-fg-muted">Not available</p>
         ) : null}
       </div>
     </SettingsCard>

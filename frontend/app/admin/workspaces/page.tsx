@@ -72,10 +72,10 @@ export default function AdminWorkspacesPage() {
     <AdminShell title="Workspaces" description="Inspect tenant workspaces and ownership.">
       <ErrorBanner message={error} onRetry={() => void load()} />
       <Toolbar search={search} setSearch={setSearch} />
-      <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
         <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold text-slate-950">Workspace Directory</h2>
-          <span className="text-sm text-slate-500">{formatNumber(filtered.length)} workspaces</span>
+          <h2 className="text-base font-semibold text-fg">Workspace Directory</h2>
+          <span className="text-sm text-fg-subtle">{formatNumber(filtered.length)} workspaces</span>
         </div>
         {isFetching ? <LoadingSkeleton label="Loading workspaces" rows={4} /> : null}
         {!isFetching && visible.length === 0 ? (
@@ -86,7 +86,7 @@ export default function AdminWorkspacesPage() {
         ) : (
         <div className="admin-table-scroll">
           <table className="admin-table">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="bg-sunken text-xs uppercase text-fg-subtle">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Workspace</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Owner email</th>
@@ -96,31 +96,31 @@ export default function AdminWorkspacesPage() {
                 <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line-subtle">
               {visible.map((workspace) => (
                 <tr key={workspace.id}>
                   <td className="px-3 py-3">
-                    <div className="break-words font-medium text-slate-950">{workspace.name}</div>
-                    <div className="break-words text-xs text-slate-500">
+                    <div className="break-words font-medium text-fg">{workspace.name}</div>
+                    <div className="break-words text-xs text-fg-subtle">
                       {workspace.description ?? "No description"}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {workspace.owner_email}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {formatNumber(workspace.document_count)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {formatNumber(workspace.member_count)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-subtle">
                     {formatDate(workspace.created_at)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-right">
                     <Link
                       href={`/admin/workspaces/${workspace.id}`}
-                      className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                      className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover"
                     >
                       View
                     </Link>

@@ -157,8 +157,8 @@ export default function RagOpsWorkspacePage() {
                 2,
               )}.`}
             />
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950">Document Pipeline Status</h3>
+            <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-fg">Document Pipeline Status</h3>
               <div className="mt-5">
                 <StackedStatusBar
                   segments={[
@@ -189,11 +189,11 @@ export default function RagOpsWorkspacePage() {
             </section>
           </div>
 
-          <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-950">Qdrant Sync Panel</h3>
-                <p className="mt-1 text-sm text-slate-600">
+                <h3 className="text-base font-semibold text-fg">Qdrant Sync Panel</h3>
+                <p className="mt-1 text-sm text-fg-muted">
                   PostgreSQL vector references compared with Qdrant indexed vector counts.
                 </p>
               </div>
@@ -242,7 +242,7 @@ export default function RagOpsWorkspacePage() {
               />
             </div>
             {detail.qdrant_summary.error ? (
-              <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <p className="mt-4 rounded-md border border-danger-line bg-danger-subtle p-3 text-sm text-danger-surface-fg">
                 {detail.qdrant_summary.error}
               </p>
             ) : null}
@@ -285,8 +285,8 @@ export default function RagOpsWorkspacePage() {
             bars={[{ key: "latency", name: "Latency ms", color: chartPalette.blue }]}
           />
 
-          <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-950">Recent RAG Queries</h3>
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-fg">Recent RAG Queries</h3>
             {detail.recent_rag_queries.length === 0 ? (
               <div className="mt-5">
                 <EmptyState label="No RAG queries found for this workspace." />
@@ -294,7 +294,7 @@ export default function RagOpsWorkspacePage() {
             ) : (
               <div className="admin-table-scroll mt-5">
                 <table className="admin-table">
-                  <thead className="text-xs uppercase text-slate-500">
+                  <thead className="text-xs uppercase text-fg-subtle">
                     <tr>
                       <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
                       <th className="whitespace-nowrap px-3 py-2 font-medium">Retrieved</th>
@@ -304,18 +304,18 @@ export default function RagOpsWorkspacePage() {
                       <th className="whitespace-nowrap px-3 py-2 font-medium">Trace</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-line-subtle">
                     {detail.recent_rag_queries.map((query) => (
                       <tr key={query.message_id}>
                         <td className="max-w-lg px-3 py-3">
-                          <p className="font-medium text-slate-950">
+                          <p className="font-medium text-fg">
                             {safePreview(query.query_preview, 100)}
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-fg-subtle">
                             {formatDate(query.created_at)}
                           </p>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                           {formatNumber(query.retrieved_chunks_count)}
                         </td>
                         <td className="px-3 py-3">
@@ -323,7 +323,7 @@ export default function RagOpsWorkspacePage() {
                             value={query.faithfulness * 100}
                             tone={query.faithfulness >= 0.75 ? "success" : "warning"}
                           />
-                          <span className="mt-1 block text-xs text-slate-500">
+                          <span className="mt-1 block text-xs text-fg-subtle">
                             {formatDecimal(query.faithfulness, 2)}
                           </span>
                         </td>
@@ -332,17 +332,17 @@ export default function RagOpsWorkspacePage() {
                             value={query.relevance * 100}
                             tone={query.relevance >= 0.75 ? "success" : "warning"}
                           />
-                          <span className="mt-1 block text-xs text-slate-500">
+                          <span className="mt-1 block text-xs text-fg-subtle">
                             {formatDecimal(query.relevance, 2)}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                           {formatLatency(query.latency_ms)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3">
                           <Link
                             href={`/admin/rag-traces/${query.message_id}`}
-                            className="font-medium text-slate-950 underline-offset-4 hover:underline"
+                            className="font-medium text-fg underline-offset-4 hover:underline"
                           >
                             View trace
                           </Link>
@@ -355,8 +355,8 @@ export default function RagOpsWorkspacePage() {
             )}
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-950">Failed Documents</h3>
+          <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-fg">Failed Documents</h3>
             {detail.recent_failed_documents.length === 0 ? (
               <div className="mt-5">
                 <EmptyState label="No failed documents in this workspace." />
@@ -366,18 +366,18 @@ export default function RagOpsWorkspacePage() {
                 {detail.recent_failed_documents.map((document) => (
                   <article
                     key={document.document_id}
-                    className="rounded-lg border border-red-200 bg-red-50 p-4"
+                    className="rounded-lg border border-danger-line bg-danger-subtle p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-red-950">{document.filename}</p>
-                        <p className="mt-2 text-sm leading-5 text-red-700">
+                        <p className="truncate font-semibold text-danger-surface-fg">{document.filename}</p>
+                        <p className="mt-2 text-sm leading-5 text-danger-surface-fg">
                           {document.error ?? document.status}
                         </p>
                       </div>
                       <Link
                         href={`/admin/ragops/documents/${document.document_id}`}
-                        className="text-sm font-medium text-red-900 underline-offset-4 hover:underline"
+                        className="text-sm font-medium text-danger-surface-fg underline-offset-4 hover:underline"
                       >
                         Pipeline
                       </Link>
@@ -435,24 +435,24 @@ function InfoTile({
 }) {
   const dotClass =
     tone === "success"
-      ? "bg-emerald-600"
+      ? "bg-success"
       : tone === "warning"
-        ? "bg-amber-500"
+        ? "bg-warning"
         : tone === "critical"
-          ? "bg-red-600"
+          ? "bg-danger"
           : tone === "ai"
-            ? "bg-violet-600"
+            ? "bg-brand"
             : tone === "info"
-              ? "bg-blue-600"
-              : "bg-slate-400";
+              ? "bg-info"
+              : "bg-line-strong";
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-lg border border-line bg-sunken p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+        <p className="text-xs font-semibold uppercase text-fg-subtle">{label}</p>
         <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
       </div>
-      <p className="mt-3 break-words text-lg font-semibold text-slate-950">{value}</p>
+      <p className="mt-3 break-words text-lg font-semibold text-fg">{value}</p>
     </div>
   );
 }

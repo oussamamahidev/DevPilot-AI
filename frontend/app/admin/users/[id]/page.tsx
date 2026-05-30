@@ -111,11 +111,11 @@ export default function AdminUserDetailPage() {
 
       {user ? (
         <div className="grid gap-6">
-          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0">
-                <h2 className="text-xl font-semibold text-slate-950">{user.full_name}</h2>
-                <p className="mt-1 break-all text-sm text-slate-600">{user.email}</p>
+                <h2 className="text-xl font-semibold text-fg">{user.full_name}</h2>
+                <p className="mt-1 break-all text-sm text-fg-muted">{user.email}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <RoleBadge role={user.role} />
@@ -131,14 +131,14 @@ export default function AdminUserDetailPage() {
             </div>
           </section>
 
-          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-950">Access Control</h2>
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-fg">Access Control</h2>
             <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-3">
               <select
                 value={role}
                 onChange={(event) => setRole(event.target.value)}
                 disabled={!canChangeRole}
-                className="h-10 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                className="h-10 min-w-0 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
@@ -187,8 +187,8 @@ export default function AdminUserDetailPage() {
             </div>
           </section>
 
-          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-950">Lifecycle</h2>
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-fg">Lifecycle</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <Info label="Created" value={formatDate(user.created_at)} />
               <Info label="Last Login" value={formatDate(user.last_login_at)} />
@@ -222,9 +222,9 @@ export default function AdminUserDetailPage() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs uppercase text-slate-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-medium text-slate-950">{value}</p>
+    <div className="rounded-md border border-line bg-sunken p-4">
+      <p className="text-xs uppercase text-fg-subtle">{label}</p>
+      <p className="mt-2 break-words text-sm font-medium text-fg">{value}</p>
     </div>
   );
 }

@@ -121,7 +121,7 @@ export default function RagTraceDetailPage() {
         subtitle="Question -> Retrieval -> Reranking -> Generation -> Evaluation -> Correction -> Final Answer."
         actions={
           <>
-            <label className="flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700">
+            <label className="flex h-10 items-center gap-2 rounded-md border border-line-strong bg-surface px-3 text-sm text-fg-muted">
               <input
                 type="checkbox"
                 checked={includeContent}
@@ -135,11 +135,11 @@ export default function RagTraceDetailPage() {
         }
       />
       {!isSuperAdmin ? (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg border border-warning-line bg-warning-subtle p-3 text-sm text-warning-surface-fg">
           Full chunk content is restricted to super admins. This page uses safe previews by default.
         </p>
       ) : includeContent ? (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg border border-warning-line bg-warning-subtle p-3 text-sm text-warning-surface-fg">
           Full chunk content is visible because super admin access and include_content are enabled.
         </p>
       ) : null}
@@ -149,7 +149,7 @@ export default function RagTraceDetailPage() {
 
       {trace ? (
         <div className="grid gap-6">
-          <section className="sticky top-2 z-10 min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+          <section className="sticky top-2 z-10 min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-4 shadow-sm backdrop-blur">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <SummaryItem label="Message" value={shortenId(trace.message_id)} />
               <SummaryItem label="Workspace" value={trace.workspace.name} />
@@ -167,7 +167,7 @@ export default function RagTraceDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="grid gap-5 lg:grid-cols-2">
               <TextPanel label="User Question" value={trace.question} />
               <TextPanel label="Final Assistant Answer" value={trace.answer} />
@@ -267,9 +267,9 @@ export default function RagTraceDetailPage() {
               retrievalCoverage={trace.evaluation.context_precision}
               title="Evaluation Radar"
             />
-            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950">Evaluation Explanation</h3>
-              <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-fg">Evaluation Explanation</h3>
+              <p className="mt-4 rounded-lg border border-line bg-sunken p-4 text-sm leading-6 text-fg-muted">
                 {evaluation?.explanation ?? trace.evaluation.explanation}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -293,14 +293,14 @@ export default function RagTraceDetailPage() {
             </section>
           </div>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-950">Retrieved Chunks</h3>
-                <p className="mt-1 text-sm text-slate-600">
+                <h3 className="text-base font-semibold text-fg">Retrieved Chunks</h3>
+                <p className="mt-1 text-sm text-fg-muted">
                   Original query: {safePreview(retrieval?.original_query ?? trace.question, 180)}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-fg-muted">
                   Rewritten query: {retrieval?.rewritten_query ? safePreview(retrieval.rewritten_query, 180) : "Not rewritten"}
                 </p>
               </div>
@@ -320,17 +320,17 @@ export default function RagTraceDetailPage() {
                   return (
                     <article
                       key={`${chunk.chunk_id ?? chunk.filename}-${chunk.rank}`}
-                      className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                      className="rounded-lg border border-line bg-sunken p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold uppercase text-blue-700">
+                          <p className="text-xs font-semibold uppercase text-info-surface-fg">
                             Rank {chunk.rank}
                           </p>
-                          <h4 className="mt-1 truncate text-sm font-semibold text-slate-950">
+                          <h4 className="mt-1 truncate text-sm font-semibold text-fg">
                             {chunk.filename}
                           </h4>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-fg-subtle">
                             chunk {chunk.chunk_index} - score {formatDecimal(chunk.score, 3)}
                           </p>
                         </div>
@@ -339,13 +339,13 @@ export default function RagTraceDetailPage() {
                           tone={used ? "success" : "neutral"}
                         />
                       </div>
-                      <p className="mt-4 text-sm leading-6 text-slate-700">
+                      <p className="mt-4 text-sm leading-6 text-fg-muted">
                         {safePreview(chunk.content ?? chunk.content_preview, 260)}
                       </p>
                       <div className="mt-4 grid gap-2">
                         {Object.entries(chunk.source_scores).map(([name, value]) => (
                           <div key={name}>
-                            <div className="flex items-center justify-between text-xs text-slate-500">
+                            <div className="flex items-center justify-between text-xs text-fg-subtle">
                               <span>{name}</span>
                               <span>{formatDecimal(value, 3)}</span>
                             </div>
@@ -361,7 +361,7 @@ export default function RagTraceDetailPage() {
           </section>
 
           {reranking && !reranking.reranker_details_available ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <p className="rounded-lg border border-warning-line bg-warning-subtle p-3 text-sm text-warning-surface-fg">
               Detailed reranker output was not stored for this trace. The page is showing the best available
               retrieved-chunk ordering and scores.
             </p>
@@ -370,11 +370,11 @@ export default function RagTraceDetailPage() {
           <RerankingComparisonChart items={reranking?.items ?? []} />
 
           {reranking && reranking.items.length > 0 ? (
-            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950">Reranking Detail</h3>
+            <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-fg">Reranking Detail</h3>
               <div className="admin-table-scroll mt-4">
                 <table className="admin-table">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <thead className="bg-sunken text-xs uppercase text-fg-subtle">
                     <tr>
                       <th className="whitespace-nowrap px-3 py-3 font-medium">Original rank</th>
                       <th className="whitespace-nowrap px-3 py-3 font-medium">Final rank</th>
@@ -386,31 +386,31 @@ export default function RagTraceDetailPage() {
                       <th className="whitespace-nowrap px-3 py-3 font-medium">Used in answer</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-line-subtle">
                     {reranking.items.map((item) => (
                       <tr key={`${item.chunk_id ?? item.filename}-${item.original_rank}-${item.final_rank}`}>
-                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-950">
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-fg">
                           #{item.original_rank ?? "n/a"}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-950">
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-fg">
                           #{item.final_rank ?? "n/a"}
                         </td>
                         <td className="max-w-md px-3 py-3">
-                          <p className="font-medium text-slate-950">{item.filename}</p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="font-medium text-fg">{item.filename}</p>
+                          <p className="mt-1 text-xs text-fg-subtle">
                             {safePreview(item.content_preview, 110)}
                           </p>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                           {formatDecimal(item.original_score, 4)}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                           {formatOptionalScore(item.rerank_score)}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                           {item.exact_matches === null ? "n/a" : formatNumber(item.exact_matches)}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                           {formatOptionalScore(item.overlap)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3">
@@ -427,8 +427,8 @@ export default function RagTraceDetailPage() {
             </section>
           ) : null}
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-950">Citation Panel</h3>
+          <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-fg">Citation Panel</h3>
             {trace.citations.length === 0 ? (
               <div className="mt-5">
                 <EmptyState label="No citations were stored for this answer." />
@@ -444,11 +444,11 @@ export default function RagTraceDetailPage() {
 
           <AgentTimeline runs={orderedAgentRuns} />
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-950">Corrector Decision</h3>
-                <p className="mt-1 text-sm text-slate-600">
+                <h3 className="text-base font-semibold text-fg">Corrector Decision</h3>
+                <p className="mt-1 text-sm text-fg-muted">
                   Shows whether CorrectorAgent changed the generated answer before final output.
                 </p>
               </div>
@@ -458,7 +458,7 @@ export default function RagTraceDetailPage() {
               />
             </div>
             {isRefusalDespiteCitations(trace.answer, trace.citations.length) ? (
-              <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="mt-4 rounded-md border border-warning-line bg-warning-subtle p-3 text-sm text-warning-surface-fg">
                 Warning: the final answer appears to refuse or claim missing context even though citations exist.
               </p>
             ) : null}
@@ -486,9 +486,9 @@ export default function RagTraceDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
             <details>
-              <summary className="cursor-pointer text-base font-semibold text-slate-950">
+              <summary className="cursor-pointer text-base font-semibold text-fg">
                 Raw Safe JSON Debug
               </summary>
               <pre className="mt-5 max-h-[520px] overflow-auto whitespace-pre-wrap rounded-md bg-slate-950 p-4 text-xs leading-5 text-slate-100">
@@ -508,18 +508,18 @@ export default function RagTraceDetailPage() {
 
 function TextPanel({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-800">{value}</p>
+    <div className="rounded-lg border border-line bg-sunken p-4">
+      <p className="text-xs font-semibold uppercase text-fg-subtle">{label}</p>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-fg-muted">{value}</p>
     </div>
   );
 }
 
 function InfoPanel({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+    <div className="rounded-lg border border-line bg-sunken p-4">
+      <p className="text-xs font-semibold uppercase text-fg-subtle">{label}</p>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-fg-muted">
         {safePreview(value, 520)}
       </p>
     </div>
@@ -529,8 +529,8 @@ function InfoPanel({ label, value }: { label: string; value: string }) {
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-slate-950">{value}</p>
+      <p className="text-xs font-semibold uppercase text-fg-subtle">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-fg">{value}</p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
@@ -30,6 +31,8 @@ export function DataTable<TItem>({
   isLoading = false,
   items,
 }: DataTableProps<TItem>) {
+  const router = useRouter();
+
   if (isLoading) {
     return <LoadingSkeleton rows={3} />;
   }
@@ -39,44 +42,56 @@ export function DataTable<TItem>({
   }
 
   return (
-    <div className="admin-table-scroll bg-white shadow-sm">
+    <div className="admin-table-scroll bg-surface shadow-sm">
       <table className="admin-table">
-        <thead className="border-b border-slate-200">
+        <thead>
           <tr>
             {columns.map((column) => (
               <th
                 key={column.key}
-                className={
-                  column.align === "right"
-                    ? "text-right"
-                    : undefined
-                }
+                scope="col"
+                className={column.align === "right" ? "text-right" : undefined}
               >
                 {column.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody>
           {items.map((item) => {
             const href = getRowHref?.(item);
+            const navigate = () => {
+              if (href) {
+                router.push(href);
+              }
+            };
             return (
               <tr
                 key={getRowKey(item)}
-                className={href ? "hover:bg-slate-50" : undefined}
-                onClick={() => {
-                  if (href) {
-                    window.location.assign(href);
-                  }
-                }}
+                className={
+                  href
+                    ? "cursor-pointer transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+                    : undefined
+                }
+                role={href ? "link" : undefined}
+                tabIndex={href ? 0 : undefined}
+                onClick={href ? navigate : undefined}
+                onKeyDown={
+                  href
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          navigate();
+                        }
+                      }
+                    : undefined
+                }
               >
                 {columns.map((column) => (
                   <td
                     key={column.key}
                     className={
-                      column.align === "right"
-                        ? "text-right text-slate-700"
-                        : "text-slate-700"
+                      column.align === "right" ? "text-right text-fg-muted" : "text-fg-muted"
                     }
                   >
                     {column.render(item)}

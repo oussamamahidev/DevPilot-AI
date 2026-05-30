@@ -48,7 +48,7 @@ export function UserCard({ error, isLoading, onRefresh, user }: UserCardProps) {
         ) : null}
 
         {!isLoading && !user && !error ? (
-          <p className="text-sm text-slate-600">Not available</p>
+          <p className="text-sm text-fg-muted">Not available</p>
         ) : null}
       </div>
     </SettingsCard>

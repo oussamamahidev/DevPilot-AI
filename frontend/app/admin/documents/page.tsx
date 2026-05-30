@@ -112,7 +112,7 @@ export default function AdminDocumentsPage() {
         <select
           value={status}
           onChange={(event) => setStatus(event.target.value)}
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
         >
           <option value="">All statuses</option>
           <option value="uploaded">Uploaded</option>
@@ -124,10 +124,10 @@ export default function AdminDocumentsPage() {
         </select>
       </Toolbar>
 
-      <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
         <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold text-slate-950">Document Directory</h2>
-          <span className="text-sm text-slate-500">{formatNumber(filtered.length)} documents</span>
+          <h2 className="text-base font-semibold text-fg">Document Directory</h2>
+          <span className="text-sm text-fg-subtle">{formatNumber(filtered.length)} documents</span>
         </div>
         {isFetching ? <LoadingSkeleton label="Loading documents" rows={4} /> : null}
         {!isFetching && visible.length === 0 ? (
@@ -138,7 +138,7 @@ export default function AdminDocumentsPage() {
         ) : (
         <div className="admin-table-scroll">
           <table className="admin-table">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="bg-sunken text-xs uppercase text-fg-subtle">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Filename</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Status</th>
@@ -150,31 +150,31 @@ export default function AdminDocumentsPage() {
                 <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line-subtle">
               {visible.map((document) => (
                 <tr key={document.id}>
                   <td className="px-3 py-3">
-                    <div className="break-words font-medium text-slate-950">{document.filename}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="break-words font-medium text-fg">{document.filename}</div>
+                    <div className="text-xs text-fg-subtle">
                       {formatBytes(document.file_size)} · {formatDate(document.created_at)}
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <StatusBadge status={document.status} />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {document.file_type || "unknown"}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {document.workspace_name}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {document.uploader_email ?? "Unknown"}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {formatNumber(document.chunks_count)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-subtle">
                     {document.chunks_count > 0
                       ? `${formatDecimal((document.chunks_with_vector_id / document.chunks_count) * 100, 1)}%`
                       : "0.0%"}
@@ -183,13 +183,13 @@ export default function AdminDocumentsPage() {
                     <div className="flex flex-wrap justify-end gap-2">
                       <Link
                         href={`/admin/documents/${document.id}`}
-                        className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                        className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover"
                       >
                         View
                       </Link>
                       <Link
                         href={`/admin/ragops/documents/${document.id}`}
-                        className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                        className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover"
                       >
                         Pipeline
                       </Link>

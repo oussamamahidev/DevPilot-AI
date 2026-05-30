@@ -11,13 +11,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
-  danger:
-    "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300 disabled:text-white",
-  ghost: "bg-transparent text-slate-700 hover:bg-slate-100 disabled:text-slate-400",
-  primary:
-    "bg-slate-950 text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:text-white",
-  secondary:
-    "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:text-slate-400",
+  danger: "bg-danger text-white hover:opacity-90",
+  ghost: "bg-transparent text-fg-muted hover:bg-hover hover:text-fg",
+  primary: "bg-brand text-white hover:bg-brand-hover",
+  secondary: "border border-line bg-surface text-fg hover:bg-hover",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -41,10 +38,10 @@ export function Button({
       {...props}
       type={type}
       disabled={disabled || isLoading}
-      className={`inline-flex max-w-full items-center justify-center gap-2 rounded-md font-medium transition disabled:cursor-not-allowed ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
+      className={`inline-flex max-w-full items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-50 ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
     >
       {isLoading ? (
-        <span className="h-2 w-2 rounded-full bg-current motion-safe:animate-pulse" />
+        <span className="h-2 w-2 rounded-full bg-current motion-safe:animate-pulse" aria-hidden="true" />
       ) : null}
       {children}
     </button>

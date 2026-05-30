@@ -134,25 +134,25 @@ function EvaluationBars({ evaluation }: { evaluation: AnswerEvaluation }) {
         const tone = scoreTone(row.value, row.inverted);
         const color =
           tone === "success"
-            ? "bg-emerald-600"
+            ? "bg-success"
             : tone === "warning"
-              ? "bg-amber-500"
-              : "bg-red-600";
+              ? "bg-warning"
+              : "bg-danger";
 
         return (
           <div key={row.label}>
             <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="font-medium text-slate-600">{row.label}</span>
+              <span className="font-medium text-fg-muted">{row.label}</span>
               <StatusBadge label={row.value.toFixed(2)} tone={tone} />
             </div>
-            <div className="mt-2 h-2 rounded-full bg-slate-100">
+            <div className="mt-2 h-2 rounded-full bg-sunken">
               <div className={`h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
             </div>
           </div>
         );
       })}
       {evaluation.explanation ? (
-        <p className="rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+        <p className="rounded-md bg-sunken p-3 text-xs leading-5 text-fg-muted">
           {evaluation.explanation}
         </p>
       ) : null}
@@ -179,8 +179,8 @@ function MessageBubble({
     <article
       className={
         isAssistant
-          ? "w-full max-w-4xl rounded-md border border-slate-200 bg-white p-4 shadow-sm"
-          : "ml-auto w-full max-w-3xl rounded-md bg-slate-950 p-4 text-white shadow-sm sm:w-fit"
+          ? "w-full max-w-4xl rounded-md border border-line bg-surface p-4 shadow-sm"
+          : "ml-auto w-full max-w-3xl rounded-md bg-brand p-4 text-white shadow-sm sm:w-fit"
       }
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -188,8 +188,8 @@ function MessageBubble({
           <span
             className={
               isAssistant
-                ? "text-xs font-semibold uppercase tracking-wide text-slate-500"
-                : "text-xs font-semibold uppercase tracking-wide text-slate-300"
+                ? "text-xs font-semibold uppercase tracking-wide text-fg-subtle"
+                : "text-xs font-semibold uppercase tracking-wide text-white/70"
             }
           >
             {isAssistant ? "Assistant" : "You"}
@@ -198,7 +198,7 @@ function MessageBubble({
           {message.isPending ? <StatusBadge label="Streaming" tone="info" /> : null}
         </div>
         {message.createdAt ? (
-          <time className={isAssistant ? "text-xs text-slate-400" : "text-xs text-slate-300"}>
+          <time className={isAssistant ? "text-xs text-fg-subtle" : "text-xs text-white/70"}>
             {formatDate(message.createdAt)}
           </time>
         ) : null}
@@ -207,18 +207,18 @@ function MessageBubble({
       <div
         className={
           isAssistant
-            ? "mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-800"
+            ? "mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-fg"
             : "mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-white"
         }
       >
         {message.content || (message.isPending ? "Preparing answer..." : "")}
         {message.isPending ? (
-          <span className="ml-0.5 inline-block animate-pulse text-slate-500">|</span>
+          <span className="ml-0.5 inline-block animate-pulse text-fg-subtle">|</span>
         ) : null}
       </div>
 
       {message.streamStatus ? (
-        <div className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
+        <div className="mt-3 rounded-md bg-sunken px-3 py-2 text-xs font-medium text-fg-muted">
           {message.streamStatus}
         </div>
       ) : null}
@@ -255,7 +255,7 @@ function MessageBubble({
           {canViewTrace && !message.id.startsWith("local-") ? (
             <Link
               href={`/admin/rag-traces/${message.id}`}
-              className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
             >
               View trace
             </Link>
@@ -272,7 +272,7 @@ function MessageBubble({
       ) : null}
 
       {isAssistant && message.evaluationOpen && message.evaluation ? (
-        <div className="mt-4 rounded-md border border-slate-200 bg-white p-4">
+        <div className="mt-4 rounded-lg border border-line bg-surface p-4">
           <EvaluationBars evaluation={message.evaluation} />
         </div>
       ) : null}
@@ -799,10 +799,10 @@ export default function ChatPage() {
             <div className="grid gap-5 lg:grid-cols-[1fr_260px] lg:items-end">
               <div>
                 <Badge tone="ai">RAG Chat</Badge>
-                <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+                <h1 className="mt-4 text-2xl font-semibold text-fg">
                   Ask questions with citations and quality checks
                 </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-fg-muted">
                   Select a workspace, choose a retrieval strategy, and stream an
                   answer grounded in indexed documents.
                 </p>
@@ -835,38 +835,38 @@ export default function ChatPage() {
           </Card>
 
           <Card>
-            <p className="text-sm font-medium text-slate-500">Workspace readiness</p>
-            <p className="mt-2 truncate text-xl font-semibold text-slate-950">
+            <p className="text-sm font-medium text-fg-subtle">Workspace readiness</p>
+            <p className="mt-2 truncate text-xl font-semibold text-fg">
               {selectedWorkspace?.name ?? "No workspace selected"}
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Indexed</p>
-                <p className="mt-1 text-lg font-semibold text-emerald-700">
+              <div className="rounded-md bg-sunken p-3">
+                <p className="text-xs text-fg-subtle">Indexed</p>
+                <p className="mt-1 text-lg font-semibold text-success-fg">
                   {indexedDocumentCount}
                 </p>
               </div>
-              <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Total docs</p>
-                <p className="mt-1 text-lg font-semibold text-slate-950">
+              <div className="rounded-md bg-sunken p-3">
+                <p className="text-xs text-fg-subtle">Total docs</p>
+                <p className="mt-1 text-lg font-semibold text-fg">
                   {documents.length}
                 </p>
               </div>
-              <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Threads</p>
-                <p className="mt-1 text-lg font-semibold text-slate-950">
+              <div className="rounded-md bg-sunken p-3">
+                <p className="text-xs text-fg-subtle">Threads</p>
+                <p className="mt-1 text-lg font-semibold text-fg">
                   {conversations.length}
                 </p>
               </div>
             </div>
             {!selectedWorkspaceId ? (
-              <p className="mt-3 text-sm text-amber-700">Select a workspace to chat.</p>
+              <p className="mt-3 text-sm text-warning-fg">Select a workspace to chat.</p>
             ) : indexedDocumentCount === 0 ? (
-              <p className="mt-3 text-sm text-amber-700">
+              <p className="mt-3 text-sm text-warning-fg">
                 No indexed documents yet. Upload and wait for indexing before asking.
               </p>
             ) : (
-              <p className="mt-3 text-sm text-emerald-700">
+              <p className="mt-3 text-sm text-success-fg">
                 Ready for RAG chat.
               </p>
             )}
@@ -876,7 +876,7 @@ export default function ChatPage() {
         <section className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
           <Card className="p-4 xl:h-fit">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-slate-950">
+              <h2 className="text-base font-semibold text-fg">
                 Conversations
               </h2>
               <Button type="button" size="sm" variant="secondary" onClick={handleNewChat}>
@@ -900,8 +900,8 @@ export default function ChatPage() {
                     onClick={() => void handleLoadConversation(conversation.id)}
                     className={
                       conversation.id === conversationId
-                        ? "rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-left text-sm text-white"
-                        : "rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                        ? "rounded-md border border-brand bg-brand px-3 py-2 text-left text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+                        : "rounded-md border border-line bg-surface px-3 py-2 text-left text-sm text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                     }
                   >
                     <span className="block truncate font-medium">
@@ -910,8 +910,8 @@ export default function ChatPage() {
                     <span
                       className={
                         conversation.id === conversationId
-                          ? "mt-1 block text-xs text-slate-300"
-                          : "mt-1 block text-xs text-slate-500"
+                          ? "mt-1 block text-xs text-white/70"
+                          : "mt-1 block text-xs text-fg-subtle"
                       }
                     >
                       {formatDate(conversation.updated_at)}
@@ -921,8 +921,8 @@ export default function ChatPage() {
               )}
             </div>
 
-            <div className="mt-5 border-t border-slate-200 pt-4">
-              <p className="text-sm font-semibold text-slate-950">
+            <div className="mt-5 border-t border-line pt-4">
+              <p className="text-sm font-semibold text-fg">
                 Retrieval strategy
               </p>
               <div className="mt-3 grid gap-2">
@@ -935,16 +935,16 @@ export default function ChatPage() {
                       onClick={() => setRetrievalStrategy(strategy)}
                       className={
                         strategy === retrievalStrategy
-                          ? "rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-left text-sm text-white"
-                          : "rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                          ? "rounded-md border border-brand bg-brand px-3 py-2 text-left text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+                          : "rounded-md border border-line bg-surface px-3 py-2 text-left text-sm text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                       }
                     >
                       <span className="block font-medium capitalize">{strategy}</span>
                       <span
                         className={
                           strategy === retrievalStrategy
-                            ? "mt-1 block text-xs text-slate-300"
-                            : "mt-1 block text-xs text-slate-500"
+                            ? "mt-1 block text-xs text-white/70"
+                            : "mt-1 block text-xs text-fg-subtle"
                         }
                       >
                         {strategyDescriptions[strategy]}
@@ -956,15 +956,15 @@ export default function ChatPage() {
             </div>
           </Card>
 
-          <section className="min-h-[70dvh] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-sm xl:min-h-[720px]">
+          <section className="min-h-[70dvh] overflow-hidden rounded-lg border border-line bg-sunken shadow-sm xl:min-h-[720px]">
             <div className="flex min-h-[70dvh] flex-col xl:min-h-[720px]">
-              <div className="border-b border-slate-200 bg-white px-5 py-4">
+              <div className="border-b border-line bg-surface px-5 py-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-950">
+                    <h2 className="text-base font-semibold text-fg">
                       {conversationId ? "Conversation" : "New conversation"}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-fg-muted">
                       {selectedWorkspace
                         ? `${selectedWorkspace.name} · ${retrievalStrategy} retrieval`
                         : "Select a workspace to begin."}
@@ -993,7 +993,7 @@ export default function ChatPage() {
                           type="button"
                           disabled={isStreaming || isSubmitting}
                           onClick={() => setQuestion(example)}
-                          className="rounded-md border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                          className="rounded-md border border-line bg-surface px-4 py-3 text-left text-sm text-fg-muted transition hover:border-line-strong hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                         >
                           {example}
                         </button>
@@ -1022,7 +1022,7 @@ export default function ChatPage() {
               </div>
 
               {isStreaming ? (
-                <div className="border-t border-slate-200 bg-white px-5 py-3">
+                <div className="border-t border-line bg-surface px-5 py-3">
                   <div className="flex flex-wrap gap-2">
                     {statusSteps.map((label) => (
                       <StatusBadge
@@ -1038,7 +1038,7 @@ export default function ChatPage() {
               <form
                 ref={formRef}
                 onSubmit={handleSubmit}
-                className="border-t border-slate-200 bg-white p-3 sm:p-4"
+                className="border-t border-line bg-surface p-3 sm:p-4"
               >
                 <div className="flex flex-col gap-3 lg:flex-row">
                   <Textarea
@@ -1072,11 +1072,11 @@ export default function ChatPage() {
                   </div>
                 </div>
                 {!selectedWorkspaceId ? (
-                  <p className="mt-2 text-xs font-medium text-amber-700">
+                  <p className="mt-2 text-xs font-medium text-warning-fg">
                     Select a workspace before asking a question.
                   </p>
                 ) : selectedWorkspaceId && indexedDocumentCount === 0 ? (
-                  <p className="mt-2 text-xs font-medium text-amber-700">
+                  <p className="mt-2 text-xs font-medium text-warning-fg">
                     This workspace has no indexed documents yet.
                   </p>
                 ) : null}

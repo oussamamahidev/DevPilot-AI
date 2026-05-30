@@ -7,5 +7,5 @@ export function RoleBadge({ role }: { role: string }) {
   if (role === "admin") {
     return <Badge tone="ai">admin</Badge>;
   }
-  return <Badge tone="info">{role.replace("_", " ")}</Badge>;
+  return <Badge tone="info">{role.replace(/_/g, " ")}</Badge>;
 }

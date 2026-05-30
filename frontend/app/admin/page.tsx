@@ -255,8 +255,8 @@ export default function AdminPage() {
               xKey="agent"
               bars={[{ key: "latency", name: "Latency ms", color: chartPalette.blue }]}
             />
-            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950">Embedding Coverage</h3>
+            <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-fg">Embedding Coverage</h3>
               <div className="mt-5 grid gap-5">
                 <ProgressBar
                   label={`${formatNumber(aggregate.chunksWithVectors)} of ${formatNumber(
@@ -282,10 +282,10 @@ export default function AdminPage() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-slate-950">Recent Risky Actions</h3>
-                <Link href="/admin/audit-logs" className="text-sm font-medium text-slate-700">
+                <h3 className="text-base font-semibold text-fg">Recent Risky Actions</h3>
+                <Link href="/admin/audit-logs" className="text-sm font-medium text-fg-muted">
                   View audit logs
                 </Link>
               </div>
@@ -298,19 +298,19 @@ export default function AdminPage() {
                   {riskyActions.map((log) => (
                     <article
                       key={log.id}
-                      className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+                      className="rounded-lg border border-warning-line bg-warning-subtle p-4"
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="font-semibold text-amber-950">{log.action}</p>
-                          <p className="mt-1 text-sm text-amber-800">
+                          <p className="font-semibold text-warning-surface-fg">{log.action}</p>
+                          <p className="mt-1 text-sm text-warning-surface-fg">
                             {log.actor_email ?? "System"} on {log.target_type}
                           </p>
-                          <p className="mt-1 text-xs text-amber-700">
+                          <p className="mt-1 text-xs text-warning-surface-fg">
                             {log.reason ?? "No reason recorded"}
                           </p>
                         </div>
-                        <span className="text-xs text-amber-700">
+                        <span className="text-xs text-warning-surface-fg">
                           {formatDate(log.created_at)}
                         </span>
                       </div>
@@ -320,10 +320,10 @@ export default function AdminPage() {
               )}
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-lg border border-line bg-surface p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-slate-950">Recent Risky Answers</h3>
-                <Link href="/admin/rag-traces" className="text-sm font-medium text-slate-700">
+                <h3 className="text-base font-semibold text-fg">Recent Risky Answers</h3>
+                <Link href="/admin/rag-traces" className="text-sm font-medium text-fg-muted">
                   Explore traces
                 </Link>
               </div>
@@ -334,7 +334,7 @@ export default function AdminPage() {
               ) : (
                 <div className="admin-table-scroll mt-5">
                   <table className="admin-table">
-                    <thead className="text-xs uppercase text-slate-500">
+                    <thead className="text-xs uppercase text-fg-subtle">
                       <tr>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Risk</th>
@@ -343,10 +343,10 @@ export default function AdminPage() {
                         <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-line-subtle">
                       {riskyAnswers.map((answer) => (
                         <tr key={answer.message_id}>
-                          <td className="max-w-sm px-3 py-3 font-medium text-slate-950">
+                          <td className="max-w-sm px-3 py-3 font-medium text-fg">
                             {safePreview(answer.question_preview, 90)}
                           </td>
                           <td className="whitespace-nowrap px-3 py-3">
@@ -355,13 +355,13 @@ export default function AdminPage() {
                           <td className="whitespace-nowrap px-3 py-3">
                             <QualityBadge label="R" value={answer.relevance} />
                           </td>
-                          <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                          <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                             {answer.workspace_name}
                           </td>
                           <td className="whitespace-nowrap px-3 py-3">
                             <Link
                               href={`/admin/rag-traces/${answer.message_id}`}
-                              className="font-medium text-slate-950 underline-offset-4 hover:underline"
+                              className="font-medium text-fg underline-offset-4 hover:underline"
                             >
                               View Trace
                             </Link>
@@ -374,9 +374,9 @@ export default function AdminPage() {
               )}
             </section>
 
-            <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-slate-950">Recent Failed Documents</h3>
+                <h3 className="text-base font-semibold text-fg">Recent Failed Documents</h3>
                 <StatusBadge
                   label={`${formatNumber(failedDocuments.length)} failed`}
                   tone={failedDocuments.length > 0 ? "critical" : "success"}
@@ -391,18 +391,18 @@ export default function AdminPage() {
                   {failedDocuments.map((document) => (
                     <article
                       key={document.id}
-                      className="rounded-lg border border-red-200 bg-red-50 p-4"
+                      className="rounded-lg border border-danger-line bg-danger-subtle p-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-red-950">{document.filename}</p>
-                          <p className="mt-1 text-sm text-red-700">
+                          <p className="truncate font-semibold text-danger-surface-fg">{document.filename}</p>
+                          <p className="mt-1 text-sm text-danger-surface-fg">
                             {document.workspace_name} - uploaded {formatDate(document.created_at)}
                           </p>
                         </div>
                         <Link
                           href={`/admin/ragops/documents/${document.id}`}
-                          className="text-sm font-medium text-red-900 underline-offset-4 hover:underline"
+                          className="text-sm font-medium text-danger-surface-fg underline-offset-4 hover:underline"
                         >
                           Open pipeline
                         </Link>
@@ -515,23 +515,23 @@ function MiniMetric({
   value: string;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-      <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+    <div className="rounded-md border border-line bg-sunken p-3">
+      <p className="text-xs font-medium uppercase text-fg-subtle">{label}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-950">{value}</p>
+        <p className="text-sm font-semibold text-fg">{value}</p>
         <span
           className={
             tone === "success"
-              ? "h-2.5 w-2.5 rounded-full bg-emerald-600"
+              ? "h-2.5 w-2.5 rounded-full bg-success"
               : tone === "warning"
-                ? "h-2.5 w-2.5 rounded-full bg-amber-500"
+                ? "h-2.5 w-2.5 rounded-full bg-warning"
                 : tone === "critical"
-                  ? "h-2.5 w-2.5 rounded-full bg-red-600"
+                  ? "h-2.5 w-2.5 rounded-full bg-danger"
                   : tone === "ai"
-                    ? "h-2.5 w-2.5 rounded-full bg-violet-600"
+                    ? "h-2.5 w-2.5 rounded-full bg-brand"
                     : tone === "info"
-                      ? "h-2.5 w-2.5 rounded-full bg-blue-600"
-                      : "h-2.5 w-2.5 rounded-full bg-slate-400"
+                      ? "h-2.5 w-2.5 rounded-full bg-info"
+                      : "h-2.5 w-2.5 rounded-full bg-fg-subtle"
           }
         />
       </div>

@@ -82,19 +82,19 @@ export default function AdminDocumentDetailPage() {
 
       {document ? (
         <div className="grid gap-6">
-          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
             <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0">
-                <h2 className="break-words text-xl font-semibold text-slate-950">
+                <h2 className="break-words text-xl font-semibold text-fg">
                   {document.filename}
                 </h2>
-                <p className="mt-1 text-sm text-slate-600">{document.workspace_name}</p>
+                <p className="mt-1 text-sm text-fg-muted">{document.workspace_name}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <StatusBadge status={document.status} />
                 <Link
                   href={`/admin/ragops/documents/${document.id}`}
-                  className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  className="inline-flex h-10 items-center rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-fg-muted transition hover:bg-hover"
                 >
                   Open Pipeline
                 </Link>
@@ -102,7 +102,7 @@ export default function AdminDocumentDetailPage() {
                   type="button"
                   onClick={() => setIsConfirmingDelete(true)}
                   disabled={document.status === "deleted"}
-                  className="h-10 rounded-md border border-red-300 bg-red-50 px-4 text-sm font-medium text-red-800 disabled:cursor-not-allowed disabled:text-red-300"
+                  className="h-10 rounded-md bg-danger px-4 text-sm font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Delete Document
                 </button>
@@ -116,8 +116,8 @@ export default function AdminDocumentDetailPage() {
             </div>
           </section>
 
-          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-950">Vector Coverage</h2>
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-fg">Vector Coverage</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Info
                 label="Chunks With Vector"
@@ -130,8 +130,8 @@ export default function AdminDocumentDetailPage() {
             </div>
           </section>
 
-          <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-950">Lifecycle</h2>
+          <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-fg">Lifecycle</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Info label="Created" value={formatDate(document.created_at)} />
               <Info label="Processed" value={formatDate(document.processed_at)} />
@@ -164,9 +164,9 @@ export default function AdminDocumentDetailPage() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs uppercase text-slate-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-medium text-slate-950">{value}</p>
+    <div className="rounded-md border border-line bg-sunken p-4">
+      <p className="text-xs uppercase text-fg-subtle">{label}</p>
+      <p className="mt-2 break-words text-sm font-medium text-fg">{value}</p>
     </div>
   );
 }

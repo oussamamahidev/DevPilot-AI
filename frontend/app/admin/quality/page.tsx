@@ -260,8 +260,8 @@ function WorstTable({
   title: string;
 }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+    <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-fg">{title}</h3>
       {rows.length === 0 ? (
         <div className="mt-5">
           <EmptyState label="No messages found." />
@@ -269,7 +269,7 @@ function WorstTable({
       ) : (
         <div className="admin-table-scroll mt-5">
           <table className="admin-table">
-            <thead className="text-xs uppercase text-slate-500">
+            <thead className="text-xs uppercase text-fg-subtle">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Workspace</th>
@@ -278,18 +278,18 @@ function WorstTable({
                 <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line-subtle">
               {rows.map((row) => (
                 <tr key={row.message_id}>
                   <td className="max-w-md px-3 py-3">
-                    <p className="font-medium text-slate-950">
+                    <p className="font-medium text-fg">
                       {safePreview(row.question_preview, 90)}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-fg-subtle">
                       {safePreview(row.answer_preview, 120)}
                     </p>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
                     {row.workspace_name}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
@@ -302,13 +302,13 @@ function WorstTable({
                       />
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                  <td className="whitespace-nowrap px-3 py-3 text-fg-subtle">
                     {formatDate(row.created_at)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <Link
                       href={`/admin/rag-traces/${row.message_id}`}
-                      className="font-medium text-slate-950 underline-offset-4 hover:underline"
+                      className="font-medium text-fg underline-offset-4 hover:underline"
                     >
                       View trace
                     </Link>

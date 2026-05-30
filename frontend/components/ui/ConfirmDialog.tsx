@@ -44,7 +44,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm leading-6 text-slate-600">{description}</p>
+      <p className="text-sm leading-6 text-fg-muted">{description}</p>
     </Modal>
   );
 }
