@@ -21,7 +21,7 @@ export default function AdminSettingsPage() {
   return (
     <AdminShell
       title="Settings"
-      description="Profile, AI runtime configuration, security, and developer information."
+      description="Enterprise profile, security, API key, preference, and workspace controls."
     >
       <SettingsContent />
     </AdminShell>

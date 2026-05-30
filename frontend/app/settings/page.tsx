@@ -8,7 +8,7 @@ export default function SettingsPage() {
     <DashboardShell
       activeItem="settings"
       title="Settings"
-      description="Profile, AI runtime configuration, security, and developer information."
+      description="Enterprise profile, security, API key, preference, and workspace controls."
     >
       <SettingsContent />
     </DashboardShell>
