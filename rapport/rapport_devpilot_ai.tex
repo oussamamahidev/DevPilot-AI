@@ -1,0 +1,1457 @@
+%==============================================================================
+%  DevPilot AI — Rapport de Projet de Fin d'Études (PFE)
+%  Plateforme d'IA d'entreprise pour la gestion des connaissances et le
+%  question-réponse fondé sur le RAG (Retrieval-Augmented Generation).
+%
+%  Compilation :  pdflatex rapport_devpilot_ai.tex   (x2 pour TOC/refs)
+%  Aucune dépendance externe (bibliographie en thebibliography).
+%  Les zones [INSERER FIGURE] sont des emplacements de captures d'écran.
+%==============================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+%------------------------------------------------------------------ Encodage / langue
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{csquotes}
+
+%------------------------------------------------------------------ Mise en page
+\usepackage[a4paper,margin=2.5cm,headheight=15pt]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{fancyhdr}
+\usepackage{parskip}
+
+%------------------------------------------------------------------ Tableaux / figures
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+%------------------------------------------------------------------ Couleurs
+\usepackage{xcolor}
+\definecolor{brand}{HTML}{6A35F0}
+\definecolor{brandDark}{HTML}{4C1FB3}
+\definecolor{ink}{HTML}{1A1B25}
+\definecolor{slate}{HTML}{475569}
+\definecolor{tierClient}{HTML}{EEF2FF}
+\definecolor{tierApi}{HTML}{E0F2FE}
+\definecolor{tierAsync}{HTML}{FEF3C7}
+\definecolor{tierData}{HTML}{DCFCE7}
+\definecolor{tierAI}{HTML}{F3E8FF}
+\definecolor{codeBg}{HTML}{F6F8FA}
+\definecolor{codeKw}{HTML}{8B2FB3}
+\definecolor{codeStr}{HTML}{0A7E3D}
+\definecolor{codeCom}{HTML}{6B7280}
+\definecolor{lineGray}{HTML}{D0D7DE}
+
+%------------------------------------------------------------------ Listings (code)
+\usepackage{listings}
+\lstdefinestyle{dp}{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codeKw}\bfseries,
+  stringstyle=\color{codeStr},
+  commentstyle=\color{codeCom}\itshape,
+  numberstyle=\tiny\color{codeCom},
+  backgroundcolor=\color{codeBg},
+  frame=single,
+  rulecolor=\color{lineGray},
+  numbers=left,
+  numbersep=8pt,
+  tabsize=2,
+  breaklines=true,
+  breakatwhitespace=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+  captionpos=b,
+  xleftmargin=14pt,
+  framexleftmargin=14pt,
+}
+\lstset{style=dp}
+
+%------------------------------------------------------------------ TikZ
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc,shapes.geometric,backgrounds,shadows.blur}
+\tikzset{
+  comp/.style   = {draw=lineGray, line width=0.6pt, rounded corners=2pt, fill=white,
+                   align=center, font=\scriptsize, minimum height=0.85cm, inner sep=4pt},
+  tier/.style   = {draw=lineGray, line width=0.7pt, rounded corners=3pt,
+                   align=center, font=\small\bfseries, inner sep=8pt},
+  flow/.style   = {-{Stealth[length=2.4mm]}, line width=0.8pt, color=slate},
+  flowb/.style  = {{Stealth[length=2mm]}-{Stealth[length=2mm]}, line width=0.8pt, color=slate},
+  store/.style  = {draw=lineGray, line width=0.6pt, cylinder, shape border rotate=90,
+                   aspect=0.25, fill=tierData, align=center, font=\scriptsize,
+                   minimum height=1cm, minimum width=1.6cm, inner sep=2pt},
+  stage/.style  = {draw=lineGray, line width=0.6pt, rounded corners=2pt, fill=tierAI,
+                   align=center, font=\scriptsize, minimum height=1.0cm, minimum width=1.9cm},
+  life/.style   = {draw=brand, line width=0.7pt, rounded corners=2pt, fill=brand!8,
+                   align=center, font=\scriptsize\bfseries, minimum width=2.1cm, minimum height=0.7cm},
+}
+
+%------------------------------------------------------------------ Hyperref (dernier)
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=brandDark,
+  citecolor=brandDark,
+  urlcolor=brandDark,
+  pdftitle={DevPilot AI - Rapport de Projet de Fin d'Etudes},
+  pdfauthor={DevPilot AI},
+}
+
+%------------------------------------------------------------------ En-têtes
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small\textbf{DevPilot AI}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+%------------------------------------------------------------------ Raccourcis
+\newcommand{\devpilot}{\textsc{DevPilot AI}}
+\newcommand{\figplaceholder}[1]{%
+  \begin{center}
+  \fbox{\parbox[c][3.2cm][c]{0.82\textwidth}{\centering\itshape\color{slate}%
+  [INSÉRER FIGURE]\\[2pt]\small #1}}
+  \end{center}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+%==============================================================================
+\begin{document}
+%==============================================================================
+
+%------------------------------------------------------------------ PAGE DE GARDE
+\begin{titlepage}
+\centering
+\thispagestyle{empty}
+{\small\scshape Royaume du Maroc \\ Université Mohammed V de Rabat \\
+École Nationale Supérieure d'Informatique et d'Analyse des Systèmes (ENSIAS)\par}
+\vspace{0.8cm}
+{\color{lineGray}\rule{\textwidth}{0.5pt}}
+\vspace{1.2cm}
+
+{\small\itshape Rapport de Projet de Fin d'Études\par}
+\vspace{0.4cm}
+{\small en vue de l'obtention du diplôme d'Ingénieur d'État\par}
+\vspace{0.2cm}
+{\small\textit{Filière : Génie Logiciel / Intelligence Artificielle}\par}
+
+\vspace{1.6cm}
+{\color{brand}\Huge\bfseries DevPilot AI\par}
+\vspace{0.6cm}
+{\LARGE\bfseries Conception et réalisation d'une plateforme d'IA\\[4pt]
+pour la gestion des connaissances d'ingénierie\\[4pt]
+et le question-réponse fondé sur le RAG\par}
+\vspace{0.5cm}
+{\large\itshape Architecture, pipeline agentique, évaluation et observabilité\par}
+
+\vspace{1.8cm}
+{\color{lineGray}\rule{0.6\textwidth}{0.5pt}}
+\vspace{0.6cm}
+
+\begin{minipage}{0.46\textwidth}
+\begin{flushleft}\large
+\textbf{Réalisé par :}\\[2pt]
+[Nom et prénom de l'étudiant]
+\end{flushleft}
+\end{minipage}\hfill
+\begin{minipage}{0.46\textwidth}
+\begin{flushright}\large
+\textbf{Encadré par :}\\[2pt]
+[Encadrant pédagogique — ENSIAS]\\
+[Encadrant professionnel — Organisme]
+\end{flushright}
+\end{minipage}
+
+\vspace{1.4cm}
+\textbf{Membres du jury :}\\[4pt]
+\begin{tabular}{ll}
+[Président du jury] & \textit{Président} \\
+[Examinateur] & \textit{Examinateur} \\
+[Encadrant] & \textit{Encadrant} \\
+\end{tabular}
+
+\vfill
+{\color{lineGray}\rule{\textwidth}{0.5pt}}
+\vspace{0.3cm}
+{\small Année universitaire 2025--2026\par}
+\end{titlepage}
+
+%------------------------------------------------------------------ Remerciements
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+\markboth{Remerciements}{Remerciements}
+
+Au terme de ce projet de fin d'études, je tiens à exprimer ma profonde gratitude
+à toutes les personnes qui ont contribué, de près ou de loin, à l'aboutissement
+de ce travail.
+
+Je remercie particulièrement mon encadrant pédagogique [\textit{À compléter}] pour
+son accompagnement rigoureux, ses conseils méthodologiques et la confiance qu'il
+m'a accordée tout au long de ce projet. Mes remerciements s'adressent également à
+mon encadrant professionnel [\textit{À compléter}] pour son expertise technique et
+sa disponibilité.
+
+Je tiens à remercier l'ensemble du corps professoral de l'ENSIAS pour la qualité
+de la formation d'ingénieur dispensée, ainsi que les membres du jury qui ont
+accepté d'évaluer ce travail.
+
+Enfin, je dédie ce travail à ma famille, dont le soutien indéfectible a rendu ce
+parcours possible.
+
+%------------------------------------------------------------------ Abstract (EN)
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\markboth{Abstract}{Abstract}
+
+Engineering organizations accumulate large volumes of technical knowledge —
+specifications, architecture documents, design notes, internal guidelines and
+project reports. Traditional keyword search fails to capture the semantic intent
+of a query, while general-purpose generative assistants such as ChatGPT produce
+fluent but \emph{ungrounded} answers: they hallucinate, expose no citations, and
+offer no visibility into how an answer was produced.
+
+\devpilot{} is an enterprise platform that closes this gap. It implements a
+production-grade \emph{Retrieval-Augmented Generation} (RAG) pipeline in which
+every answer is grounded in the organization's own documents, supported by
+inline citations, scored for faithfulness, and fully traceable end to end. Users
+organise their knowledge into isolated \emph{workspaces}, upload documents that
+are ingested asynchronously, chunked, embedded and indexed into a vector store,
+and then query that knowledge through a streaming conversational interface.
+
+The platform is built as a service-oriented system: a \textsc{FastAPI} backend
+exposes a typed REST and streaming API; a \textsc{Celery}/\textsc{Redis}
+pipeline performs heavy document processing off the request path;
+\textsc{PostgreSQL} stores relational state and the complete execution trace;
+and \textsc{Qdrant} provides approximate nearest-neighbour vector search. The
+answer-generation stage is an \emph{agentic workflow} of seven cooperating
+agents — router, query rewriter, retriever, reranker, generator, evaluator and
+corrector — each of which is persisted as a first-class, inspectable run.
+
+A central engineering contribution is \emph{observability}: a RAGOps control
+tower monitors pipeline health, and a Trace Inspector reconstructs each query's
+full life cycle — agent timeline, retrieved chunks, reranking decisions,
+citations, evaluation scores and corrector diff. The result is a system that is
+not only useful, but \emph{auditable}, \emph{measurable} and \emph{operable} at
+the standard expected of an enterprise AI platform.
+
+\noindent\textbf{Keywords:} Retrieval-Augmented Generation, Large Language
+Models, Vector Search, Agentic Pipelines, AI Observability, FastAPI, Qdrant,
+Celery, Next.js, Faithfulness Evaluation.
+
+%------------------------------------------------------------------ Résumé (FR)
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+\markboth{Résumé}{Résumé}
+
+Les organisations d'ingénierie accumulent un volume considérable de connaissances
+techniques : spécifications, documents d'architecture, notes de conception,
+directives internes et rapports de projet. La recherche traditionnelle par
+mots-clés échoue à capturer l'intention sémantique d'une requête, tandis que les
+assistants génératifs généralistes tels que ChatGPT produisent des réponses
+fluides mais \emph{non fondées} : ils hallucinent, n'exposent aucune citation et
+n'offrent aucune visibilité sur la manière dont une réponse a été produite.
+
+\devpilot{} est une plateforme d'entreprise qui comble cet écart. Elle met en
+{\oe}uvre un pipeline de \emph{Génération Augmentée par Récupération} (RAG) de
+qualité production dans lequel chaque réponse est ancrée dans les documents
+propres à l'organisation, étayée par des citations en ligne, notée pour sa
+fidélité et entièrement traçable de bout en bout. Les utilisateurs organisent
+leurs connaissances en \emph{espaces de travail} isolés, téléversent des
+documents ingérés de manière asynchrone, découpés, vectorisés et indexés dans
+une base vectorielle, puis interrogent cette connaissance à travers une interface
+conversationnelle en \emph{streaming}.
+
+La plateforme est conçue comme un système orienté services : un \textit{backend}
+\textsc{FastAPI} expose une API REST et \textit{streaming} typée ; un pipeline
+\textsc{Celery}/\textsc{Redis} effectue le traitement documentaire lourd hors du
+chemin critique des requêtes ; \textsc{PostgreSQL} stocke l'état relationnel et
+la trace d'exécution complète ; et \textsc{Qdrant} assure la recherche vectorielle
+par plus proches voisins approchés. L'étape de génération repose sur un
+\emph{flux agentique} de sept agents coopérants — routeur, réécriture de requête,
+récupération, reclassement, génération, évaluation et correction — chacun étant
+persisté comme une exécution inspectable de premier ordre.
+
+Une contribution d'ingénierie centrale est l'\emph{observabilité} : une tour de
+contrôle RAGOps supervise la santé du pipeline, et un Inspecteur de Traces
+reconstruit le cycle de vie complet de chaque requête. Le résultat est un système
+non seulement utile, mais \emph{auditable}, \emph{mesurable} et \emph{exploitable}
+au niveau attendu d'une plateforme d'IA d'entreprise.
+
+\noindent\textbf{Mots-clés :} Génération Augmentée par Récupération, Grands
+Modèles de Langage, Recherche Vectorielle, Pipelines Agentiques, Observabilité de
+l'IA, FastAPI, Qdrant, Celery, Next.js, Évaluation de la Fidélité.
+
+%------------------------------------------------------------------ Tables
+\tableofcontents
+\listoffigures
+\listoftables
+
+%==============================================================================
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+%==============================================================================
+
+\section*{Contexte}
+L'intelligence artificielle générative a profondément transformé l'accès à
+l'information. Les grands modèles de langage (\emph{Large Language Models}, LLM)
+produisent un texte d'une fluidité remarquable et démocratisent l'interaction en
+langage naturel. Cependant, dans un contexte d'\textbf{ingénierie d'entreprise},
+ces modèles présentent une limite structurelle : ils répondent à partir de leurs
+paramètres figés au moment de l'entraînement, sans connaissance du patrimoine
+documentaire propre à l'organisation, et sans aucune garantie de véracité. Pour
+une équipe d'ingénierie, une réponse plausible mais fausse — une
+\emph{hallucination} — n'est pas une simple imperfection : elle constitue un
+risque opérationnel.
+
+\section*{Motivation}
+Les équipes techniques produisent et consomment en permanence une documentation
+hétérogène et fragmentée. Retrouver l'information pertinente exige aujourd'hui un
+effort cognitif disproportionné, et la recherche par mots-clés des outils
+classiques ne comprend pas l'intention de la question. La promesse de la
+\emph{Génération Augmentée par Récupération} (RAG) est précisément de réconcilier
+la puissance générative des LLM avec la connaissance vérifiable de l'organisation.
+Mais transformer cette promesse en \emph{système de production} suppose de
+résoudre des problèmes d'ingénierie réels : ingestion asynchrone, recherche
+vectorielle, ancrage et citation des sources, mesure de la qualité, et surtout
+\emph{observabilité} de bout en bout.
+
+\section*{Problématique}
+Comment concevoir et réaliser une plateforme d'IA capable de \textbf{centraliser}
+les connaissances d'une équipe d'ingénierie, de \textbf{récupérer} l'information
+pertinente, de \textbf{générer} des réponses fondées et \textbf{citées}, de
+\textbf{mesurer} la qualité de ces réponses, et d'offrir une \textbf{traçabilité}
+complète permettant d'auditer et d'exploiter le système comme tout service
+critique d'entreprise ?
+
+\section*{Objectifs}
+Le présent projet vise à concevoir et implémenter \devpilot{}, une plateforme RAG
+multi-tenant offrant : la gestion d'espaces de travail isolés ; l'ingestion
+documentaire asynchrone (découpage, vectorisation, indexation Qdrant) ; la
+récupération sémantique et hybride avec reclassement ; la génération agentique de
+réponses ancrées et citées ; l'évaluation automatique de la fidélité et la
+détection d'hallucinations ; le \emph{streaming} temps réel ; et un sous-système
+d'observabilité (RAGOps, explorateur et inspecteur de traces).
+
+\section*{Méthodologie}
+La démarche adoptée est itérative et orientée production. Elle articule une phase
+d'analyse des besoins (chapitre~1), une phase de conception fondée sur la
+modélisation UML et la conception de données (chapitre~2), une phase
+d'\emph{architecture système} qui constitue le c{\oe}ur du travail
+(chapitre~3), puis une phase de réalisation et de validation (chapitres~4 et~5).
+Chaque décision technique est justifiée par une analyse de compromis explicite.
+
+\section*{Organisation du rapport}
+Le chapitre~1 analyse le contexte et les besoins. Le chapitre~2 présente la
+conception (UML, modèle de données, traçabilité). Le chapitre~3, le plus étendu,
+détaille l'architecture système, les pipelines et les décisions d'ingénierie. Le
+chapitre~4 décrit la réalisation technique. Le chapitre~5 traite des tests et de
+la validation. Le rapport se clôt par les limites, les perspectives et une
+conclusion générale.
+
+%==============================================================================
+\chapter{Contexte général et analyse des besoins}
+\label{chap:contexte}
+%==============================================================================
+
+\section{Introduction}
+Ce chapitre établit les fondations du projet. Il caractérise le problème métier,
+positionne \devpilot{} face aux solutions existantes, puis formalise les exigences
+fonctionnelles et non fonctionnelles ainsi que les contraintes du projet. Cette
+analyse rigoureuse conditionne l'ensemble des choix d'architecture présentés au
+chapitre~3.
+
+\section{Contexte et motivation}
+La connaissance d'ingénierie possède trois propriétés qui la rendent difficile à
+exploiter. Elle est d'abord \textbf{volumineuse et croissante} : chaque projet
+génère des centaines de pages de spécifications, de comptes rendus et de
+documentation technique. Elle est ensuite \textbf{fragmentée} : répartie entre
+des outils, des formats et des silos hétérogènes. Elle est enfin
+\textbf{contextuelle} : une même question n'a pas la même réponse selon le projet,
+l'équipe ou la version. Un assistant générique, entraîné sur le web public,
+ignore par construction ce contexte propriétaire.
+
+\section{Énoncé du problème}
+Le problème se décompose en deux familles de limites complémentaires.
+
+\paragraph{Limites de la recherche traditionnelle.} Les moteurs de recherche
+internes reposent majoritairement sur l'appariement lexical (mots-clés). Ils
+échouent dès que le vocabulaire de la question diffère de celui du document, ne
+comprennent pas la sémantique, et renvoient des listes de documents que
+l'utilisateur doit encore lire et synthétiser lui-même.
+
+\paragraph{Limites des assistants génératifs.} Les LLM généralistes produisent une
+synthèse directe, mais souffrent d'\textbf{hallucinations}, d'une \textbf{absence
+de traçabilité}, d'une \textbf{absence de citations}, d'une \textbf{absence de
+visibilité} sur la qualité de récupération, et d'une \textbf{absence
+d'observabilité}. Ils ne peuvent pas, en l'état, être tenus pour responsables de
+leurs réponses.
+
+\section{Objectifs du projet}
+\devpilot{} se fixe pour objectif de construire un système qui réconcilie ces deux
+mondes. Les objectifs opérationnels sont synthétisés dans le tableau~\ref{tab:objectifs}.
+
+\begin{table}[H]
+\centering
+\caption{Objectifs opérationnels et capacités correspondantes}
+\label{tab:objectifs}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Objectif & Capacité réalisée \\
+\midrule
+Centraliser & Espaces de travail isolés, gestion documentaire, ingestion asynchrone \\
+Récupérer & Recherche sémantique et hybride, reclassement par pertinence \\
+Générer & Réponses ancrées produites par un pipeline agentique \\
+Citer & Génération de citations reliées aux passages sources \\
+Mesurer & Évaluation de fidélité, pertinence, détection d'hallucinations \\
+Diffuser & \emph{Streaming} temps réel des réponses (SSE) \\
+Superviser & RAGOps : santé des pipelines, file de traitement, alertes \\
+Tracer & Explorateur et inspecteur de traces de bout en bout \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Analyse des solutions existantes}
+Aucune solution unique du marché ne couvre simultanément les axes
+\emph{ancrage documentaire}, \emph{traçabilité} et \emph{observabilité} dans un
+contexte auto-hébergeable. Le tableau~\ref{tab:comparaison} positionne \devpilot{}
+par rapport à cinq familles de solutions représentatives.
+
+\begin{table}[H]
+\centering
+\caption{Analyse comparative des solutions existantes}
+\label{tab:comparaison}
+\scriptsize
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.0cm} *{6}{>{\centering\arraybackslash}X}@{}}
+\toprule
+\textbf{Capacité} & \textbf{ChatGPT} & \textbf{Notion AI} & \textbf{LangSmith} & \textbf{Datadog} & \textbf{Recherche interne} & \textbf{\devpilot{}} \\
+\midrule
+Réponses fondées sur vos documents      & Limité & Oui     & N/A    & Non & Partiel & \textbf{Oui} \\
+Citations des sources                    & Non    & Partiel & N/A    & Non & Non     & \textbf{Oui} \\
+Traçabilité complète des requêtes        & Non    & Non     & Oui    & Oui & Non     & \textbf{Oui} \\
+Isolation par espace de travail          & Non    & Partiel & N/A    & N/A & Partiel & \textbf{Oui} \\
+Score d'hallucination                    & Non    & Non     & Partiel& Non & Non     & \textbf{Oui} \\
+Métriques de récupération                & Non    & Non     & Oui    & Non & Non     & \textbf{Oui} \\
+Chronologie d'exécution des agents       & Non    & Non     & Oui    & Oui & Non     & \textbf{Oui} \\
+Évaluation intégrée de la qualité        & Non    & Non     & Oui    & Non & Non     & \textbf{Oui} \\
+Déploiement sur site (\emph{on-premise}) & Non    & Non     & Partiel& Oui & Oui     & \textbf{Oui} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent\textbf{Lecture.} ChatGPT et Notion AI excellent sur l'expérience
+conversationnelle mais n'offrent ni traçabilité ni observabilité opérationnelle.
+LangSmith et Datadog sont des outils d'\emph{observabilité} mais ne constituent
+pas une plateforme RAG complète. Les moteurs internes restent lexicaux.
+\devpilot{} se distingue en \textbf{intégrant} l'application RAG \emph{et} son
+observabilité dans un système unique, auto-hébergeable.
+
+\section{Exigences fonctionnelles}
+Les exigences fonctionnelles (EF) sont organisées par domaine et résumées dans le
+tableau~\ref{tab:ef}.
+
+\begin{table}[H]
+\centering
+\caption{Exigences fonctionnelles principales}
+\label{tab:ef}
+\small
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Réf.} & \textbf{Domaine} & \textbf{Exigence} \\
+\midrule
+EF-1  & Authentification & Inscription, connexion et sessions sécurisées par jetons JWT \\
+EF-2  & Autorisation     & Contrôle d'accès par rôles (utilisateur, admin, super-admin) \\
+EF-3  & Espaces          & Création d'espaces de travail isolés et gestion des membres \\
+EF-4  & Documents        & Téléversement, listing, suivi de statut et suppression de documents \\
+EF-5  & Ingestion        & Traitement asynchrone : extraction, découpage, vectorisation, indexation \\
+EF-6  & Récupération     & Recherche sémantique et hybride sur la base vectorielle \\
+EF-7  & Reclassement     & Reclassement des candidats par pertinence (\emph{reranking}) \\
+EF-8  & Génération       & Production de réponses ancrées par un pipeline agentique \\
+EF-9  & Citations        & Génération de citations reliées aux passages utilisés \\
+EF-10 & Conversation     & Historique de conversations et de messages persistants \\
+EF-11 & Streaming        & Diffusion incrémentale des réponses (jeton par jeton) \\
+EF-12 & Évaluation       & Mesure de la fidélité, de la pertinence et du score d'hallucination \\
+EF-13 & Correction       & Réparation automatique des réponses non fidèles (agent correcteur) \\
+EF-14 & Administration   & Tableaux de bord d'administration (utilisateurs, espaces, documents) \\
+EF-15 & RAGOps           & Supervision de la santé des pipelines et de la file de traitement \\
+EF-16 & Traçabilité      & Explorateur et inspecteur de traces de requêtes RAG \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Exigences non fonctionnelles}
+Les exigences non fonctionnelles (ENF) définissent les qualités attendues du
+système ; elles sont déterminantes pour une plateforme d'entreprise et structurent
+le chapitre~3.
+
+\begin{description}[leftmargin=2.2cm,style=nextline]
+\item[Sécurité] Authentification JWT, autorisation par rôles, isolation stricte
+des données par espace de travail, journalisation d'audit des actions
+d'administration, et masquage systématique des secrets dans les vues de débogage.
+\item[Performance] API asynchrone non bloquante, déport du traitement lourd hors
+du chemin critique via Celery, recherche vectorielle par plus proches voisins
+approchés (HNSW), et \emph{time-to-first-token} réduit grâce au \emph{streaming}.
+\item[Scalabilité] \textit{Backend} sans état, horizontalement extensible ;
+\emph{workers} Celery ajoutables à la demande ; base vectorielle Qdrant
+partitionnable.
+\item[Disponibilité] Conteneurisation de chaque service, dépendances de santé
+explicites, et politiques de relance des tâches asynchrones.
+\item[Maintenabilité] Architecture en couches, typage statique de bout en bout
+(TypeScript côté \textit{frontend}, Pydantic/SQLAlchemy côté \textit{backend}),
+migrations de schéma versionnées (Alembic).
+\item[Observabilité] Traçabilité complète des requêtes, métriques Prometheus,
+tableaux de bord Grafana, RAGOps et inspecteur de traces.
+\item[Fiabilité] Mécanismes de repli de modèles (\emph{fallback}), agent
+correcteur, et relance automatique des ingestions échouées.
+\item[Utilisabilité] Interface conversationnelle réactive, rendu Markdown des
+réponses, cartes de citation interactives, thème clair/sombre.
+\end{description}
+
+\section{Contraintes}
+\begin{description}[leftmargin=2.4cm,style=nextline]
+\item[Techniques] Reproductibilité par conteneurs ; possibilité d'exécution
+hors-ligne via des modèles locaux (Ollama) ; budget mémoire et calcul maîtrisé.
+\item[Académiques] Démonstration d'une démarche d'ingénierie rigoureuse et d'un
+raisonnement architectural, au-delà d'un simple prototype.
+\item[Temps] Réalisation dans le cadre temporel d'un projet de fin d'études.
+\item[Ressources] Environnement de développement et d'exécution mono-machine,
+sans infrastructure cloud dédiée.
+\end{description}
+
+\section{Cas d'utilisation}
+Les acteurs principaux sont l'\textbf{utilisateur} (membre d'une équipe
+d'ingénierie), l'\textbf{administrateur} (gestion de la plateforme) et le
+\textbf{super-administrateur} (observabilité approfondie). Les cas d'utilisation
+clés incluent : gérer un espace de travail, téléverser et suivre un document,
+poser une question et recevoir une réponse citée en \emph{streaming}, consulter
+l'historique, superviser les pipelines (RAGOps) et inspecter une trace. Leur
+formalisation UML est présentée au chapitre~2.
+
+\section{Conclusion du chapitre}
+Ce chapitre a établi que le besoin n'est pas un \emph{chatbot} de plus, mais une
+plateforme d'IA \emph{fondée}, \emph{mesurable} et \emph{observable}. Les exigences
+non fonctionnelles — sécurité, scalabilité, observabilité — sont au moins aussi
+structurantes que les exigences fonctionnelles. Le chapitre suivant traduit ces
+besoins en modèles de conception.
+
+%==============================================================================
+\chapter{Analyse et conception}
+\label{chap:conception}
+%==============================================================================
+
+\section{Introduction}
+Ce chapitre formalise la conception du système : modélisation des cas
+d'utilisation, modèle du domaine, modèle de données relationnel, scénarios
+d'interaction (diagrammes de séquence) et — point distinctif du projet — le
+modèle de \emph{traçabilité} qui relie chaque message à son exécution complète.
+
+\section{Diagramme de cas d'utilisation global}
+La figure~\ref{fig:usecase} présente la vue d'ensemble des cas d'utilisation et
+de leurs acteurs. Le super-administrateur hérite des capacités de
+l'administrateur, qui hérite à son tour de celles de l'utilisateur.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[every node/.style={font=\scriptsize}]
+  % Acteurs
+  \node (u)  at (0,0)    {\begin{tabular}{c}\textbf{Utilisateur}\end{tabular}};
+  \node (a)  at (0,-3)   {\begin{tabular}{c}\textbf{Administrateur}\end{tabular}};
+  \node (s)  at (0,-6)   {\begin{tabular}{c}\textbf{Super-admin}\end{tabular}};
+  \foreach \n in {u,a,s}{ \node[draw,circle,minimum size=4mm] at ([yshift=7mm]\n.north) {}; }
+  % Système (boite)
+  \node[draw,rounded corners,minimum width=8.5cm,minimum height=8cm,label=above:\textbf{Plateforme DevPilot AI}] (sys) at (6.5,-2.6) {};
+  % Cas d'utilisation
+  \node[draw,ellipse,minimum width=3cm] (uc1) at (5.2,0.6)  {Gérer un espace};
+  \node[draw,ellipse,minimum width=3cm] (uc2) at (8.0,-0.4) {Téléverser un document};
+  \node[draw,ellipse,minimum width=3cm] (uc3) at (5.0,-1.4) {Poser une question (RAG)};
+  \node[draw,ellipse,minimum width=3cm] (uc4) at (8.2,-2.4) {Consulter l'historique};
+  \node[draw,ellipse,minimum width=3cm] (uc5) at (5.0,-3.4) {Administrer les utilisateurs};
+  \node[draw,ellipse,minimum width=3cm] (uc6) at (8.0,-4.2) {Superviser (RAGOps)};
+  \node[draw,ellipse,minimum width=3cm] (uc7) at (5.2,-5.2) {Inspecter une trace};
+  % Associations
+  \draw (u) -- (uc1); \draw (u) -- (uc2); \draw (u) -- (uc3); \draw (u) -- (uc4);
+  \draw (a) -- (uc5); \draw (a) -- (uc6);
+  \draw (s) -- (uc7);
+  % Heritage acteurs
+  \draw[-{Stealth},dashed] (a) -- node[right,font=\tiny]{$\langle$hérite$\rangle$} (u);
+  \draw[-{Stealth},dashed] (s) -- node[right,font=\tiny]{$\langle$hérite$\rangle$} (a);
+\end{tikzpicture}}
+\caption{Diagramme de cas d'utilisation global}
+\label{fig:usecase}
+\end{figure}
+
+\section{Cas d'utilisation détaillés}
+Le tableau~\ref{tab:ucdetail} détaille le cas d'utilisation pivot
+« Poser une question (RAG) », dont le scénario nominal active l'ensemble du
+pipeline agentique.
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation détaillé : « Poser une question (RAG) »}
+\label{tab:ucdetail}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Acteur & Utilisateur authentifié, membre d'un espace de travail \\
+Pré-condition & L'espace contient au moins un document indexé \\
+Déclencheur & L'utilisateur soumet une question dans l'interface de chat \\
+\midrule
+\multirow{1}{*}{Scénario nominal} & 1.~Le routeur valide et classe la requête.\newline
+2.~La requête est réécrite pour améliorer la récupération.\newline
+3.~Les passages candidats sont récupérés depuis Qdrant.\newline
+4.~Les candidats sont reclassés par pertinence.\newline
+5.~Le générateur produit une réponse ancrée et citée.\newline
+6.~L'évaluateur note la fidélité et l'hallucination.\newline
+7.~Si nécessaire, le correcteur répare la réponse.\newline
+8.~La réponse est diffusée en \emph{streaming} avec ses citations. \\
+\midrule
+Post-condition & Le message, ses agents, ses passages, son évaluation sont persistés \\
+Exceptions & Aucun passage pertinent $\rightarrow$ réponse de repli explicite ;
+échec LLM $\rightarrow$ modèle de \emph{fallback} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Modèle du domaine}
+Le modèle du domaine articule sept concepts métier centraux : l'\textbf{Utilisateur}
+appartient à des \textbf{Espaces de travail} via des \textbf{Adhésions} ; un espace
+contient des \textbf{Documents} découpés en \textbf{Chunks} ; un utilisateur mène
+des \textbf{Conversations} composées de \textbf{Messages} ; chaque message
+assistant agrège une \textbf{Trace} (agents, passages récupérés, évaluation). Ce
+dernier point — élever la trace au rang de concept du domaine — est un choix de
+conception déterminant pour l'observabilité.
+
+\section{Modèle de données}
+Le schéma relationnel comprend onze tables, implémentées avec SQLAlchemy et
+versionnées par Alembic. La figure~\ref{fig:erd} en présente une vue entité-association
+simplifiée, et le tableau~\ref{tab:tables} en décrit le rôle.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  ent/.style={draw=lineGray,rounded corners=2pt,fill=tierApi,font=\scriptsize\bfseries,
+              minimum width=2.3cm,minimum height=0.7cm},
+  rel/.style={-{Stealth[length=2mm]},line width=0.7pt,color=slate},
+  lbl/.style={font=\tiny\itshape,color=slate,fill=white,inner sep=1pt}]
+  \node[ent] (users)   at (0,0)    {users};
+  \node[ent] (wm)      at (3.4,0)  {workspace\_members};
+  \node[ent] (ws)      at (7,0)    {workspaces};
+  \node[ent] (docs)    at (10.4,0) {documents};
+  \node[ent] (chunks)  at (10.4,-2){chunks};
+  \node[ent] (conv)    at (0,-2)   {conversations};
+  \node[ent] (msg)     at (3.4,-2) {messages};
+  \node[ent] (ar)      at (3.4,-4) {agent\_runs};
+  \node[ent] (rc)      at (0,-4)   {retrieved\_chunks};
+  \node[ent] (ev)      at (6.8,-4) {evaluations};
+  \node[ent] (lu)      at (10.4,-4){llm\_usage};
+  % relations
+  \draw[rel] (users) -- node[lbl]{1..*} (wm);
+  \draw[rel] (ws)    -- node[lbl]{1..*} (wm);
+  \draw[rel] (ws)    -- node[lbl]{1..*} (docs);
+  \draw[rel] (docs)  -- node[lbl]{1..*} (chunks);
+  \draw[rel] (users) -- node[lbl]{1..*} (conv);
+  \draw[rel] (ws)    -- node[lbl]{0..*} (conv);
+  \draw[rel] (conv)  -- node[lbl]{1..*} (msg);
+  \draw[rel] (msg)   -- node[lbl]{1..*} (ar);
+  \draw[rel] (msg)   -- node[lbl]{1..*} (rc);
+  \draw[rel] (msg)   -- node[lbl]{1..1} (ev);
+  \draw[rel] (msg)   -- node[lbl]{0..*} (lu);
+\end{tikzpicture}}
+\caption{Modèle de données — vue entité-association simplifiée (11 tables)}
+\label{fig:erd}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Description des tables du modèle de données}
+\label{tab:tables}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\ttfamily}l X@{}}
+\toprule
+\normalfont\textbf{Table} & \textbf{Rôle} \\
+\midrule
+users              & Comptes, identifiants, rôle (utilisateur/admin/super-admin) \\
+workspaces         & Espaces de travail isolant les connaissances \\
+workspace\_members & Adhésions reliant utilisateurs et espaces (table d'association) \\
+documents          & Documents téléversés et leur statut d'ingestion \\
+chunks             & Fragments de texte avec référence vers le vecteur Qdrant \\
+conversations      & Fils de discussion d'un utilisateur dans un espace \\
+messages           & Messages utilisateur et assistant d'une conversation \\
+agent\_runs        & Exécution de chaque agent du pipeline (statut, latence, E/S) \\
+retrieved\_chunks  & Passages récupérés et associés à un message assistant \\
+evaluations        & Scores de fidélité, pertinence, hallucination par message \\
+llm\_usage         & Comptabilité d'usage des modèles (jetons, modèle, coût) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de séquence}
+Quatre scénarios d'interaction structurent le système. Faute de place, ils sont
+présentés sous forme de diagrammes de séquence simplifiés (lignes de vie et
+messages). Les retours synchrones sont en pointillés.
+
+\subsection{Ingestion d'un document}
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize,>=Stealth]
+  \def\h{-6.2}
+  \foreach \x/\name in {0/Client,3/API,6/Stockage,9/Celery,12/Qdrant}{
+    \node[life] at (\x,0) {\name};
+    \draw[dashed,lineGray] (\x,-0.4) -- (\x,\h);}
+  \draw[->] (0,-1)  -- (3,-1)  node[midway,above]{POST /documents (fichier)};
+  \draw[->] (3,-1.7)-- (6,-1.7)node[midway,above]{persister fichier + métadonnées};
+  \draw[->] (3,-2.4)-- (9,-2.4)node[midway,above]{enqueue process\_document\_task};
+  \draw[->,dashed] (3,-3.0)-- (0,-3.0) node[midway,above]{202 Accepted (statut=pending)};
+  \draw[->] (9,-3.8)-- (6,-3.8)node[midway,above]{lire + extraire le texte};
+  \draw[->] (9,-4.5)-- (9.0,-4.9) ;
+  \node[font=\tiny,align=center] at (9,-4.4) {découper + vectoriser};
+  \draw[->] (9,-5.3)-- (12,-5.3)node[midway,above]{upsert vecteurs (768-d)};
+  \draw[->] (9,-6.0)-- (6,-6.0)node[midway,above]{statut=indexed};
+\end{tikzpicture}}
+\caption{Diagramme de séquence — ingestion asynchrone d'un document}
+\label{fig:seq-ingest}
+\end{figure}
+
+\subsection{Requête RAG}
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize,>=Stealth]
+  \def\h{-7.4}
+  \foreach \x/\name in {0/Client,3/API,6/Workflow,9/Qdrant,12/LLM}{
+    \node[life] at (\x,0) {\name};
+    \draw[dashed,lineGray] (\x,-0.4) -- (\x,\h);}
+  \draw[->] (0,-1)  -- (3,-1)  node[midway,above]{POST /chat (question)};
+  \draw[->] (3,-1.6)-- (6,-1.6)node[midway,above]{exécuter le pipeline agentique};
+  \draw[->] (6,-2.3)-- (6.0,-2.6); \node[font=\tiny] at (6,-2.15){router + réécriture};
+  \draw[->] (6,-3.1)-- (9,-3.1)node[midway,above]{récupérer candidats (k=15)};
+  \draw[->,dashed] (9,-3.7)-- (6,-3.7)node[midway,above]{passages + scores};
+  \draw[->] (6,-4.3)-- (6.0,-4.6); \node[font=\tiny] at (6,-4.15){reclasser (top 5)};
+  \draw[->] (6,-5.1)-- (12,-5.1)node[midway,above]{générer réponse ancrée};
+  \draw[->,dashed] (12,-5.7)-- (6,-5.7)node[midway,above]{réponse + citations};
+  \draw[->] (6,-6.3)-- (6.0,-6.6); \node[font=\tiny] at (6,-6.15){évaluer + corriger};
+  \draw[->,dashed] (6,-7.1)-- (0,-7.1)node[midway,above]{réponse finale + trace persistée};
+\end{tikzpicture}}
+\caption{Diagramme de séquence — requête RAG (pipeline agentique complet)}
+\label{fig:seq-rag}
+\end{figure}
+
+\subsection{Requête en streaming}
+\begin{figure}[H]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize,>=Stealth]
+  \def\h{-5.4}
+  \foreach \x/\name in {0/Client,4/API SSE,8/Workflow}{
+    \node[life] at (\x,0) {\name};
+    \draw[dashed,lineGray] (\x,-0.4) -- (\x,\h);}
+  \draw[->] (0,-1)  -- (4,-1)  node[midway,above]{POST /chat/stream};
+  \draw[->] (4,-1.6)-- (8,-1.6)node[midway,above]{démarrer le pipeline};
+  \draw[->,dashed] (8,-2.2)-- (4,-2.2)node[midway,above]{event: trace / citations};
+  \draw[->,dashed] (4,-2.8)-- (0,-2.8)node[midway,above]{flux SSE: token, token, ...};
+  \draw[->,dashed] (8,-3.6)-- (4,-3.6)node[midway,above]{event: evaluation};
+  \draw[->,dashed] (4,-4.2)-- (0,-4.2)node[midway,above]{event: message (final)};
+  \draw[->,dashed] (4,-4.9)-- (0,-4.9)node[midway,above]{event: done};
+\end{tikzpicture}}
+\caption{Diagramme de séquence — diffusion en \emph{streaming} (Server-Sent Events)}
+\label{fig:seq-stream}
+\end{figure}
+
+\subsection{Supervision administrateur}
+\begin{figure}[H]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize,>=Stealth]
+  \def\h{-5.0}
+  \foreach \x/\name in {0/Admin,4/API,8/PostgreSQL,11.5/Qdrant}{
+    \node[life] at (\x,0) {\name};
+    \draw[dashed,lineGray] (\x,-0.4) -- (\x,\h);}
+  \draw[->] (0,-1)  -- (4,-1)  node[midway,above]{GET /admin/ragops/...};
+  \draw[->] (4,-1.7)-- (8,-1.7)node[midway,above]{agréger états documents/traces};
+  \draw[->] (4,-2.4)-- (11.5,-2.4)node[midway,above]{santé de la collection};
+  \draw[->,dashed] (8,-3.1)-- (4,-3.1)node[midway,above]{métriques + file};
+  \draw[->,dashed] (4,-3.8)-- (0,-3.8)node[midway,above]{tableau de bord RAGOps};
+  \draw[->] (0,-4.5)-- (4,-4.5)node[midway,above]{GET /admin/rag-traces/{id}};
+\end{tikzpicture}}
+\caption{Diagramme de séquence — supervision et inspection (RAGOps)}
+\label{fig:seq-admin}
+\end{figure}
+
+\section{Modèle de traçabilité}
+La traçabilité est modélisée comme une chaîne dirigée centrée sur le message
+assistant : \[\texttt{message} \rightarrow \texttt{agent\_runs} \rightarrow
+\texttt{retrieved\_chunks} \rightarrow \texttt{evaluations}.\] Chaque message
+assistant agrège l'ensemble des exécutions d'agents qui l'ont produit, les
+passages effectivement récupérés, et son évaluation. Cette modélisation rend
+chaque réponse \emph{reconstructible a posteriori} sans dépendance à des journaux
+externes, et fonde directement l'inspecteur de traces du chapitre~4.
+
+\section{Décisions de conception}
+Trois décisions de conception méritent d'être soulignées. Premièrement,
+\textbf{la trace est un citoyen de premier ordre} du modèle de données, et non un
+artefact de journalisation : ce choix est la condition de l'observabilité.
+Deuxièmement, \textbf{l'ingestion est asynchrone} par construction, séparant le
+chemin critique de l'API du traitement lourd. Troisièmement,
+\textbf{la génération est agentique}, chaque étape étant isolée, persistée et
+indépendamment mesurable.
+
+\section{Conclusion du chapitre}
+La conception traduit les exigences en modèles exploitables : cas d'utilisation,
+modèle de données à onze tables, scénarios d'interaction et chaîne de traçabilité.
+Ces modèles préparent l'architecture système détaillée au chapitre suivant.
+
+%==============================================================================
+\chapter{System Design et architecture}
+\label{chap:archi}
+%==============================================================================
+
+\section{Introduction et vision architecturale}
+Ce chapitre constitue le c{\oe}ur du travail d'ingénierie. La vision
+architecturale de \devpilot{} repose sur quatre principes directeurs :
+(i)~\textbf{séparation des responsabilités} en couches et services autonomes ;
+(ii)~\textbf{asynchronisme} pour découpler le chemin critique des requêtes du
+traitement lourd ; (iii)~\textbf{traçabilité native}, chaque étape produisant une
+trace persistée et inspectable ; et (iv)~\textbf{neutralité des fournisseurs}
+d'IA, le système s'abstrayant des modèles concrets (Ollama, Gemini, OpenAI). Ces
+principes guident l'ensemble des décisions présentées ci-après.
+
+\section{Architecture système globale}
+\devpilot{} est un système orienté services déployé par conteneurs. La
+figure~\ref{fig:archi-global} présente la topologie complète : huit services
+coopérants, organisés en quatre niveaux logiques (présentation, application,
+traitement asynchrone, données et IA).
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=6mm]
+  % Niveau présentation
+  \node[comp,fill=tierClient,minimum width=4cm] (next) {Frontend Next.js\\(React 19, Tailwind, React Query)};
+  % Niveau application
+  \node[comp,fill=tierApi,minimum width=4cm,below=14mm of next] (api) {Backend FastAPI\\(REST + SSE, JWT, services)};
+  % stores
+  \node[store,below=16mm of api,xshift=-5.2cm] (pg)   {PostgreSQL};
+  \node[store,below=16mm of api,xshift=-1.7cm] (redis){Redis};
+  \node[store,below=16mm of api,xshift=1.7cm]  (qd)   {Qdrant};
+  % async
+  \node[comp,fill=tierAsync,minimum width=3cm,below=16mm of api,xshift=5.3cm] (cel) {Celery\\worker};
+  % IA
+  \node[comp,fill=tierAI,minimum width=2.6cm,below=14mm of qd,xshift=-1.6cm] (ollama){Ollama\\(embeddings)};
+  \node[comp,fill=tierAI,minimum width=2.6cm,below=14mm of qd,xshift=1.6cm]  (gemini){Gemini\\(génération)};
+  % observabilité
+  \node[comp,minimum width=2.6cm,right=10mm of api] (prom){Prometheus};
+  \node[comp,minimum width=2.6cm,right=8mm of prom] (graf){Grafana};
+  % liens
+  \draw[flow] (next) -- node[right,font=\tiny]{HTTPS / SSE} (api);
+  \draw[flow] (api) -- (pg);
+  \draw[flow] (api) -- (redis);
+  \draw[flow] (api) -- (qd);
+  \draw[flow] (api) -- (cel);
+  \draw[flow] (redis) -- node[above,font=\tiny]{broker} (cel);
+  \draw[flow] (cel) |- (pg);
+  \draw[flow] (cel) -- (qd);
+  \draw[flow] (api) -- (ollama);
+  \draw[flow] (api) -- (gemini);
+  \draw[flow] (cel) -- (ollama);
+  \draw[flow] (api) -- (prom);
+  \draw[flow] (prom) -- (graf);
+\end{tikzpicture}}
+\caption{Architecture système globale — huit services conteneurisés}
+\label{fig:archi-global}
+\end{figure}
+
+\section{Architecture en couches}
+Au-delà de la topologie physique, le système s'organise en couches logiques aux
+responsabilités strictes (figure~\ref{fig:archi-layers}). Cette stratification
+garantit que les dépendances ne circulent que du haut vers le bas, condition de
+la maintenabilité.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[node distance=4mm]
+  \node[tier,fill=tierClient,minimum width=12cm] (l1)
+    {Couche présentation \\ \normalfont\scriptsize Pages App Router, composants UI, chat \emph{streaming}, tableaux de bord d'administration};
+  \node[tier,fill=tierApi,minimum width=12cm,below=of l1] (l2)
+    {Couche API / Application \\ \normalfont\scriptsize Routes FastAPI, authentification JWT, services métier, schémas Pydantic};
+  \node[tier,fill=tierAI,minimum width=12cm,below=of l2] (l3)
+    {Couche domaine IA \\ \normalfont\scriptsize Pipeline agentique, récupération, reclassement, génération, évaluation};
+  \node[tier,fill=tierAsync,minimum width=12cm,below=of l3] (l4)
+    {Couche traitement asynchrone \\ \normalfont\scriptsize Tâches Celery, file Redis, ingestion documentaire};
+  \node[tier,fill=tierData,minimum width=12cm,below=of l4] (l5)
+    {Couche données \\ \normalfont\scriptsize PostgreSQL (état + traces), Qdrant (vecteurs), stockage de fichiers};
+  \foreach \a/\b in {l1/l2,l2/l3,l3/l4,l4/l5}{ \draw[flowb] (\a) -- (\b); }
+\end{tikzpicture}}
+\caption{Architecture logique en couches}
+\label{fig:archi-layers}
+\end{figure}
+
+\section{Pipeline de traitement documentaire}
+L'ingestion documentaire est entièrement asynchrone. À la réception d'un fichier,
+l'API persiste le document avec le statut \code{pending} et délègue le traitement
+à Celery via la tâche \code{process\_document\_task} (relancée jusqu'à trois fois
+en cas d'échec). La figure~\ref{fig:pipe-doc} décrit les étapes.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=5mm,>=Stealth]
+  \node[stage,fill=tierAsync] (up)  {Téléversement\\statut=pending};
+  \node[stage,fill=tierAsync,right=of up] (ex)  {Extraction\\du texte};
+  \node[stage,fill=tierAsync,right=of ex] (ch)  {Découpage\\(chunks)};
+  \node[stage,fill=tierAI,right=of ch]    (em)  {Vectorisation\\(768-d)};
+  \node[stage,fill=tierData,right=of em]  (ix)  {Indexation\\Qdrant};
+  \node[stage,fill=tierData,right=of ix]  (ok)  {statut=indexed};
+  \foreach \a/\b in {up/ex,ex/ch,ch/em,em/ix,ix/ok}{ \draw[flow] (\a) -- (\b); }
+  \node[font=\tiny\itshape,below=8mm of ch,color=slate] {Exécuté par le \emph{worker} Celery, hors du chemin critique de l'API};
+\end{tikzpicture}}
+\caption{Pipeline de traitement documentaire (ingestion asynchrone)}
+\label{fig:pipe-doc}
+\end{figure}
+
+\section{Pipeline d'\emph{embedding} et architecture de recherche vectorielle}
+Les fragments de texte sont vectorisés par le modèle \code{nomic-embed-text}
+(Ollama), produisant des vecteurs de dimension~768, traités par lots de taille
+configurable. Chaque vecteur est inséré (\emph{upsert}) dans la collection Qdrant,
+tandis que PostgreSQL conserve le fragment et une référence \code{vector\_id} vers
+le point Qdrant correspondant. Ce \textbf{couplage dual} — texte canonique en
+relationnel, vecteur en base vectorielle — sépare les responsabilités tout en
+préservant l'intégrité référentielle.
+
+Qdrant indexe les vecteurs avec une structure \textbf{HNSW} (\emph{Hierarchical
+Navigable Small World}), qui offre une recherche par plus proches voisins
+approchés en temps quasi logarithmique~\cite{malkov2018hnsw}, condition de la
+scalabilité de la récupération. La métrique de similarité retenue est le cosinus,
+adaptée aux \emph{embeddings} sémantiques normalisés.
+
+\section{Pipeline de récupération et reclassement}
+La récupération suit une stratégie en deux temps (figure~\ref{fig:pipe-rag}).
+D'abord, une recherche large remonte un ensemble de candidats (paramètre
+\code{retrieval\_candidates}, par défaut~15) combinant similarité sémantique et
+appariement lexical (récupération \emph{hybride}). Ensuite, un
+\textbf{reclassement} (\emph{reranking}) réordonne ces candidats par pertinence
+fine et n'en retient que les meilleurs (\code{rerank\_top\_k}, par défaut~5). Ce
+schéma « rappel large puis précision fine » maximise la qualité du contexte fourni
+au générateur tout en bornant sa taille (\code{rag\_max\_context\_chars}).
+
+\section{Pipeline de génération : le flux agentique}
+La génération n'est pas un appel monolithique à un LLM, mais un
+\emph{flux agentique} (\code{AgenticRAGWorkflow}) de sept agents coopérants,
+chacun persisté comme une exécution inspectable (figure~\ref{fig:pipe-agents}).
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=4.5mm,>=Stealth]
+  \node[stage] (r)  {Router\\\tiny valide \& route};
+  \node[stage,right=of r] (qr) {Query\\Rewriter};
+  \node[stage,right=of qr] (re) {Retriever\\\tiny Qdrant};
+  \node[stage,right=of re] (rk) {Reranker};
+  \node[stage,right=of rk] (g)  {Generator\\\tiny LLM};
+  \node[stage,right=of g]  (ev) {Evaluator};
+  \node[stage,right=of ev] (co) {Corrector};
+  \foreach \a/\b in {r/qr,qr/re,re/rk,rk/g,g/ev,ev/co}{ \draw[flow] (\a) -- (\b); }
+  \draw[flow,dashed] (ev.south) to[out=-90,in=-90] node[below,font=\tiny]{si non fidèle} (co.south);
+  \node[font=\tiny\itshape,below=10mm of rk,color=slate]
+    {Chaque agent $\rightarrow$ une ligne \code{agent\_runs} (statut, latence, entrée/sortie)};
+\end{tikzpicture}}
+\caption{Pipeline de génération agentique (7 agents)}
+\label{fig:pipe-agents}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[node distance=4mm,>=Stealth]
+  \node[stage,fill=tierApi] (q) {Question};
+  \node[stage,fill=tierAI,right=12mm of q] (cand) {Candidats\\(k=15, hybride)};
+  \node[stage,fill=tierAI,right=12mm of cand] (top) {Top 5\\reclassés};
+  \node[stage,fill=tierClient,right=12mm of top] (ans) {Réponse\\ancrée + citée};
+  \draw[flow] (q) -- node[above,font=\tiny]{récupération} (cand);
+  \draw[flow] (cand) -- node[above,font=\tiny]{reranking} (top);
+  \draw[flow] (top) -- node[above,font=\tiny]{génération} (ans);
+\end{tikzpicture}}
+\caption{Stratégie « rappel large puis précision fine » de la récupération}
+\label{fig:pipe-rag}
+\end{figure}
+
+\section{Pipeline d'évaluation et cycle de vie de la qualité}
+Après génération, l'agent évaluateur note la réponse selon plusieurs dimensions :
+\textbf{fidélité} (la réponse est-elle étayée par le contexte ?),
+\textbf{pertinence} (répond-elle à la question ?), \textbf{précision du contexte}
+et \textbf{score d'hallucination}. La méthode d'évaluation est explicitement
+tracée (\code{llm}, \code{heuristic} ou \code{fallback}), de sorte que la
+confiance dans la mesure est elle-même observable. Lorsque la fidélité est
+insuffisante, l'agent \textbf{correcteur} intervient pour réparer la réponse, et
+la différence entre version générée et version finale est conservée — c'est le
+fondement du \emph{diff} de correction de l'inspecteur de traces.
+
+\section{Architecture de streaming}
+Le \emph{streaming} repose sur le protocole \textbf{Server-Sent Events} (SSE) :
+le \textit{backend} renvoie une \code{StreamingResponse} FastAPI émettant une
+séquence d'événements typés (\code{trace}, \code{citations}, \code{token},
+\code{evaluation}, \code{message}, \code{done}). Côté \textit{frontend}, le flux
+est consommé via l'API \code{fetch} et un \code{ReadableStream} décodé
+incrémentalement. Ce choix — plutôt que des WebSockets — privilégie la simplicité
+d'un flux unidirectionnel serveur\,$\rightarrow$\,client, suffisant pour la
+diffusion de réponses et naturellement compatible avec HTTP/2.
+
+\section{Architecture d'observabilité : RAGOps et traçabilité}
+L'observabilité est traitée comme une fonctionnalité de premier ordre, à trois
+niveaux complémentaires :
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Métriques système} — Prometheus collecte les métriques du
+  \textit{backend} FastAPI (support multi-processus), restituées dans des tableaux
+  de bord Grafana provisionnés.
+  \item \textbf{RAGOps} — une tour de contrôle agrège la santé des pipelines :
+  état de la collection Qdrant, file de traitement documentaire, documents en
+  échec et possibilité de relance.
+  \item \textbf{Traçabilité applicative} — un explorateur liste les traces de
+  requêtes, et un \textbf{inspecteur} reconstruit le cycle de vie complet d'une
+  requête (chronologie des agents, passages récupérés, décisions de reclassement,
+  citations, évaluation et \emph{diff} du correcteur).
+\end{enumerate}
+
+\section{Architecture de sécurité}
+La sécurité est multicouche. L'\textbf{authentification} repose sur des jetons
+JWT signés ; l'\textbf{autorisation} s'appuie sur un contrôle d'accès par rôles
+(utilisateur, admin, super-admin) appliqué au niveau des dépendances FastAPI. Les
+données sont \textbf{isolées par espace de travail} : toute requête est cantonnée
+au périmètre des espaces dont l'utilisateur est membre. Les actions
+d'administration sont \textbf{journalisées} (table \code{audit\_logs}). Enfin, les
+vues de débogage \textbf{masquent systématiquement les secrets} (clés contenant
+\emph{password}, \emph{secret}, \emph{token}, \emph{api\_key}), garantissant
+qu'aucune information sensible ne fuit par l'observabilité.
+
+\section{Architecture de scalabilité, résilience et performance}
+\paragraph{Scalabilité.} Le \textit{backend} FastAPI est \emph{sans état} :
+plusieurs instances peuvent être placées derrière un répartiteur de charge. Les
+\emph{workers} Celery se multiplient horizontalement pour absorber les pics
+d'ingestion. Qdrant supporte le partitionnement de collection. PostgreSQL peut
+être répliqué en lecture.
+
+\paragraph{Stratégie de \emph{cache}.} Redis joue un double rôle : courtier de
+messages pour Celery et magasin de résultats. Il constitue également le socle
+naturel d'une mise en cache applicative (réponses, \emph{embeddings} récurrents).
+
+\paragraph{Résilience et gestion des défaillances.} Trois mécanismes assurent la
+robustesse : la \textbf{relance} automatique des tâches d'ingestion (jusqu'à trois
+tentatives) ; le \textbf{repli} de modèle de génération (\emph{fallback} de Gemini
+2.5 Flash vers une version antérieure) ; et l'\textbf{agent correcteur} qui répare
+les réponses non fidèles plutôt que de les laisser sortir telles quelles.
+
+\paragraph{Optimisation des performances.} L'asynchronisme bout-en-bout (E/S non
+bloquantes côté API, déport du calcul lourd côté Celery), la recherche HNSW
+sous-linéaire et le \emph{streaming} (réduisant le \emph{time-to-first-token})
+concourent à une expérience réactive.
+
+\section{Justifications technologiques et compromis}
+Chaque brique a été retenue à l'issue d'une analyse de compromis explicite,
+synthétisée dans le tableau~\ref{tab:choix}.
+
+\begin{table}[H]
+\centering
+\caption{Décisions technologiques et justifications}
+\label{tab:choix}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Choix & Justification et compromis \\
+\midrule
+FastAPI &
+Framework asynchrone hautes performances, validation Pydantic native, support
+direct du \emph{streaming} (SSE). Compromis : écosystème plus jeune que des
+frameworks synchrones établis. \\
+PostgreSQL &
+SGBD relationnel robuste, transactionnel, idéal pour l'état et les traces
+structurées ; support JSON pour les champs semi-structurés. Compromis : moins
+adapté au stockage vectoriel natif d'où le recours à Qdrant. \\
+Qdrant &
+Base vectorielle spécialisée, index HNSW performant, API simple, conteneurisable
+et auto-hébergeable. Compromis : composant additionnel à exploiter. \\
+Redis &
+Courtier de messages à faible latence et magasin de résultats pour Celery, base
+de \emph{cache}. Compromis : persistance mémoire à dimensionner. \\
+Celery &
+Standard éprouvé du traitement de tâches asynchrones en Python, relances et
+montée en charge des \emph{workers}. Compromis : complexité opérationnelle accrue. \\
+Next.js &
+\emph{App Router} React 19, rendu hybride, excellente expérience développeur,
+\emph{streaming} natif côté client. Compromis : couplage fort à l'écosystème React. \\
+Ollama / Gemini &
+Abstraction multi-fournisseurs : Ollama pour des \emph{embeddings} locaux et un
+fonctionnement hors-ligne, Gemini pour une génération de haute qualité.
+Compromis : variabilité de comportement entre fournisseurs, gérée par l'agent
+évaluateur. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conclusion du chapitre}
+L'architecture de \devpilot{} traduit ses principes directeurs en un système
+concret, en couches, asynchrone, traçable et neutre vis-à-vis des fournisseurs
+d'IA. Les pipelines documentaire, de récupération, de génération agentique et
+d'évaluation forment un tout cohérent, instrumenté de bout en bout. Le chapitre
+suivant détaille la réalisation de ces composants.
+
+%==============================================================================
+\chapter{Technologies et réalisation}
+\label{chap:real}
+%==============================================================================
+
+\section{Présentation des technologies}
+La réalisation s'appuie sur une pile technologique moderne et cohérente,
+synthétisée dans le tableau~\ref{tab:stack}. L'ensemble est orchestré par Docker
+Compose, garantissant la reproductibilité de l'environnement.
+
+\begin{table}[H]
+\centering
+\caption{Pile technologique de DevPilot AI}
+\label{tab:stack}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l l X@{}}
+\toprule
+Niveau & Technologie & Rôle \\
+\midrule
+Frontend     & Next.js, React, TypeScript, Tailwind & Interface, chat, tableaux de bord \\
+             & React Query, Recharts & État serveur et visualisations \\
+Backend      & FastAPI, Pydantic & API REST et \emph{streaming}, validation \\
+             & SQLAlchemy, Alembic & ORM et migrations de schéma \\
+Base de données & PostgreSQL 16 & État relationnel et traces \\
+Messagerie   & Redis 7 & Courtier de messages et \emph{cache} \\
+Asynchrone   & Celery & Traitement documentaire en arrière-plan \\
+Vectoriel    & Qdrant 1.12 & Recherche par plus proches voisins (HNSW) \\
+Modèles IA   & Ollama, Gemini & \emph{Embeddings} locaux, génération \\
+Observabilité& Prometheus, Grafana & Métriques et tableaux de bord \\
+Déploiement  & Docker, Docker Compose & Conteneurisation et orchestration \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Réalisation du \textit{frontend}}
+L'interface est bâtie avec Next.js (\emph{App Router}) et un système de design
+maison fondé sur des jetons CSS (thème clair/sombre), garantissant cohérence et
+accessibilité. L'état serveur est géré par React Query, qui mutualise le cache et
+la synchronisation des requêtes. Le listing~\ref{lst:rq} illustre le \emph{hook}
+d'inspection de trace, qui orchestre quatre requêtes parallèles.
+
+\begin{lstlisting}[language=JavaScript,caption={Hook React Query d'inspection de trace (extrait)},label=lst:rq]
+export function useTraceInspector(messageId, includeContent, enabled) {
+  const trace = useQuery({
+    queryKey: ["trace", messageId, includeContent],
+    queryFn: () => getRagTrace(messageId, includeContent),
+    enabled,
+  });
+  // Requetes secondaires en parallele, degradation gracieuse
+  const retrieval  = useQuery({ queryKey: ["trace-retrieval", messageId], ... });
+  const reranking  = useQuery({ queryKey: ["trace-reranking", messageId], ... });
+  const evaluation = useQuery({ queryKey: ["trace-evaluation", messageId], ... });
+  return { trace, retrieval, reranking, evaluation, /* ... */ };
+}
+\end{lstlisting}
+
+\figplaceholder{Figure 4.1 — Interface du chat conversationnel avec réponse en
+\emph{streaming}, citations en ligne et cartes de sources.}
+
+\section{Réalisation du \textit{backend}}
+Le \textit{backend} FastAPI expose une API versionnée organisée en routeurs
+(authentification, espaces, documents, chat, retrieval, RAGOps, traces, santé).
+La logique métier est encapsulée dans des services dédiés
+(\code{document\_service}, \code{retrieval\_service}, \code{reranking\_service},
+\code{evaluation\_service}, \code{rag\_traces\_service}, \code{ragops\_service}),
+séparant clairement les routes des règles du domaine.
+
+\figplaceholder{Figure 4.2 — Documentation interactive de l'API (Swagger/OpenAPI)
+générée automatiquement par FastAPI.}
+
+\section{Réalisation de la base de données}
+Le schéma relationnel (onze tables) est défini avec SQLAlchemy et son évolution
+est gérée par des migrations Alembic versionnées (schéma initial, évaluation des
+réponses, RBAC d'administration). Les identifiants sont des UUID, et des
+\emph{mixins} factorisent les colonnes temporelles communes.
+
+\section{Traitement documentaire}
+La tâche \code{process\_document\_task} (Celery) orchestre l'extraction du texte,
+le découpage, la vectorisation et l'indexation Qdrant, avec relance automatique en
+cas d'échec et passage du document au statut \code{failed} le cas échéant — état
+exploité par RAGOps pour proposer une relance.
+
+\figplaceholder{Figure 4.3 — Interface de gestion documentaire : glisser-déposer,
+téléversement par lots, indicateurs de progression et de statut.}
+
+\section{Pipeline RAG}
+Le pipeline agentique (\code{AgenticRAGWorkflow}) instancie les sept agents et
+journalise chaque exécution dans \code{agent\_runs}. Cette persistance
+systématique est ce qui rend l'inspecteur de traces possible : aucun état n'est
+implicite.
+
+\section{Chat en \emph{streaming}}
+La diffusion en \emph{streaming} relie une \code{StreamingResponse} SSE côté
+serveur à un consommateur \code{ReadableStream} côté client. Les événements
+\code{trace} et \code{citations} arrivent avant les jetons de texte, permettant à
+l'interface d'afficher les sources dès le début de la génération.
+
+\figplaceholder{Figure 4.4 — Réponse en cours de \emph{streaming} avec indicateur
+de saisie, défilement automatique et suggestions de questions de suivi.}
+
+\section{Tableau de bord RAGOps}
+La tour de contrôle RAGOps agrège la santé de la collection Qdrant, l'état de la
+file d'ingestion, les documents en échec et les indicateurs de qualité agrégés.
+Elle constitue le point d'entrée de l'exploitation quotidienne de la plateforme.
+
+\figplaceholder{Figure 4.5 — Tour de contrôle RAGOps : santé des pipelines, file
+de traitement et alertes.}
+
+\section{Explorateur et inspecteur de traces}
+L'explorateur liste les traces avec filtres serveur (recherche, espace, stratégie
+de récupération, seuils de fidélité et d'hallucination, plage de dates).
+L'inspecteur reconstruit, pour une trace donnée, neuf sections : résumé,
+chronologie des agents, explorateur de récupération, explorateur de reclassement,
+explorateur de citations, centre d'évaluation, analyse du correcteur (avec
+\emph{diff} mot à mot), usage des modèles et graphe interactif du pipeline. Un
+score de santé de trace (sur~100) synthétise la qualité d'une requête.
+
+\figplaceholder{Figure 4.6 — Inspecteur de traces : chronologie des agents,
+passages récupérés, citations et scores d'évaluation.}
+
+\section{Interface d'administration}
+Les pages d'administration (utilisateurs, espaces, documents, journaux d'audit,
+paramètres) adoptent une ergonomie inspirée des consoles d'exploitation
+professionnelles : métriques visuelles, indicateurs de santé, recherche, filtres
+et actions groupées, plutôt qu'un CRUD austère.
+
+\figplaceholder{Figure 4.7 — Console d'administration : métriques, filtres et
+actions groupées sur les entités de la plateforme.}
+
+\section{Sécurité}
+La réalisation applique les principes du chapitre~3 : génération et vérification
+de jetons JWT, dépendances d'autorisation par rôle, isolation des données par
+espace, journalisation d'audit et masquage des secrets dans toute vue de
+débogage.
+
+\section{Tests et performance}
+La réalisation s'accompagne de tests automatisés (unitaires, intégration, API) et
+d'une attention portée à la performance, détaillés au chapitre suivant.
+
+\section{Conclusion du chapitre}
+La réalisation concrétise fidèlement l'architecture conçue : un \textit{frontend}
+réactif et typé, un \textit{backend} en couches asynchrone, une ingestion
+documentaire robuste, un pipeline agentique traçable et un sous-système
+d'observabilité complet.
+
+%==============================================================================
+\chapter{Tests et validation}
+\label{chap:tests}
+%==============================================================================
+
+\section{Stratégie de test}
+La validation suit une pyramide de tests classique, des tests unitaires rapides
+et nombreux jusqu'aux tests d'acceptation de plus haut niveau. Le
+tableau~\ref{tab:tests} synthétise les catégories couvertes.
+
+\begin{table}[H]
+\centering
+\caption{Catégories de tests et objets validés}
+\label{tab:tests}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Catégorie & Objet de la validation \\
+\midrule
+Tests unitaires & Fonctions pures : découpage, scores, \emph{diff} mot à mot, extraction d'usage \\
+Tests d'intégration & Chaîne ingestion $\rightarrow$ indexation $\rightarrow$ récupération \\
+Tests d'API & Contrats des \emph{endpoints} (statuts, schémas, autorisation) \\
+Validation RAG & Pertinence des passages, ancrage et présence des citations \\
+Tests de performance & Latence des requêtes, débit d'ingestion, recherche vectorielle \\
+Tests de \emph{streaming} & Ordre et complétude des événements SSE \\
+Tests de sécurité & Isolation par espace, contrôle d'accès par rôles, masquage des secrets \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Tests unitaires}
+Les fonctions déterministes de la couche de présentation et du domaine sont
+couvertes par des tests unitaires : par exemple l'algorithme de \emph{diff} mot à
+mot (plus longue sous-séquence commune) utilisé par l'analyse du correcteur,
+l'extraction d'usage des modèles, ou le calcul du score de santé de trace.
+
+\section{Tests d'intégration et d'API}
+Les tests d'intégration valident la chaîne complète d'ingestion et de
+récupération sur un corpus contrôlé, tandis que les tests d'API vérifient les
+contrats des \emph{endpoints}, y compris les codes de statut et l'application des
+règles d'autorisation.
+
+\section{Validation du RAG}
+La qualité du RAG est validée selon trois axes : la \textbf{récupération}
+(les passages remontés sont-ils pertinents ?), l'\textbf{ancrage} (la réponse
+est-elle étayée par ces passages ?) et la \textbf{citation} (les sources sont-elles
+correctement référencées ?). L'agent évaluateur fournit une mesure continue de ces
+axes, exposée dans l'inspecteur de traces.
+
+\section{Tests de performance et de \emph{streaming}}
+Les tests de performance mesurent la latence de bout en bout, le débit
+d'ingestion et la latence de la recherche vectorielle. Les tests de
+\emph{streaming} vérifient que les événements SSE arrivent dans l'ordre attendu
+(\code{trace}, \code{citations}, \code{token}\dots, \code{done}) et que le flux se
+termine proprement.
+
+\section{Tests de sécurité}
+Les tests de sécurité valident l'isolation des données entre espaces de travail,
+le respect du contrôle d'accès par rôles et l'absence de fuite de secrets dans les
+vues de débogage et d'audit.
+
+\section{Critères d'acceptation}
+Un scénario est considéré comme validé lorsque : une question sur un corpus indexé
+produit une réponse ancrée et citée ; l'évaluation associée est calculée et
+persistée ; la trace complète est reconstructible dans l'inspecteur ; et aucune
+fuite de données inter-espaces ni de secret n'est observée.
+
+\section{Conclusion du chapitre}
+La stratégie de validation couvre l'ensemble des couches, du test unitaire à
+l'acceptation, en accordant une attention particulière aux propriétés
+spécifiques d'une plateforme d'IA : ancrage, citations, qualité mesurée et
+sécurité.
+
+%==============================================================================
+\chapter*{Limites et perspectives}
+\addcontentsline{toc}{chapter}{Limites et perspectives}
+\markboth{Limites et perspectives}{Limites et perspectives}
+%==============================================================================
+
+\section*{Limites actuelles}
+Le système, bien que de qualité production, présente des limites assumées. La
+comptabilité fine d'usage des modèles (jetons, coût) dépend des métadonnées
+exposées par chaque fournisseur et n'est pas toujours disponible — l'inspecteur
+affiche alors honnêtement « non capturé » plutôt qu'une valeur fabriquée. Le
+déploiement cible est mono-machine via Docker Compose, sans orchestration
+multi-n{\oe}uds. L'évaluation repose sur des heuristiques et un juge LLM plutôt
+que sur un cadre d'évaluation formel à large échelle. Enfin, le multi-tenant reste
+au niveau de l'espace de travail, sans cloisonnement organisationnel complet.
+
+\section*{Perspectives}
+Plusieurs axes d'évolution se dégagent naturellement :
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Orchestration agentique avancée} : adoption de LangGraph pour
+  modéliser explicitement les transitions et les boucles du flux agentique.
+  \item \textbf{Évaluation formelle} : intégration de RAGAS et de jeux
+  d'évaluation versionnés pour un suivi longitudinal de la qualité.
+  \item \textbf{Déploiement cloud} : migration vers une orchestration Kubernetes
+  pour la haute disponibilité et la montée en charge automatique.
+  \item \textbf{SaaS multi-tenant} : cloisonnement organisationnel, quotas et
+  facturation par tenant.
+  \item \textbf{RBAC d'entreprise} : modèle de permissions fin, intégration SSO
+  et fédération d'identité.
+\end{itemize}
+
+%==============================================================================
+\chapter*{Conclusion générale}
+\addcontentsline{toc}{chapter}{Conclusion générale}
+\markboth{Conclusion générale}{Conclusion générale}
+%==============================================================================
+
+Ce projet de fin d'études a abouti à la conception et à la réalisation de
+\devpilot{}, une plateforme d'IA d'entreprise pour la gestion des connaissances
+d'ingénierie et le question-réponse fondé sur le RAG. L'objectif initial — combler
+l'écart entre la puissance générative des LLM et l'exigence de réponses
+\emph{fondées}, \emph{citées}, \emph{mesurées} et \emph{traçables} — est atteint.
+
+\paragraph{Objectifs atteints.} La plateforme centralise les connaissances en
+espaces isolés, les ingère de façon asynchrone, les indexe vectoriellement, et
+restitue des réponses ancrées et citées via un pipeline agentique de sept agents,
+le tout diffusé en \emph{streaming}. La qualité de chaque réponse est évaluée et,
+si nécessaire, corrigée. L'ensemble est instrumenté par un sous-système
+d'observabilité — RAGOps, explorateur et inspecteur de traces — qui distingue
+\devpilot{} d'un simple assistant conversationnel.
+
+\paragraph{Contributions techniques.} Les contributions d'ingénierie majeures
+sont : l'élévation de la \emph{trace} au rang de concept de premier ordre du
+modèle de données ; un pipeline agentique entièrement persisté et inspectable ;
+une architecture asynchrone, en couches et neutre vis-à-vis des fournisseurs d'IA ;
+et un inspecteur de traces reconstruisant le cycle de vie complet d'une requête.
+
+\paragraph{Enseignements d'ingénierie.} Ce travail a confirmé que la valeur d'une
+plateforme d'IA d'entreprise ne réside pas seulement dans la qualité des réponses,
+mais dans leur \emph{auditabilité} et leur \emph{exploitabilité}. Concevoir pour
+l'observabilité dès l'origine, traiter les exigences non fonctionnelles comme des
+exigences de premier ordre, et raisonner systématiquement en termes de compromis
+ont été les leviers déterminants de ce projet.
+
+\paragraph{Impact professionnel.} \devpilot{} démontre une maîtrise de
+l'architecture des systèmes distribués, de l'ingénierie des plateformes d'IA et
+des pratiques d'exploitation modernes, au niveau attendu d'un ingénieur
+concepteur de systèmes plutôt que d'un simple prototype académique.
+
+%==============================================================================
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{Bibliographie}
+
+\bibitem{lewis2020rag} P.~Lewis \emph{et al.}, « Retrieval-Augmented Generation
+for Knowledge-Intensive NLP Tasks », \emph{NeurIPS}, 2020.
+
+\bibitem{karpukhin2020dpr} V.~Karpukhin \emph{et al.}, « Dense Passage Retrieval
+for Open-Domain Question Answering », \emph{EMNLP}, 2020.
+
+\bibitem{robertson2009bm25} S.~Robertson et H.~Zaragoza, « The Probabilistic
+Relevance Framework: BM25 and Beyond », \emph{Foundations and Trends in
+Information Retrieval}, 2009.
+
+\bibitem{malkov2018hnsw} Y.~Malkov et D.~Yashunin, « Efficient and Robust
+Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World
+Graphs », \emph{IEEE TPAMI}, 2018.
+
+\bibitem{reimers2019sbert} N.~Reimers et I.~Gurevych, « Sentence-BERT: Sentence
+Embeddings Using Siamese BERT-Networks », \emph{EMNLP}, 2019.
+
+\bibitem{nogueira2019rerank} R.~Nogueira et K.~Cho, « Passage Re-ranking with
+BERT », \emph{arXiv:1901.04085}, 2019.
+
+\bibitem{es2023ragas} S.~Es \emph{et al.}, « RAGAS: Automated Evaluation of
+Retrieval Augmented Generation », \emph{arXiv:2309.15217}, 2023.
+
+\bibitem{fastapi} S.~Ramírez, \emph{FastAPI Documentation},
+\url{https://fastapi.tiangolo.com}, consulté en 2026.
+
+\bibitem{qdrant} \emph{Qdrant — Vector Database Documentation},
+\url{https://qdrant.tech/documentation}, consulté en 2026.
+
+\bibitem{celery} \emph{Celery — Distributed Task Queue Documentation},
+\url{https://docs.celeryq.dev}, consulté en 2026.
+
+\bibitem{redis} \emph{Redis Documentation}, \url{https://redis.io/docs}, consulté
+en 2026.
+
+\bibitem{postgres} \emph{PostgreSQL 16 Documentation},
+\url{https://www.postgresql.org/docs/16}, consulté en 2026.
+
+\bibitem{nextjs} \emph{Next.js Documentation}, \url{https://nextjs.org/docs},
+consulté en 2026.
+
+\bibitem{docker} \emph{Docker and Docker Compose Documentation},
+\url{https://docs.docker.com}, consulté en 2026.
+
+\bibitem{gemini} Google DeepMind, \emph{Gemini API Documentation},
+\url{https://ai.google.dev}, consulté en 2026.
+
+\bibitem{ollama} \emph{Ollama Documentation}, \url{https://ollama.com}, consulté
+en 2026.
+
+\end{thebibliography}
+
+\end{document}

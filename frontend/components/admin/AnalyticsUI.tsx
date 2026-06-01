@@ -1,5 +1,17 @@
 "use client";
 
+/**
+ * @deprecated LEGACY GRAB-BAG — do not add to this file or import from it in new code.
+ *
+ * Most exports here duplicate canonical design-system primitives:
+ *   PageHeader, StatusBadge, LoadingSkeleton, EmptyState, StatCard, ProgressRing,
+ *   PipelineStepper, DataTable, FilterBar, CitationCard, AgentTimeline.
+ * Replace them with `@/components/ui` (PageHeader, StatusBadge, LoadingState,
+ * EmptyState, MetricCard, DataCard, DataTable) and the feature chart modules.
+ * The Recharts-based charts are being superseded by lightweight tokenized
+ * visualisations. Migration tracked in MIGRATION.md.
+ */
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {

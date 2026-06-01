@@ -334,7 +334,7 @@ export default function WorkspaceChatPage() {
 
   return (
     <DashboardShell activeItem="chat" title="" workspaceId={workspaceId}>
-      <div className="flex min-h-[calc(100dvh-120px)] overflow-hidden rounded-xl border border-line shadow-sm">
+      <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] overflow-hidden border-t border-line bg-canvas sm:-mx-6 lg:-mx-8">
 
         {/* mobile sidebar */}
         {sidebarOpen ? (

@@ -10,6 +10,32 @@ export const toneClasses: Record<StatusTone, string> = {
   warning: "border-warning-line bg-warning-subtle text-warning-surface-fg",
 };
 
+/**
+ * Canonical tone adapter. Normalises the historical, divergent tone
+ * vocabularies — DataView (`brand`/`danger`) and the feature primitives
+ * (`ai`/`danger`) — onto the single {@link StatusTone} union. Use this when
+ * migrating a module's local tone strings to the design system.
+ */
+export function toStatusTone(tone: string | null | undefined): StatusTone {
+  switch ((tone ?? "").toLowerCase()) {
+    case "danger":
+    case "error":
+    case "critical":
+      return "critical";
+    case "brand":
+    case "ai":
+      return "ai";
+    case "success":
+      return "success";
+    case "warning":
+      return "warning";
+    case "info":
+      return "info";
+    default:
+      return "neutral";
+  }
+}
+
 export function statusTone(status: string | null | undefined): StatusTone {
   const normalized = status?.toLowerCase() ?? "";
   if (["active", "completed", "healthy", "indexed", "success"].includes(normalized)) {

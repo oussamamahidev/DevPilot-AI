@@ -24,7 +24,7 @@ export type Metric = { label: string; value: string; tone?: Tone; icon?: IconNam
 
 export function MetricStrip({ metrics }: { metrics: Metric[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+    <div className="grid gap-3 sm:gap-4 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
       {metrics.map((m) => (
         <div key={m.label} className="relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-line bg-surface p-4 shadow-sm">
           <span className={`absolute inset-y-0 left-0 w-1 ${accent[m.tone ?? "neutral"]}`} />

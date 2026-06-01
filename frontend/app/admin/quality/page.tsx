@@ -2,35 +2,28 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AdminAccessMessage, AdminShell, ErrorBanner, formatDate, formatNumber } from "@/components/admin/AdminUI";
+import { MetricStrip, type Metric, type Tone } from "@/components/admin/DataView";
 import {
-  AdminAccessMessage,
-  AdminShell,
-  formatDate,
-  formatDecimal,
-  formatNumber,
-} from "@/components/admin/AdminUI";
-import {
-  BarChartCard,
-  chartPalette,
-  DonutChartCard,
-  EmptyState,
-  ErrorCard,
-  EvaluationRadarChart,
-  LoadingSkeleton,
-  PageHeader,
-  RefreshButton,
-  RiskBadge,
-  safePreview,
-  StatCard,
-  StatusBadge,
-} from "@/components/admin/AnalyticsUI";
+  ScoreMeter,
+  HBarChart,
+  Histogram,
+  StackedBar,
+  agentLatencyRows,
+  scoreBuckets,
+  barBg,
+} from "@/components/admin/AdminCharts";
+import { Badge, DataCard, EmptyState, LoadingState } from "@/components/ui";
+import type { StatusTone } from "@/components/ui/StatusBadge";
+import { Icon } from "@/components/ui/Icon";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { getRagTraceQualitySummary, listRagTraces } from "@/lib/admin";
-import type {
-  RagTraceListItem,
-  RagTraceQualitySummary,
-  RagTraceWorstMessage,
-} from "@/types";
+import type { RagTraceListItem, RagTraceQualitySummary, RagTraceWorstMessage } from "@/types";
+
+function kpiTone(value: number, invert = false): Tone {
+  if (invert) return value <= 0.3 ? "success" : value <= 0.6 ? "warning" : "danger";
+  return value >= 0.75 ? "success" : value >= 0.5 ? "warning" : "danger";
+}
 
 export default function AdminQualityPage() {
   const { isAdmin, isLoading } = useAdminAccess();
@@ -40,9 +33,7 @@ export default function AdminQualityPage() {
   const [isFetching, setIsFetching] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) {
-      return;
-    }
+    if (!isAdmin) return;
     setIsFetching(true);
     setError(null);
     try {
@@ -52,8 +43,8 @@ export default function AdminQualityPage() {
       ]);
       setSummary(summaryData);
       setTraces(traceData.items);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load quality data.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load quality data.");
     } finally {
       setIsFetching(false);
     }
@@ -63,286 +54,165 @@ export default function AdminQualityPage() {
     void load();
   }, [load]);
 
-  const distributions = useMemo(() => buildDistributions(traces), [traces]);
+  const faithfulnessBuckets = useMemo(() => scoreBuckets(traces.map((t) => t.faithfulness)), [traces]);
+  const hallucinationBuckets = useMemo(() => scoreBuckets(traces.map((t) => t.hallucination_score), true), [traces]);
 
-  if (isLoading) {
-    return <AdminAccessMessage title="Quality Dashboard" label="Checking admin access." />;
-  }
-  if (!isAdmin) {
-    return <AdminAccessMessage title="Quality Dashboard" label="Admin access required." />;
-  }
+  if (isLoading) return <AdminAccessMessage title="Quality Dashboard" label="Checking admin access." />;
+  if (!isAdmin) return <AdminAccessMessage title="Quality Dashboard" label="Admin access required." />;
+
+  const kpis: Metric[] = summary
+    ? [
+        { label: "RAG queries", value: formatNumber(summary.total_rag_queries), icon: "message", tone: "info" },
+        { label: "Faithfulness", value: `${Math.round(summary.average_faithfulness * 100)}%`, icon: "shield", tone: kpiTone(summary.average_faithfulness) },
+        { label: "Relevance", value: `${Math.round(summary.average_relevance * 100)}%`, icon: "checkCircle", tone: kpiTone(summary.average_relevance) },
+        { label: "Context precision", value: `${Math.round(summary.average_context_precision * 100)}%`, icon: "layers", tone: kpiTone(summary.average_context_precision) },
+        { label: "Hallucination", value: `${Math.round(summary.average_hallucination_score * 100)}%`, icon: "alertCircle", tone: kpiTone(summary.average_hallucination_score, true) },
+        { label: "Corrected", value: formatNumber(summary.corrected_answers_count), icon: "refreshCw", tone: "brand" },
+      ]
+    : [];
+
+  const answered = summary
+    ? Math.max(0, summary.total_rag_queries - summary.no_context_count - summary.corrected_answers_count)
+    : 0;
 
   return (
     <AdminShell
-      title="DevPilot AI Control Center"
-      description="RAG answer quality, risk distribution, correction behavior, and agent latency."
+      title="Quality Dashboard"
+      description="RAG answer quality, hallucination risk, corrector impact, retrieval coverage and agent latency."
     >
-      <PageHeader
-        title="Quality Dashboard"
-        subtitle="RAG answer quality, hallucination risk, CorrectorAgent impact, refusal rate, and slow agent visibility."
-        actions={<RefreshButton isFetching={isFetching} onClick={() => void load()} />}
-      />
-      <ErrorCard message={error} onRetry={() => void load()} />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-fg-muted">How grounded, relevant and safe the generated answers are.</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          <Icon name="refreshCw" size={15} className={isFetching ? "animate-spin" : ""} />
+          Refresh
+        </button>
+      </div>
 
-      {isFetching && !summary ? <LoadingSkeleton rows={4} /> : null}
+      <ErrorBanner message={error} onRetry={() => void load()} />
 
-      {summary ? (
-        <div className="grid gap-6">
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Total RAG Queries"
-              value={formatNumber(summary.total_rag_queries)}
-              description="Evaluated assistant answers"
-              badge="Quality"
-              tone="info"
-            />
-            <StatCard
-              label="Average Faithfulness"
-              value={formatDecimal(summary.average_faithfulness, 2)}
-              description="Grounding in retrieved context"
-              progress={summary.average_faithfulness * 100}
-              badge="Faithfulness"
-              tone={summary.average_faithfulness >= 0.75 ? "success" : "warning"}
-            />
-            <StatCard
-              label="Average Relevance"
-              value={formatDecimal(summary.average_relevance, 2)}
-              description="Answer fit to user intent"
-              progress={summary.average_relevance * 100}
-              badge="Relevance"
-              tone={summary.average_relevance >= 0.75 ? "success" : "warning"}
-            />
-            <StatCard
-              label="Context Precision"
-              value={formatDecimal(summary.average_context_precision, 2)}
-              description="Retrieved context usefulness"
-              progress={summary.average_context_precision * 100}
-              badge="Retrieval"
-              tone={summary.average_context_precision >= 0.75 ? "success" : "warning"}
-            />
-            <StatCard
-              label="Hallucination Score"
-              value={formatDecimal(summary.average_hallucination_score, 2)}
-              description="Lower is safer"
-              progress={summary.average_hallucination_score * 100}
-              badge="Risk"
-              tone={
-                summary.average_hallucination_score <= 0.3
-                  ? "success"
-                  : summary.average_hallucination_score <= 0.6
-                    ? "warning"
-                    : "critical"
-              }
-            />
-            <StatCard
-              label="Corrected Answers"
-              value={formatNumber(summary.corrected_answers_count)}
-              description="CorrectorAgent changed final output"
-              badge="Corrector"
-              tone="ai"
-            />
-          </section>
+      {isFetching && !summary ? (
+        <LoadingState variant="skeleton" rows={4} skeletonVariant="card" />
+      ) : summary ? (
+        <div className="grid gap-5">
+          <MetricStrip metrics={kpis} />
 
-          <section className="grid gap-4 md:grid-cols-3">
-            <StatCard
-              label="Low Quality Answers"
-              value={formatNumber(summary.low_quality_count)}
-              description="Answers below the quality threshold"
-              badge="Review"
-              tone={summary.low_quality_count > 0 ? "warning" : "success"}
-            />
-            <StatCard
-              label="High Hallucination Risk"
-              value={formatNumber(summary.hallucination_risk_count)}
-              description="Answers with elevated unsupported-content risk"
-              badge="Risk"
-              tone={summary.hallucination_risk_count > 0 ? "critical" : "success"}
-            />
-            <StatCard
-              label="No Context Answers"
-              value={formatNumber(summary.no_context_count)}
-              description="Answers where retrieval did not provide usable context"
-              badge="Retrieval"
-              tone={summary.no_context_count > 0 ? "warning" : "success"}
-            />
-          </section>
+          {/* Scorecard + outcomes + risk counters */}
+          <div className="grid min-w-0 gap-5 xl:grid-cols-3">
+            <DataCard title="Quality scorecard" icon={<Icon name="shield" size={15} />} tone="ai">
+              <div className="grid gap-3">
+                <ScoreMeter label="Faithfulness" value={summary.average_faithfulness} hint="Grounding in retrieved context" />
+                <ScoreMeter label="Relevance" value={summary.average_relevance} hint="Answer fit to user intent" />
+                <ScoreMeter label="Context precision" value={summary.average_context_precision} hint="Usefulness of retrieved context" />
+                <ScoreMeter label="Hallucination risk" value={summary.average_hallucination_score} invert hint="Lower is safer" />
+              </div>
+            </DataCard>
 
-          <div className="grid gap-6 xl:grid-cols-3">
-            <EvaluationRadarChart
-              faithfulness={summary.average_faithfulness}
-              relevance={summary.average_relevance}
-              contextPrecision={summary.average_context_precision}
-              hallucinationScore={summary.average_hallucination_score}
-              retrievalCoverage={summary.average_context_precision}
-              title="Quality Radar"
-            />
-            <div className="xl:col-span-2">
-              <BarChartCard
-                title="Agent Latency Chart"
-                data={Object.entries(summary.average_latency_by_agent).map(([agent, latency]) => ({
-                  agent,
-                  latency,
-                }))}
-                xKey="agent"
-                bars={[{ key: "latency", name: "Latency ms", color: chartPalette.blue }]}
+            <DataCard title="Answer outcomes" icon={<Icon name="workflow" size={15} />}>
+              <StackedBar
+                segments={[
+                  { label: "answered", value: answered, tone: "success" },
+                  { label: "no context", value: summary.no_context_count, tone: "warning" },
+                  { label: "corrected", value: summary.corrected_answers_count, tone: "ai" },
+                ]}
               />
-            </div>
+              <p className="mt-4 text-xs text-fg-subtle">
+                Of {formatNumber(summary.total_rag_queries)} evaluated answers, the CorrectorAgent repaired{" "}
+                {formatNumber(summary.corrected_answers_count)}.
+              </p>
+            </DataCard>
+
+            <DataCard title="Risk counters" icon={<Icon name="alertCircle" size={15} />}>
+              <div className="grid gap-3">
+                <RiskCounter label="Low-quality answers" value={summary.low_quality_count} tone={summary.low_quality_count > 0 ? "warning" : "success"} />
+                <RiskCounter label="High hallucination risk" value={summary.hallucination_risk_count} tone={summary.hallucination_risk_count > 0 ? "critical" : "success"} />
+                <RiskCounter label="No-context answers" value={summary.no_context_count} tone={summary.no_context_count > 0 ? "warning" : "success"} />
+              </div>
+            </DataCard>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-3">
-            <BarChartCard
-              title="Faithfulness Distribution"
-              data={distributions.faithfulness}
-              xKey="range"
-              bars={[{ key: "count", name: "Answers", color: chartPalette.emerald }]}
-            />
-            <BarChartCard
-              title="Hallucination Distribution"
-              data={distributions.hallucination}
-              xKey="range"
-              bars={[{ key: "count", name: "Answers", color: chartPalette.red }]}
-            />
-            <DonutChartCard
-              title="Answered, Refused, Corrected"
-              centerLabel="Answers"
-              data={[
-                {
-                  color: chartPalette.emerald,
-                  name: "answered",
-                  value: Math.max(
-                    0,
-                    summary.total_rag_queries -
-                      summary.no_context_count -
-                      summary.corrected_answers_count,
-                  ),
-                },
-                {
-                  color: chartPalette.amber,
-                  name: "refused/no context",
-                  value: summary.no_context_count,
-                },
-                {
-                  color: chartPalette.ai,
-                  name: "corrected",
-                  value: summary.corrected_answers_count,
-                },
-              ]}
-            />
+          {/* Distributions + latency */}
+          <div className="grid min-w-0 gap-5 xl:grid-cols-3">
+            <DataCard title="Faithfulness distribution" subtitle={`${traces.length} recent traces`} icon={<Icon name="shield" size={15} />}>
+              {traces.length === 0 ? <EmptyState title="No data" description="Distributions appear once traces exist." /> : <Histogram buckets={faithfulnessBuckets} />}
+            </DataCard>
+            <DataCard title="Hallucination distribution" subtitle={`${traces.length} recent traces`} icon={<Icon name="alertCircle" size={15} />}>
+              {traces.length === 0 ? <EmptyState title="No data" description="Distributions appear once traces exist." /> : <Histogram buckets={hallucinationBuckets} />}
+            </DataCard>
+            <DataCard title="Agent latency" subtitle="Average per stage" icon={<Icon name="workflow" size={15} />}>
+              {Object.keys(summary.average_latency_by_agent).length === 0 ? (
+                <EmptyState title="No telemetry" description="Latency appears once RAG queries run." />
+              ) : (
+                <HBarChart rows={agentLatencyRows(summary.average_latency_by_agent)} />
+              )}
+            </DataCard>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-2">
-            <WorstTable
-              title="Worst Answers By Hallucination"
-              rows={summary.worst_messages_by_hallucination}
-              metric="hallucination"
-            />
-            <WorstTable
-              title="Worst Answers By Low Relevance"
-              rows={summary.worst_messages_by_relevance}
-              metric="relevance"
-            />
+          {/* Worst answers */}
+          <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+            <WorstList title="Worst by hallucination" icon="alertCircle" rows={summary.worst_messages_by_hallucination} metric="hallucination" />
+            <WorstList title="Worst by relevance" icon="trendingUp" rows={summary.worst_messages_by_relevance} metric="relevance" />
           </div>
         </div>
       ) : !isFetching && !error ? (
-        <EmptyState label="No traces available yet. Ask a question to generate traces." />
+        <EmptyState title="No traces yet" description="Ask a question in a workspace to generate evaluated answers." />
       ) : null}
     </AdminShell>
   );
 }
 
-function WorstTable({
-  metric,
-  rows,
-  title,
-}: {
-  metric: "hallucination" | "relevance";
-  rows: RagTraceWorstMessage[];
-  title: string;
-}) {
+/* ─── presentational bits ────────────────────────────────────── */
+function RiskCounter({ label, value, tone }: { label: string; value: number; tone: StatusTone }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-fg">{title}</h3>
-      {rows.length === 0 ? (
-        <div className="mt-5">
-          <EmptyState label="No messages found." />
-        </div>
-      ) : (
-        <div className="admin-table-scroll mt-5">
-          <table className="admin-table">
-            <thead className="text-xs uppercase text-fg-subtle">
-              <tr>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Workspace</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Metric</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Created</th>
-                <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-subtle">
-              {rows.map((row) => (
-                <tr key={row.message_id}>
-                  <td className="max-w-md px-3 py-3">
-                    <p className="font-medium text-fg">
-                      {safePreview(row.question_preview, 90)}
-                    </p>
-                    <p className="mt-1 text-xs text-fg-subtle">
-                      {safePreview(row.answer_preview, 120)}
-                    </p>
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
-                    {row.workspace_name}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3">
-                    {metric === "hallucination" ? (
-                      <RiskBadge value={row.hallucination_score} />
-                    ) : (
-                      <StatusBadge
-                        label={formatDecimal(row.relevance, 2)}
-                        tone={row.relevance >= 0.75 ? "success" : row.relevance >= 0.5 ? "warning" : "critical"}
-                      />
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-fg-subtle">
-                    {formatDate(row.created_at)}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3">
-                    <Link
-                      href={`/admin/rag-traces/${row.message_id}`}
-                      className="font-medium text-fg underline-offset-4 hover:underline"
-                    >
-                      View trace
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-sunken px-3 py-2.5">
+      <span className="min-w-0 truncate text-sm text-fg-muted">{label}</span>
+      <span className="inline-flex items-center gap-2 shrink-0">
+        <span className={`h-2 w-2 rounded-full ${barBg[tone]}`} />
+        <span className="text-lg font-semibold tabular-nums text-fg">{formatNumber(value)}</span>
+      </span>
+    </div>
   );
 }
 
-function buildDistributions(traces: RagTraceListItem[]) {
-  const ranges = [
-    { label: "0.00-0.25", max: 0.25, min: 0 },
-    { label: "0.25-0.50", max: 0.5, min: 0.25 },
-    { label: "0.50-0.75", max: 0.75, min: 0.5 },
-    { label: "0.75-1.00", max: 1.01, min: 0.75 },
-  ];
-  return {
-    faithfulness: ranges.map((range) => ({
-      count: traces.filter(
-        (trace) => trace.faithfulness >= range.min && trace.faithfulness < range.max,
-      ).length,
-      range: range.label,
-    })),
-    hallucination: ranges.map((range) => ({
-      count: traces.filter(
-        (trace) =>
-          trace.hallucination_score >= range.min && trace.hallucination_score < range.max,
-      ).length,
-      range: range.label,
-    })),
-  };
+function WorstList({
+  title,
+  icon,
+  rows,
+  metric,
+}: {
+  title: string;
+  icon: "alertCircle" | "trendingUp";
+  rows: RagTraceWorstMessage[];
+  metric: "hallucination" | "relevance";
+}) {
+  return (
+    <DataCard title={title} icon={<Icon name={icon} size={15} />} tone={metric === "hallucination" ? "critical" : "warning"} padded={false}>
+      {rows.length === 0 ? (
+        <div className="p-4"><EmptyState title="Nothing flagged" description="No problematic answers found." /></div>
+      ) : (
+        <ul className="divide-y divide-line">
+          {rows.map((row) => {
+            const value = metric === "hallucination" ? row.hallucination_score : row.relevance;
+            const tone: StatusTone = metric === "hallucination"
+              ? value > 0.6 ? "critical" : value > 0.3 ? "warning" : "success"
+              : value >= 0.75 ? "success" : value >= 0.5 ? "warning" : "critical";
+            return (
+              <li key={row.message_id} className="min-w-0">
+                <Link href={`/admin/rag-traces/${row.message_id}`} className="flex items-start justify-between gap-3 px-4 py-3 transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-fg">{row.question_preview || "—"}</p>
+                    <p className="truncate text-[11px] text-fg-subtle">{row.workspace_name} · {formatDate(row.created_at)}</p>
+                  </div>
+                  <Badge tone={tone} size="sm">{Math.round(value * 100)}%</Badge>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </DataCard>
+  );
 }

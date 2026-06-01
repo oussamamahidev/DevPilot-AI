@@ -1,444 +1,195 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AdminAccessMessage,
-  AdminShell,
-  formatDate,
-  formatDecimal,
-  formatNumber,
-  PaginationControls,
-} from "@/components/admin/AdminUI";
-import {
-  chartPalette,
-  DonutChartCard,
-  EmptyState,
-  ErrorCard,
-  FilterBar,
-  formatLatency,
-  LoadingSkeleton,
-  PageHeader,
-  QualityBadge,
-  QualityScatterChart,
-  RefreshButton,
-  RiskBadge,
-  safePreview,
-  StatCard,
-  StatusBadge,
-} from "@/components/admin/AnalyticsUI";
+import { useEffect, useMemo, useState } from "react";
+import { AdminAccessMessage, AdminShell, ErrorBanner } from "@/components/admin/AdminUI";
+import { MetricStrip, Pager, DataSection, exportToCsv, BulkButton } from "@/components/admin/DataView";
+import { EmptyState, LoadingSkeleton } from "@/components/ui";
+import { Icon } from "@/components/ui/Icon";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { getRagTraceQualitySummary, listRagOpsWorkspaces, listRagTraces } from "@/lib/admin";
-import type {
-  RagOpsWorkspaceSummary,
-  RagTraceListItem,
-  RagTraceListResponse,
-  RagTraceQualitySummary,
-} from "@/types";
+import { useTraceObservatory } from "@/features/trace-observatory/hooks";
+import {
+  EMPTY_FILTERS,
+  type ObservatoryFilters,
+  activeFilterCount,
+  applyClientFilters,
+  buildKpis,
+  distinctStrategies,
+  distinctUsers,
+} from "@/features/trace-observatory/helpers";
+import { ObservatoryFilterBar } from "@/features/trace-observatory/components/ObservatoryFilterBar";
+import { Distributions } from "@/features/trace-observatory/components/Distributions";
+import { TraceCard } from "@/features/trace-observatory/components/TraceCard";
+import { AlertsRail } from "@/features/trace-observatory/components/AlertsRail";
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 12;
 
-export default function RagTracesPage() {
-  const router = useRouter();
-  const { isAdmin, isLoading } = useAdminAccess();
-  const [data, setData] = useState<RagTraceListResponse | null>(null);
-  const [summary, setSummary] = useState<RagTraceQualitySummary | null>(null);
-  const [workspaces, setWorkspaces] = useState<RagOpsWorkspaceSummary[]>([]);
-  const [search, setSearch] = useState("");
-  const [workspaceId, setWorkspaceId] = useState("");
-  const [retrievalStrategy, setRetrievalStrategy] = useState("");
-  const [riskFilter, setRiskFilter] = useState("");
-  const [minFaithfulness, setMinFaithfulness] = useState("");
-  const [maxHallucination, setMaxHallucination] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+export default function RagTraceObservatoryPage() {
+  const { isAdmin, isLoading: accessLoading } = useAdminAccess();
+  const [filters, setFilters] = useState<ObservatoryFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
 
-  const filters = useMemo(
-    () => ({
-      date_from: dateFrom || undefined,
-      date_to: dateTo || undefined,
-      max_hallucination_score: maxHallucination
-        ? Number(maxHallucination)
-        : riskFilter === "low"
-          ? 0.3
-          : riskFilter === "medium"
-            ? 0.6
-            : undefined,
-      min_faithfulness: minFaithfulness ? Number(minFaithfulness) : undefined,
-      page: page + 1,
-      page_size: PAGE_SIZE,
-      retrieval_strategy: retrievalStrategy || undefined,
-      search: search || undefined,
-      workspace_id: workspaceId || undefined,
-    }),
-    [
-      dateFrom,
-      dateTo,
-      maxHallucination,
-      minFaithfulness,
-      page,
-      retrievalStrategy,
-      riskFilter,
-      search,
-      workspaceId,
-    ],
+  const obs = useTraceObservatory(filters, isAdmin);
+
+  // Client-side narrowing the API can't express (user email, faithfulness upper
+  // bound, hallucination lower bound) — applied to the loaded sample.
+  const filteredItems = useMemo(() => applyClientFilters(obs.items, filters), [obs.items, filters]);
+
+  const activeCount = activeFilterCount(filters);
+  const hasFilters = activeCount > 0;
+  const clientNarrowed = !!filters.userEmail || filters.maxFaithfulness != null || filters.minHallucination != null;
+  const totalForKpi = clientNarrowed ? filteredItems.length : obs.total;
+
+  const kpis = useMemo(
+    () => buildKpis(filteredItems, totalForKpi, obs.summary, hasFilters),
+    [filteredItems, totalForKpi, obs.summary, hasFilters],
   );
 
-  const load = useCallback(async () => {
-    if (!isAdmin) {
-      return;
-    }
-    setIsFetching(true);
-    setError(null);
-    try {
-      const [traceData, qualityData, workspaceData] = await Promise.all([
-        listRagTraces(filters),
-        getRagTraceQualitySummary(),
-        listRagOpsWorkspaces(),
-      ]);
-      setData(traceData);
-      setSummary(qualityData);
-      setWorkspaces(workspaceData);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load RAG traces.");
-    } finally {
-      setIsFetching(false);
-    }
-  }, [filters, isAdmin]);
+  const strategies = useMemo(() => distinctStrategies(obs.items), [obs.items]);
+  const users = useMemo(() => distinctUsers(obs.items), [obs.items]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
+  // reset pagination whenever the result set changes
   useEffect(() => {
     setPage(0);
-  }, [
-    search,
-    workspaceId,
-    retrievalStrategy,
-    riskFilter,
-    minFaithfulness,
-    maxHallucination,
-    dateFrom,
-    dateTo,
-  ]);
+  }, [filters]);
 
-  if (isLoading) {
-    return <AdminAccessMessage title="RAG Trace Explorer" label="Checking admin access." />;
+  const visible = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  function patch(p: Partial<ObservatoryFilters>) {
+    setFilters((f) => ({ ...f, ...p }));
   }
-  if (!isAdmin) {
-    return <AdminAccessMessage title="RAG Trace Explorer" label="Admin access required." />;
+  function reset() {
+    setFilters(EMPTY_FILTERS);
+  }
+  function exportCsv() {
+    exportToCsv(
+      "rag-traces.csv",
+      filteredItems.map((t) => ({
+        message_id: t.message_id,
+        workspace: t.workspace_name,
+        user: t.user_email ?? "",
+        question: t.question_preview,
+        retrieval_strategy: t.retrieval_strategy ?? "",
+        faithfulness: t.faithfulness,
+        relevance: t.relevance,
+        hallucination: t.hallucination_score,
+        latency_ms: t.total_latency_ms,
+        citations: t.citation_count,
+        corrected: t.corrected,
+        created_at: t.created_at,
+      })),
+    );
   }
 
-  const traces = filterByRisk(data?.items ?? [], riskFilter);
-  const total = data?.total ?? 0;
-  const averages = summarizeTraces(traces, summary);
+  if (accessLoading) return <AdminAccessMessage title="RAG Trace Observatory" label="Checking admin access." />;
+  if (!isAdmin) return <AdminAccessMessage title="RAG Trace Observatory" label="Admin access required." />;
+
+  const sampleTruncated = obs.total > obs.items.length;
+  // Distributions/alerts only carry signal with a few traces; below that they
+  // render as empty charts and "Nothing flagged" panels (the "empty on scroll"
+  // dead zone). Show the trace list alone when the sample is too small.
+  const showAnalytics = filteredItems.length >= 4;
 
   return (
     <AdminShell
-      title="DevPilot AI Control Center"
-      description="Inspect retrieval, reranking, generation, evaluation, and correction for every answer."
+      title="RAG Trace Observatory"
+      description="Inspect every RAG query: success, failures, corrections, hallucination risk and retrieval quality."
     >
-      <PageHeader
-        title="RAG Trace Explorer"
-        subtitle="Inspect retrieval, reranking, generation, evaluation, and correction for every answer."
-        actions={<RefreshButton isFetching={isFetching} onClick={() => void load()} />}
-      />
-      <ErrorCard message={error} onRetry={() => void load()} />
+      <div className="grid gap-5">
+        <ErrorBanner message={obs.error} onRetry={() => obs.refetch()} />
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total RAG Queries"
-          value={formatNumber(summary?.total_rag_queries ?? total)}
-          description={`${formatNumber(traces.length)} visible on this page`}
-          badge="Queries"
-          tone="info"
-        />
-        <StatCard
-          label="Average Faithfulness"
-          value={formatDecimal(averages.faithfulness, 2)}
-          description="Answer grounding in retrieved context"
-          progress={averages.faithfulness * 100}
-          badge={averages.faithfulness >= 0.75 ? "Strong" : "Watch"}
-          tone={averages.faithfulness >= 0.75 ? "success" : "warning"}
-        />
-        <StatCard
-          label="Average Relevance"
-          value={formatDecimal(averages.relevance, 2)}
-          description="Question and answer alignment"
-          progress={averages.relevance * 100}
-          badge="Quality"
-          tone={averages.relevance >= 0.75 ? "success" : "warning"}
-        />
-        <StatCard
-          label="Context Precision"
-          value={formatDecimal(averages.contextPrecision, 2)}
-          description="Retrieved context usefulness"
-          progress={averages.contextPrecision * 100}
-          badge="Retrieval"
-          tone={averages.contextPrecision >= 0.75 ? "success" : "warning"}
-        />
-        <StatCard
-          label="Hallucination Risk"
-          value={formatDecimal(averages.hallucination, 2)}
-          description="Lower is better"
-          progress={averages.hallucination * 100}
-          badge="Risk"
-          tone={averages.hallucination <= 0.3 ? "success" : averages.hallucination <= 0.6 ? "warning" : "critical"}
-        />
-        <StatCard
-          label="Corrected Answers"
-          value={formatNumber(summary?.corrected_answers_count ?? traces.filter((item) => item.corrected).length)}
-          description="CorrectorAgent changed output"
-          badge="Corrector"
-          tone="ai"
-        />
-      </section>
+        {/* KPI strip */}
+        <MetricStrip metrics={kpis} />
 
-      <FilterBar>
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search question"
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas xl:col-span-2"
+        {/* Filter bar */}
+        <ObservatoryFilterBar
+          filters={filters}
+          onChange={patch}
+          onReset={reset}
+          workspaces={obs.workspaces}
+          strategies={strategies}
+          users={users}
+          activeCount={activeCount}
         />
-        <select
-          value={workspaceId}
-          onChange={(event) => setWorkspaceId(event.target.value)}
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        >
-          <option value="">All workspaces</option>
-          {workspaces.map((workspace) => (
-            <option key={workspace.workspace_id} value={workspace.workspace_id}>
-              {workspace.workspace_name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={retrievalStrategy}
-          onChange={(event) => setRetrievalStrategy(event.target.value)}
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        >
-          <option value="">All strategies</option>
-          <option value="semantic">Semantic</option>
-          <option value="keyword">Keyword</option>
-          <option value="hybrid">Hybrid</option>
-        </select>
-        <select
-          value={riskFilter}
-          onChange={(event) => setRiskFilter(event.target.value)}
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        >
-          <option value="">All risk</option>
-          <option value="low">Low risk</option>
-          <option value="medium">Medium risk</option>
-          <option value="high">High risk</option>
-        </select>
-        <input
-          value={minFaithfulness}
-          onChange={(event) => setMinFaithfulness(event.target.value)}
-          placeholder="Min faithfulness"
-          type="number"
-          min="0"
-          max="1"
-          step="0.05"
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        />
-        <input
-          value={maxHallucination}
-          onChange={(event) => setMaxHallucination(event.target.value)}
-          placeholder="Max hallucination"
-          type="number"
-          min="0"
-          max="1"
-          step="0.05"
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        />
-        <input
-          value={dateFrom}
-          onChange={(event) => setDateFrom(event.target.value)}
-          type="date"
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        />
-        <input
-          value={dateTo}
-          onChange={(event) => setDateTo(event.target.value)}
-          type="date"
-          className="h-10 rounded-md border border-line bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-canvas"
-        />
-      </FilterBar>
 
-      {isFetching && !data ? <LoadingSkeleton rows={4} /> : null}
-
-      <div className="grid min-w-0 gap-6 xl:grid-cols-2">
-        <QualityScatterChart
-          data={traces.map((trace) => ({
-            faithfulness: trace.faithfulness,
-            hallucination_score: trace.hallucination_score,
-            message_id: trace.message_id,
-            name: safePreview(trace.question_preview, 40),
-            relevance: trace.relevance,
-          }))}
-          onPointClick={(messageId) => router.push(`/admin/rag-traces/${messageId}`)}
-        />
-        <DonutChartCard
-          title="Hallucination Risk Buckets"
-          centerLabel="Risk"
-          data={riskBucketData(traces).map((bucket) => ({
-            color:
-              bucket.risk === "Low"
-                ? chartPalette.emerald
-                : bucket.risk === "Medium"
-                  ? chartPalette.amber
-                  : chartPalette.red,
-            name: bucket.risk,
-            value: bucket.count,
-          }))}
-        />
-      </div>
-
-      <section className="mt-6 min-w-0 overflow-hidden rounded-lg border border-line bg-surface p-5 shadow-sm">
-        <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-base font-semibold text-fg">Trace Table</h3>
-          <span className="text-sm text-fg-subtle">{formatNumber(total)} traces</span>
-        </div>
-        {traces.length === 0 && !isFetching ? (
-          <EmptyState label="No traces available yet. Ask a question to generate traces." />
-        ) : (
-          <div className="admin-table-scroll">
-            <table className="admin-table">
-              <thead className="text-xs uppercase text-fg-subtle">
-                <tr>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Question</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Answer</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Strategy</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Citations</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Faithfulness</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Risk</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Corrected</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Latency</th>
-                  <th className="whitespace-nowrap px-3 py-2 font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-subtle">
-                {traces.map((trace) => (
-                  <TraceRow key={trace.message_id} trace={trace} />
-                ))}
-              </tbody>
-            </table>
+        {obs.isLoading ? (
+          <div className="rounded-xl border border-line bg-surface p-4">
+            <LoadingSkeleton label="Loading traces" rows={6} />
           </div>
+        ) : obs.items.length === 0 ? (
+          <div className="rounded-xl border border-line bg-surface p-6">
+            <EmptyState
+              title="No traces yet"
+              description="Once users ask questions in a workspace, their RAG traces will appear here for inspection."
+            />
+          </div>
+        ) : (
+          <>
+            {showAnalytics ? (
+              <>
+                {/* Distributions */}
+                <Distributions items={filteredItems} />
+
+                {/* Alerts — full-width "needs investigation" band */}
+                <section className="min-w-0">
+                  <div className="mb-2 flex items-center gap-2 px-1">
+                    <Icon name="alertCircle" size={15} className="text-fg-muted" />
+                    <h2 className="text-sm font-semibold text-fg">Needs investigation</h2>
+                  </div>
+                  <AlertsRail items={filteredItems} />
+                </section>
+              </>
+            ) : null}
+
+            {/* Trace list */}
+            <div className="min-w-0">
+              <DataSection
+                title="Traces"
+                count={filteredItems.length}
+                countLabel="matching"
+                actions={
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => obs.refetch()}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-fg-muted transition hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                      <Icon name="refreshCw" size={14} className={obs.isFetching ? "animate-spin" : ""} />
+                      Refresh
+                    </button>
+                    <BulkButton icon="fileText" onClick={exportCsv}>
+                      Export CSV
+                    </BulkButton>
+                  </div>
+                }
+              >
+                {sampleTruncated ? (
+                  <p className="border-b border-line bg-sunken px-4 py-2 text-xs text-fg-subtle">
+                    Showing the {obs.items.length} most recent of {obs.total.toLocaleString()} matching traces. Narrow
+                    with filters to focus the view.
+                  </p>
+                ) : null}
+
+                {visible.length === 0 ? (
+                  <div className="p-4">
+                    <EmptyState
+                      title="No traces match these filters"
+                      description="Try widening the score ranges, clearing the workspace/user filter, or resetting."
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-3 p-4 md:grid-cols-2">
+                    {visible.map((trace) => (
+                      <TraceCard key={trace.message_id} trace={trace} />
+                    ))}
+                  </div>
+                )}
+
+                <Pager page={page} pageSize={PAGE_SIZE} total={filteredItems.length} onPage={setPage} />
+              </DataSection>
+            </div>
+          </>
         )}
-        <PaginationControls
-          page={page}
-          setPage={setPage}
-          canPrevious={page > 0}
-          canNext={(page + 1) * PAGE_SIZE < total}
-        />
-      </section>
+      </div>
     </AdminShell>
   );
-}
-
-function TraceRow({ trace }: { trace: RagTraceListItem }) {
-  return (
-    <tr>
-      <td className="max-w-sm px-3 py-3">
-        <p className="font-medium text-fg">{safePreview(trace.question_preview, 90)}</p>
-        <p className="mt-1 text-xs text-fg-subtle">
-          {trace.workspace_name} - {formatDate(trace.created_at)}
-        </p>
-      </td>
-      <td className="max-w-sm px-3 py-3 text-fg-muted">
-        {safePreview(trace.answer_preview, 100)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
-        {trace.retrieval_strategy ?? "unknown"}
-      </td>
-      <td className="whitespace-nowrap px-3 py-3">
-        <StatusBadge
-          label={formatNumber(trace.citation_count)}
-          tone={trace.citation_count > 0 ? "success" : "warning"}
-        />
-      </td>
-      <td className="whitespace-nowrap px-3 py-3">
-        <QualityBadge label="F" value={trace.faithfulness} />
-      </td>
-      <td className="whitespace-nowrap px-3 py-3">
-        <RiskBadge value={trace.hallucination_score} />
-      </td>
-      <td className="whitespace-nowrap px-3 py-3">
-        <StatusBadge
-          label={trace.corrected ? "Corrected" : "Original"}
-          tone={trace.corrected ? "ai" : "neutral"}
-        />
-      </td>
-      <td className="whitespace-nowrap px-3 py-3 text-fg-muted">
-        {formatLatency(trace.total_latency_ms)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-3">
-        <Link
-          href={`/admin/rag-traces/${trace.message_id}`}
-          className="font-medium text-fg underline-offset-4 hover:underline"
-        >
-          View trace
-        </Link>
-      </td>
-    </tr>
-  );
-}
-
-function summarizeTraces(
-  traces: RagTraceListItem[],
-  summary: RagTraceQualitySummary | null,
-) {
-  if (traces.length === 0) {
-    return {
-      contextPrecision: summary?.average_context_precision ?? 0,
-      faithfulness: summary?.average_faithfulness ?? 0,
-      hallucination: summary?.average_hallucination_score ?? 0,
-      relevance: summary?.average_relevance ?? 0,
-    };
-  }
-  return {
-    contextPrecision: average(traces.map((trace) => trace.context_precision)),
-    faithfulness: average(traces.map((trace) => trace.faithfulness)),
-    hallucination: average(traces.map((trace) => trace.hallucination_score)),
-    relevance: average(traces.map((trace) => trace.relevance)),
-  };
-}
-
-function average(values: number[]) {
-  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
-}
-
-function filterByRisk(traces: RagTraceListItem[], riskFilter: string) {
-  if (riskFilter === "low") {
-    return traces.filter((trace) => trace.hallucination_score <= 0.3);
-  }
-  if (riskFilter === "medium") {
-    return traces.filter(
-      (trace) => trace.hallucination_score > 0.3 && trace.hallucination_score <= 0.6,
-    );
-  }
-  if (riskFilter === "high") {
-    return traces.filter((trace) => trace.hallucination_score > 0.6);
-  }
-  return traces;
-}
-
-function riskBucketData(traces: RagTraceListItem[]) {
-  return [
-    { count: traces.filter((trace) => trace.hallucination_score <= 0.3).length, risk: "Low" },
-    {
-      count: traces.filter(
-        (trace) => trace.hallucination_score > 0.3 && trace.hallucination_score <= 0.6,
-      ).length,
-      risk: "Medium",
-    },
-    { count: traces.filter((trace) => trace.hallucination_score > 0.6).length, risk: "High" },
-  ];
 }
