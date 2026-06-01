@@ -2,35 +2,28 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CitationCard, EvaluationMetrics } from "@/components/ai";
-import { DashboardShell } from "@/components/DashboardShell";
-import { ErrorMessage } from "@/components/ErrorMessage";
+import type { FormEvent, KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Button,
-  Card,
-  EmptyState,
-  LoadingSkeleton,
-  Textarea,
-} from "@/components/ui";
+  ChatMarkdown,
+  EvaluationPills,
+  FollowUpSuggestions,
+  SourceList,
+  TypingDots,
+} from "@/components/ai";
+import { DashboardShell } from "@/components/DashboardShell";
+import { EmptyState, LoadingSkeleton } from "@/components/ui";
+import { Icon } from "@/components/ui/Icon";
 import { ApiConnectionError, ApiRequestError } from "@/lib/api-client";
 import { removeToken } from "@/lib/auth";
-import {
-  getConversation,
-  listWorkspaceConversations,
-} from "@/lib/chat";
+import { getConversation, listWorkspaceConversations } from "@/lib/chat";
 import { listDocuments } from "@/lib/documents";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { useChatStream } from "@/hooks/useChatStream";
 import { getWorkspace } from "@/lib/workspaces";
-import type {
-  AnswerEvaluation,
-  Citation,
-  ConversationSummary,
-  Document,
-  Workspace,
-} from "@/types";
+import type { AnswerEvaluation, Citation, ConversationSummary, Document, Workspace } from "@/types";
 
+/* ─── types ──────────────────────────────────────────────────── */
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -43,142 +36,135 @@ type ChatMessage = {
   streamStatus?: string;
 };
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+/* ─── helpers ────────────────────────────────────────────────── */
+function relTime(value: string | null | undefined): string {
+  if (!value) return "";
+  try {
+    const diff = (Date.now() - new Date(value).getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+  } catch { return ""; }
 }
 
-function informationNotFound(answer: string) {
-  const normalized = answer.toLowerCase();
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiRequestError || error instanceof ApiConnectionError) return error.message;
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+function isAdminRole(role?: string) { return role === "admin" || role === "super_admin"; }
+
+function informationNotFound(answer: string): boolean {
+  const n = answer.toLowerCase();
   return [
     "could not find this information",
     "couldn't find this information",
     "information not found",
     "not in the uploaded documents",
     "no retrieved context",
-  ].some((phrase) => normalized.includes(phrase));
+  ].some((p) => n.includes(p));
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiRequestError || error instanceof ApiConnectionError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
-function CitationList({ citations }: { citations: Citation[] }) {
-  if (citations.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="mt-4 grid gap-2">
-      {citations.map((citation) => (
-        <CitationCard key={`${citation.id}-${citation.chunk_id}`} citation={citation} />
-      ))}
-    </div>
-  );
-}
-
-function EvaluationPill({ evaluation }: { evaluation?: AnswerEvaluation }) {
-  if (!evaluation) {
-    return null;
-  }
-
-  return (
-    <div className="mt-3">
-      <EvaluationMetrics evaluation={evaluation} />
-    </div>
-  );
-}
-
-function MessageBubble({ message }: { message: ChatMessage }) {
+/* ─── MessageBubble ──────────────────────────────────────────── */
+function MessageBubble({
+  canViewTrace, isLastAssistant, message, onSelect, streamingDisabled,
+}: {
+  canViewTrace: boolean; isLastAssistant: boolean; message: ChatMessage; onSelect: (q: string) => void; streamingDisabled: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
   const isAssistant = message.role === "assistant";
-  const notFound = isAssistant && informationNotFound(message.content);
+  const notFound = isAssistant && !message.isPending && informationNotFound(message.content);
+
+  async function copy() {
+    if (!message.content) return;
+    try { await navigator.clipboard.writeText(message.content); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* ignore */ }
+  }
+
+  if (!isAssistant) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%]">
+          <div className="rounded-2xl rounded-tr-sm bg-brand px-4 py-3 text-sm leading-7 text-white shadow-sm">{message.content}</div>
+          {message.createdAt ? <p className="mt-1 text-right text-[10px] text-fg-subtle">{relTime(message.createdAt)}</p> : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <article
-      className={
-        isAssistant
-          ? "w-full max-w-3xl rounded-md border border-line bg-surface p-4 shadow-sm"
-          : "ml-auto w-full max-w-3xl rounded-md bg-brand p-4 text-white shadow-sm sm:w-fit"
-      }
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <p
-            className={
-              isAssistant
-                ? "text-xs font-semibold uppercase tracking-wide text-fg-subtle"
-                : "text-xs font-semibold uppercase tracking-wide text-white/70"
-            }
-          >
-            {isAssistant ? "Assistant" : "You"}
-          </p>
-          {message.isCorrected ? (
-            <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-xs font-medium text-warning-surface-fg">
-              Corrected
-            </span>
+    <div className="group flex items-start gap-3">
+      <div className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-brand-subtle-line bg-brand-subtle">
+        <Icon name="sparkles" size={13} className="text-brand-fg" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <article aria-live={message.isPending ? "polite" : undefined} className="min-w-0 rounded-2xl rounded-tl-sm border border-line bg-surface p-4 shadow-sm">
+          {(message.isCorrected || (message.isPending && message.streamStatus)) ? (
+            <div className="mb-3 flex items-center gap-2">
+              {message.isCorrected ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-warning-line bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-surface-fg">
+                  <Icon name="refreshCw" size={10} /> Corrected
+                </span>
+              ) : null}
+              {message.isPending && message.streamStatus ? <span className="text-[10px] text-fg-subtle">{message.streamStatus}</span> : null}
+            </div>
           ) : null}
-        </div>
-        {message.createdAt ? (
-          <time
-            className={
-              isAssistant ? "text-xs text-fg-subtle" : "text-xs text-white/70"
-            }
-          >
-            {formatDate(message.createdAt)}
-          </time>
+
+          {notFound ? (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-warning-line bg-warning-subtle px-3 py-2 text-xs font-medium text-warning-surface-fg">
+              <Icon name="alertCircle" size={13} />
+              Information not found in the uploaded documents.
+            </div>
+          ) : null}
+
+          <div className="min-w-0">
+            {message.content ? (
+              <>
+                <ChatMarkdown content={message.content} citations={message.citations} />
+                {message.isPending ? <span className="ml-px inline-block h-4 w-0.5 animate-pulse bg-fg-subtle align-text-bottom" aria-hidden="true" /> : null}
+              </>
+            ) : (
+              <TypingDots />
+            )}
+          </div>
+
+          {message.evaluation ? <div className="mt-3"><EvaluationPills evaluation={message.evaluation} /></div> : null}
+          {!message.isPending ? <SourceList citations={message.citations} /> : null}
+          {!message.isPending && isLastAssistant && message.content && !notFound ? (
+            <FollowUpSuggestions question={message.content} onSelect={onSelect} disabled={streamingDisabled} />
+          ) : null}
+        </article>
+
+        {!message.isPending ? (
+          <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <button type="button" onClick={copy} title="Copy answer"
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-fg-subtle transition hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <Icon name={copied ? "checkCircle" : "fileText"} size={13} />
+              {copied ? "Copied" : "Copy"}
+            </button>
+            {canViewTrace && !message.id.startsWith("local-") ? (
+              <Link href={`/admin/rag-traces/${message.id}`}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-fg-subtle transition hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                <Icon name="activity" size={13} /> Trace
+              </Link>
+            ) : null}
+            {message.createdAt ? <span className="ml-1 text-[10px] text-fg-subtle">{relTime(message.createdAt)}</span> : null}
+          </div>
         ) : null}
       </div>
-
-      {notFound ? (
-        <div className="mt-3 rounded-md border border-warning-line bg-warning-subtle px-3 py-2 text-sm font-medium text-warning-surface-fg">
-          Information not found in uploaded documents.
-        </div>
-      ) : null}
-
-      <p
-        className={
-          isAssistant
-            ? "mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-fg"
-            : "mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-white"
-        }
-      >
-        {message.content}
-        {message.isPending ? (
-          <span className="ml-0.5 inline-block animate-pulse text-fg-subtle">|</span>
-        ) : null}
-      </p>
-
-      {message.isPending ? (
-        <div className="mt-3 text-xs font-medium text-fg-subtle">
-          {message.streamStatus ?? "Generating answer..."}
-        </div>
-      ) : null}
-
-      {isAssistant ? (
-        <>
-          <CitationList citations={message.citations} />
-          <EvaluationPill evaluation={message.evaluation} />
-        </>
-      ) : null}
-    </article>
+    </div>
   );
 }
 
+/* ─── PAGE ────────────────────────────────────────────────────── */
 export default function WorkspaceChatPage() {
   const params = useParams<{ workspaceId: string }>();
   const router = useRouter();
   const workspaceId = params.workspaceId;
   const { error: authError, isLoading: isAuthLoading, user } = useAuthUser();
+  const { error: streamError, isStreaming, sendStreamingMessage, stage: streamStage, stopStreaming } = useChatStream();
+
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -188,479 +174,356 @@ export default function WorkspaceChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const {
-    error: streamError,
-    isStreaming,
-    sendStreamingMessage,
-    stage: streamStage,
-    stopStreaming,
-  } = useChatStream();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const handleAuthError = useCallback(
-    (requestError: unknown) => {
-      if (requestError instanceof ApiRequestError && requestError.status === 401) {
-        removeToken();
-        router.replace("/login");
-        return true;
-      }
+  const indexedCount = documents.filter(d => d.status === "indexed").length;
+  const hasDocuments = documents.length > 0;
+  const canViewTrace = isAdminRole(user?.role);
+  const lastAssistantIdx = messages.reduceRight((found, m, i) => (found === -1 && m.role === "assistant" && !m.isPending ? i : found), -1);
 
-      return false;
-    },
-    [router],
-  );
+  const handleAuthError = useCallback((e: unknown): boolean => {
+    if (e instanceof ApiRequestError && e.status === 401) { removeToken(); router.replace("/login"); return true; }
+    return false;
+  }, [router]);
 
   const refreshConversations = useCallback(async () => {
-    const response = await listWorkspaceConversations(workspaceId);
-    setConversations(response);
+    setConversations(await listWorkspaceConversations(workspaceId));
   }, [workspaceId]);
 
+  /* smart auto-scroll */
+  const isNearBottom = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+  }, []);
   useEffect(() => {
-    let isMounted = true;
+    if (isNearBottom()) messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages, isNearBottom]);
 
-    if (!user || !workspaceId) {
-      return;
-    }
+  /* auto-grow textarea */
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+  }, [question]);
 
-    async function loadPage() {
+  /* initial load */
+  useEffect(() => {
+    let mounted = true;
+    if (!user || !workspaceId) return;
+    async function load() {
       try {
-        const [workspaceResponse, documentResponse, conversationResponse] =
-          await Promise.all([
-            getWorkspace(workspaceId),
-            listDocuments(workspaceId),
-            listWorkspaceConversations(workspaceId),
-          ]);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setWorkspace(workspaceResponse);
-        setDocuments(documentResponse);
-        setConversations(conversationResponse);
+        const [ws, docs, convs] = await Promise.all([
+          getWorkspace(workspaceId),
+          listDocuments(workspaceId),
+          listWorkspaceConversations(workspaceId),
+        ]);
+        if (!mounted) return;
+        setWorkspace(ws);
+        setDocuments(docs);
+        setConversations(convs);
         setError(null);
-      } catch (requestError) {
-        if (!isMounted || handleAuthError(requestError)) {
-          return;
-        }
-
-        setError(errorMessage(requestError, "Unable to load chat."));
+      } catch (e) {
+        if (!mounted || handleAuthError(e)) return;
+        setError(errorMessage(e, "Unable to load chat."));
       } finally {
-        if (isMounted) {
-          setIsLoadingPage(false);
-        }
+        if (mounted) setIsLoadingPage(false);
       }
     }
-
-    void loadPage();
-
-    return () => {
-      isMounted = false;
-    };
+    void load();
+    return () => { mounted = false; };
   }, [handleAuthError, user, workspaceId]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages]);
-
-  async function handleLoadConversation(nextConversationId: string) {
+  async function handleLoadConversation(nextId: string) {
     setIsLoadingConversation(true);
     setError(null);
-
+    setSidebarOpen(false);
     try {
-      const conversation = await getConversation(nextConversationId);
-      setConversationId(conversation.id);
-      setMessages(
-        conversation.messages.map((message) => ({
-          id: message.id,
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: message.content,
-          citations: message.citations ?? [],
-          createdAt: message.created_at,
-        })),
-      );
-    } catch (requestError) {
-      if (handleAuthError(requestError)) {
-        return;
-      }
-
-      setError(errorMessage(requestError, "Unable to load conversation."));
+      const conv = await getConversation(nextId);
+      setConversationId(conv.id);
+      setMessages(conv.messages.map(m => ({
+        id: m.id,
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+        citations: m.citations ?? [],
+        createdAt: m.created_at,
+      })));
+    } catch (e) {
+      if (handleAuthError(e)) return;
+      setError(errorMessage(e, "Unable to load conversation."));
     } finally {
       setIsLoadingConversation(false);
     }
   }
 
   function handleNewChat() {
-    if (isStreaming) {
-      stopStreaming();
-    }
+    if (isStreaming) stopStreaming();
     setConversationId(null);
     setMessages([]);
     setQuestion("");
     setError(null);
+    setSidebarOpen(false);
+    setTimeout(() => textareaRef.current?.focus(), 0);
   }
 
-  function handleStopStreaming() {
+  function handleStop() {
     stopStreaming();
-    setMessages((current) =>
-      current.map((message) =>
-        message.isPending
-          ? {
-              ...message,
-              isPending: false,
-              streamStatus: "Stopped",
-            }
-          : message,
-      ),
-    );
+    setMessages(c => c.map(m => m.isPending ? { ...m, isPending: false, streamStatus: "Stopped" } : m));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const q = question.trim();
+    if (!q || isStreaming || documents.length === 0) return;
 
-    const normalizedQuestion = question.trim();
-    if (!normalizedQuestion || isStreaming || documents.length === 0) {
-      return;
-    }
+    const userMsg: ChatMessage = { id: `local-user-${Date.now()}`, role: "user", content: q, citations: [] };
+    const pending: ChatMessage = { id: `local-assistant-${Date.now()}`, role: "assistant", content: "", citations: [], isPending: true, streamStatus: "Starting..." };
+    let assistantKey = pending.id;
+    function updateAssistant(updater: (m: ChatMessage) => ChatMessage) { setMessages(c => c.map(m => m.id === assistantKey ? updater(m) : m)); }
 
-    const userMessage: ChatMessage = {
-      id: `local-user-${Date.now()}`,
-      role: "user",
-      content: normalizedQuestion,
-      citations: [],
-    };
-    const pendingMessage: ChatMessage = {
-      id: `local-assistant-${Date.now()}`,
-      role: "assistant",
-      content: "",
-      citations: [],
-      isPending: true,
-      streamStatus: "Starting...",
-    };
-    let assistantMessageKey = pendingMessage.id;
-
-    function updateAssistantMessage(
-      updater: (message: ChatMessage) => ChatMessage,
-    ) {
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === assistantMessageKey ? updater(message) : message,
-        ),
-      );
-    }
-
-    setMessages((current) => [...current, userMessage, pendingMessage]);
+    setMessages(c => [...c, userMsg, pending]);
     setQuestion("");
     setError(null);
 
     try {
       await sendStreamingMessage({
-        workspaceId,
-        question: normalizedQuestion,
-        conversationId,
-        retrievalStrategy: "hybrid",
-        onStart: (data) => {
-          setConversationId(data.conversation_id);
-          updateAssistantMessage((message) => ({
-            ...message,
-            streamStatus: "Preparing trace...",
-          }));
-        },
-        onTrace: (_trace, label) => {
-          updateAssistantMessage((message) => ({
-            ...message,
-            streamStatus: label,
-          }));
-        },
-        onToken: (text) => {
-          updateAssistantMessage((message) => ({
-            ...message,
-            content: `${message.content}${text}`,
-            streamStatus: "Generating answer...",
-          }));
-        },
-        onCitations: (citations) => {
-          updateAssistantMessage((message) => ({
-            ...message,
-            citations,
-          }));
-        },
-        onEvaluation: (evaluation) => {
-          updateAssistantMessage((message) => ({
-            ...message,
-            evaluation,
-          }));
-        },
-        onCorrection: (correction) => {
-          if (!correction.corrected || !correction.final_answer) {
-            return;
-          }
-
-          updateAssistantMessage((message) => ({
-            ...message,
-            content: correction.final_answer ?? message.content,
-            isCorrected: true,
-          }));
-        },
+        workspaceId, question: q, conversationId, retrievalStrategy: "hybrid",
+        onStart: (data) => { setConversationId(data.conversation_id); updateAssistant(m => ({ ...m, streamStatus: "Preparing trace..." })); },
+        onTrace: (_t, label) => { updateAssistant(m => ({ ...m, streamStatus: label })); },
+        onToken: (text) => { updateAssistant(m => ({ ...m, content: `${m.content}${text}`, streamStatus: "Generating answer..." })); },
+        onCitations: (cits) => { updateAssistant(m => ({ ...m, citations: cits })); },
+        onEvaluation: (ev) => { updateAssistant(m => ({ ...m, evaluation: ev })); },
+        onCorrection: (cor) => { if (!cor.corrected || !cor.final_answer) return; updateAssistant(m => ({ ...m, content: cor.final_answer ?? m.content, isCorrected: true })); },
         onMessage: (data) => {
-          const previousKey = assistantMessageKey;
-          assistantMessageKey = data.message_id;
-          setConversationId(data.conversation_id);
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === previousKey
-                ? {
-                    ...message,
-                    id: data.message_id,
-                    isPending: false,
-                    streamStatus: undefined,
-                  }
-                : message,
-            ),
-          );
+          const prev = assistantKey; assistantKey = data.message_id; setConversationId(data.conversation_id);
+          setMessages(c => c.map(m => m.id === prev ? { ...m, id: data.message_id, isPending: false, streamStatus: undefined } : m));
         },
-        onDone: () => {
-          updateAssistantMessage((message) => ({
-            ...message,
-            isPending: false,
-            streamStatus: undefined,
-          }));
-        },
-        onError: (message) => {
-          setError(message);
-        },
-        onFallbackResponse: (response) => {
-          const previousKey = assistantMessageKey;
-          assistantMessageKey = response.message_id;
-          setConversationId(response.conversation_id);
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === previousKey
-                ? {
-                    ...message,
-                    id: response.message_id,
-                    content: response.answer,
-                    citations: response.citations,
-                    evaluation: response.evaluation,
-                    isPending: false,
-                    streamStatus: undefined,
-                  }
-                : message,
-            ),
-          );
+        onDone: () => { updateAssistant(m => ({ ...m, isPending: false, streamStatus: undefined })); },
+        onError: (msg) => { setError(msg); },
+        onFallbackResponse: (r) => {
+          const prev = assistantKey; assistantKey = r.message_id; setConversationId(r.conversation_id);
+          setMessages(c => c.map(m => m.id === prev ? { ...m, id: r.message_id, content: r.answer, citations: r.citations, evaluation: r.evaluation, isPending: false, streamStatus: undefined } : m));
         },
       });
-
       await refreshConversations();
-    } catch (requestError) {
-      if (handleAuthError(requestError)) {
-        return;
-      }
-
-      setMessages((current) =>
-        current.filter(
-          (message) =>
-            message.id !== pendingMessage.id && message.id !== assistantMessageKey,
-        ),
-      );
-      setError(errorMessage(requestError, "Unable to send message."));
+    } catch (e) {
+      if (handleAuthError(e)) return;
+      setMessages(c => c.filter(m => m.id !== pending.id && m.id !== assistantKey));
+      setError(errorMessage(e, "Unable to send message."));
     }
   }
 
-  const hasDocuments = documents.length > 0;
-  const isBusy = isAuthLoading || (user && isLoadingPage);
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); formRef.current?.requestSubmit(); }
+  }
 
+  const isBusy = isAuthLoading || (user && isLoadingPage);
   if (isBusy) {
     return (
-      <DashboardShell activeItem="chat" title="Chat" workspaceId={workspaceId}>
-        <Card>
-          <LoadingSkeleton label="Loading chat" rows={3} />
-        </Card>
+      <DashboardShell activeItem="chat" title="" workspaceId={workspaceId}>
+        <LoadingSkeleton label="Loading chat" rows={4} />
       </DashboardShell>
     );
   }
 
   return (
-    <DashboardShell
-      activeItem="chat"
-      title="Chat"
-      description={
-        workspace
-          ? `Ask questions against indexed documents in ${workspace.name}.`
-          : "Ask questions against indexed workspace documents."
-      }
-      workspaceId={workspaceId}
-    >
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Card className="p-4 lg:h-fit">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-fg">
-              Conversations
-            </h2>
-            <Button
-              type="button"
-              onClick={handleNewChat}
-              size="sm"
-              variant="secondary"
-            >
-              New
-            </Button>
-          </div>
+    <DashboardShell activeItem="chat" title="" workspaceId={workspaceId}>
+      <div className="flex min-h-[calc(100dvh-120px)] overflow-hidden rounded-xl border border-line shadow-sm">
 
-          <div className="mt-4 grid gap-2">
-            {conversations.length === 0 ? (
-              <EmptyState title="No conversations yet" />
-            ) : (
-              conversations.map((conversation) => (
-                <button
-                  key={conversation.id}
-                  type="button"
-                  onClick={() => void handleLoadConversation(conversation.id)}
-                  className={
-                    conversation.id === conversationId
-                      ? "rounded-md border border-brand bg-brand px-3 py-2 text-left text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                      : "rounded-md border border-line bg-surface px-3 py-2 text-left text-sm text-fg-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                  }
-                >
-                  <span className="block truncate font-medium">
-                    {conversation.title ?? "Untitled conversation"}
-                  </span>
-                  <span
-                    className={
-                      conversation.id === conversationId
-                        ? "mt-1 block text-xs text-white/70"
-                        : "mt-1 block text-xs text-fg-subtle"
-                    }
-                  >
-                    {formatDate(conversation.updated_at)}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </Card>
-
-        <section className="min-h-[70dvh] overflow-hidden rounded-lg border border-line bg-sunken shadow-sm lg:min-h-[680px]">
-          <div className="flex min-h-[70dvh] flex-col lg:min-h-[680px]">
-            <div className="border-b border-line bg-surface px-4 py-4 sm:px-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-fg">
-                    {conversationId ? "Conversation" : "New conversation"}
-                  </h2>
-                  <p className="mt-1 text-sm text-fg-muted">
-                    {hasDocuments
-                      ? `${documents.length} document${documents.length === 1 ? "" : "s"} available`
-                      : "Upload documents before asking questions."}
-                  </p>
-                </div>
-                <Link
-                  href={`/workspaces/${workspaceId}/documents`}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-fg-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                >
-                  Documents
-                </Link>
+        {/* mobile sidebar */}
+        {sidebarOpen ? (
+          <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
+            <div className="absolute inset-0 animate-dp-fade-in bg-backdrop" />
+            <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line bg-surface animate-dp-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                <p className="text-sm font-semibold text-fg">Conversations</p>
+                <button onClick={() => setSidebarOpen(false)} aria-label="Close" className="rounded-md text-fg-subtle hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"><Icon name="close" size={18} /></button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                <Sidebar {...{ workspace, workspaceId, conversations, conversationId, indexedCount, documents, isStreaming, onLoad: handleLoadConversation, onNew: handleNewChat }} />
               </div>
             </div>
+          </div>
+        ) : null}
 
-            {authError ? (
-              <div className="px-5 pt-5">
-                <ErrorMessage message={authError} />
-              </div>
-            ) : null}
+        {/* desktop sidebar */}
+        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-line bg-surface lg:flex">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <p className="text-sm font-semibold text-fg">Conversations</p>
+            <button type="button" onClick={handleNewChat} title="New chat"
+              className="inline-flex items-center gap-1 rounded-md border border-line bg-canvas px-2 py-1 text-xs font-medium text-fg-muted transition hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <Icon name="plus" size={13} /> New
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <Sidebar {...{ workspace, workspaceId, conversations, conversationId, indexedCount, documents, isStreaming, onLoad: handleLoadConversation, onNew: handleNewChat }} />
+          </div>
+        </aside>
 
-            {error ? (
-              <div className="px-5 pt-5">
-                <ErrorMessage message={error} />
-              </div>
-            ) : null}
+        {/* main */}
+        <div className="flex min-w-0 flex-1 flex-col bg-canvas">
+          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface px-4">
+            <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Open conversations"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-subtle transition hover:bg-hover hover:text-fg lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <Icon name="menu" size={18} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-fg">{workspace?.name ?? "Workspace"}</p>
+              <p className="truncate text-[10px] text-fg-subtle">{indexedCount} indexed · {documents.length} total · hybrid retrieval</p>
+            </div>
+            <Link href={`/workspaces/${workspaceId}/documents`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-fg-muted transition hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <Icon name="fileText" size={14} /> Documents
+            </Link>
+          </div>
 
-            {streamError && !error ? (
-              <div className="px-5 pt-5">
-                <ErrorMessage message={streamError} />
+          {(error || streamError || authError) ? (
+            <div className="border-b border-danger-line bg-danger-subtle px-4 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-danger-surface-fg">{error ?? streamError ?? authError}</p>
+                <button onClick={() => setError(null)} className="text-xs text-danger-fg hover:underline focus-visible:outline-none">Dismiss</button>
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {!hasDocuments ? (
-              <div className="flex flex-1 items-center justify-center px-5">
-                <EmptyState
-                  title="Upload documents before asking questions"
-                  description="The chat workspace needs indexed documents before retrieval can run."
-                  action={
-                    <Link
-                      href={`/workspaces/${workspaceId}/documents`}
-                      className="inline-flex h-10 items-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                    >
-                      Upload documents
-                    </Link>
-                  }
-                />
-              </div>
-            ) : (
-              <>
-                <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
-                  {isLoadingConversation ? (
-                    <LoadingSkeleton label="Loading conversation" rows={3} />
-                  ) : messages.length === 0 ? (
-                    <EmptyState
-                      title="Ask a question to start a conversation"
-                      description="Streaming answers, citations, and evaluation metrics will appear here."
-                    />
-                  ) : (
-                    <div className="grid gap-4">
-                      {messages.map((message) => (
-                        <MessageBubble key={message.id} message={message} />
-                      ))}
-                      <div ref={messagesEndRef} />
+          {!hasDocuments ? (
+            <div className="flex flex-1 items-center justify-center p-6">
+              <EmptyState
+                title="Upload documents before asking questions"
+                description="This workspace needs indexed documents before retrieval can run."
+                action={
+                  <Link href={`/workspaces/${workspaceId}/documents`}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                    <Icon name="cloudUpload" size={15} /> Upload documents
+                  </Link>
+                }
+              />
+            </div>
+          ) : (
+            <>
+              <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+                {isLoadingConversation ? (
+                  <LoadingSkeleton label="Loading conversation" rows={5} />
+                ) : messages.length === 0 ? (
+                  <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 py-16 text-center">
+                    <div className="grid h-14 w-14 place-items-center rounded-2xl border border-brand-subtle-line bg-brand-subtle">
+                      <Icon name="sparkles" size={24} className="text-brand-fg" />
                     </div>
-                  )}
-                </div>
-
-                <form
-                  onSubmit={handleSubmit}
-                  className="border-t border-line bg-surface p-3 sm:p-4"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row">
-                    <Textarea
-                      value={question}
-                      onChange={(event) => setQuestion(event.target.value)}
-                      disabled={isStreaming}
-                      rows={3}
-                      placeholder="Ask a question"
-                      containerClassName="flex-1"
-                      className="min-h-[92px] resize-none"
-                    />
-                    <div className="flex flex-col gap-2 sm:flex-row lg:self-end">
-                      {isStreaming ? (
-                        <Button
-                          type="button"
-                          onClick={handleStopStreaming}
-                          size="lg"
-                          variant="secondary"
-                        >
-                          Stop
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="submit"
-                        disabled={isStreaming || !question.trim()}
-                        size="lg"
-                      >
-                        {isStreaming ? "Sending..." : "Send"}
-                      </Button>
+                    <div>
+                      <h2 className="text-xl font-semibold text-fg">Ask about {workspace?.name ?? "this workspace"}</h2>
+                      <p className="mt-2 text-sm text-fg-muted">
+                        {indexedCount} document{indexedCount !== 1 ? "s" : ""} indexed · answers cite their sources
+                      </p>
                     </div>
                   </div>
-                  {isStreaming || streamStage ? (
-                    <p className="mt-2 text-xs font-medium text-fg-subtle">
-                      {streamStage ?? "Generating answer..."}
-                    </p>
-                  ) : null}
-                </form>
-              </>
-            )}
-          </div>
-        </section>
+                ) : (
+                  <div className="mx-auto grid max-w-3xl gap-6">
+                    {messages.map((msg, i) => (
+                      <MessageBubble key={msg.id} canViewTrace={canViewTrace} isLastAssistant={i === lastAssistantIdx} message={msg}
+                        onSelect={(q) => { setQuestion(q); setTimeout(() => textareaRef.current?.focus(), 0); }}
+                        streamingDisabled={isStreaming} />
+                    ))}
+                    <div ref={messagesEndRef} className="h-1" />
+                  </div>
+                )}
+              </div>
+
+              {isStreaming ? (
+                <div role="status" aria-live="polite" className="border-t border-line bg-surface px-4 py-2.5">
+                  <div className="mx-auto flex max-w-3xl items-center gap-2">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand motion-safe:animate-pulse" />
+                    <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">{streamStage ?? "Generating answer..."}</span>
+                  </div>
+                </div>
+              ) : null}
+
+              <form ref={formRef} onSubmit={handleSubmit} className="border-t border-line bg-surface px-4 pb-4 pt-3 sm:px-6">
+                <div className="mx-auto max-w-3xl">
+                  <div className={`flex gap-2 rounded-xl border bg-surface transition-colors ${question ? "border-line-strong" : "border-line"}`}>
+                    <textarea
+                      ref={textareaRef} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={handleKeyDown}
+                      disabled={isStreaming} rows={1} placeholder="Ask a question… (Enter to send)"
+                      className="min-h-[52px] flex-1 resize-none bg-transparent px-4 py-3.5 text-sm text-fg outline-none placeholder:text-fg-subtle disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label="Ask a question"
+                    />
+                    <div className="flex shrink-0 flex-col items-end justify-end gap-2 p-2">
+                      {isStreaming ? (
+                        <button type="button" onClick={handleStop} title="Stop" aria-label="Stop"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-canvas text-fg-muted transition hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                          <Icon name="close" size={16} />
+                        </button>
+                      ) : (
+                        <button type="submit" disabled={isStreaming || !question.trim()} aria-label="Send"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-40">
+                          <Icon name="arrowRight" size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="mt-2 px-1 text-[10px] text-fg-subtle">
+                    {isStreaming ? "Generating… press ✕ to stop" : "Enter to send · Shift+Enter for new line"}
+                  </p>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
       </div>
     </DashboardShell>
+  );
+}
+
+/* ─── Sidebar ────────────────────────────────────────────────── */
+function Sidebar({
+  workspace, workspaceId, conversations, conversationId, indexedCount, documents, isStreaming, onLoad, onNew,
+}: {
+  workspace: Workspace | null; workspaceId: string; conversations: ConversationSummary[]; conversationId: string | null;
+  indexedCount: number; documents: Document[]; isStreaming: boolean; onLoad: (id: string) => void; onNew: () => void;
+}) {
+  return (
+    <div className="grid gap-5">
+      <div className="rounded-lg border border-line bg-canvas px-3 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">Workspace</p>
+        <p className="mt-1 truncate text-sm font-semibold text-fg">{workspace?.name ?? "Workspace"}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-xs text-fg-muted"><span className="font-medium text-success-fg">{indexedCount}</span> indexed</span>
+          <span className="text-fg-subtle">·</span>
+          <span className="text-xs text-fg-muted"><span className="font-medium text-fg">{documents.length}</span> total</span>
+        </div>
+        <Link href={`/workspaces/${workspaceId}/documents`}
+          className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-line bg-surface text-xs font-medium text-fg-muted transition hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+          <Icon name="fileText" size={13} /> Manage documents
+        </Link>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">Threads</p>
+          <button type="button" onClick={onNew} className="text-[10px] font-medium text-brand-fg hover:underline focus-visible:outline-none">+ New</button>
+        </div>
+        {conversations.length === 0 ? (
+          <p className="text-xs text-fg-subtle">No conversations yet.</p>
+        ) : (
+          <div className="grid gap-1">
+            {conversations.slice(0, 12).map(conv => {
+              const isActive = conv.id === conversationId;
+              return (
+                <button key={conv.id} type="button" disabled={isStreaming} onClick={() => onLoad(conv.id)}
+                  className={`w-full rounded-lg px-2.5 py-2 text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${isActive ? "border border-brand-subtle-line bg-brand-subtle text-brand-fg" : "text-fg-muted hover:bg-hover hover:text-fg"}`}>
+                  <span className="block truncate font-medium">{conv.title ?? "Untitled"}</span>
+                  <span className="mt-0.5 block text-[10px] opacity-70">{relTime(conv.updated_at)}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
