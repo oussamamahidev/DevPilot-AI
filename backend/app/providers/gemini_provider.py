@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 import logging
 from time import perf_counter
@@ -99,9 +100,64 @@ class GeminiLLMProvider:
         prompt: str,
         system_prompt: str = DEFAULT_RAG_SYSTEM_PROMPT,
     ) -> AsyncIterator[str]:
-        response = await self.generate(prompt=prompt, system_prompt=system_prompt)
-        async for chunk in chunk_text(response.content):
-            yield chunk
+        """Stream real token deltas from Gemini via ``streamGenerateContent?alt=sse``.
+
+        Each SSE ``data:`` line carries an incremental ``candidates[].content``
+        delta, yielded the moment it arrives — so the client renders the answer
+        progressively (ChatGPT-style) instead of after the full generation.
+        If the streaming connection never produces a token, we degrade
+        gracefully to the non-streaming endpoint (which also covers model
+        fallback) and chunk its output.
+        """
+        if not self.api_key:
+            raise LLMProviderError(GEMINI_MISSING_API_KEY_MESSAGE)
+
+        payload = self._build_payload(
+            messages=[{"role": "user", "content": prompt}],
+            system_prompt=system_prompt,
+        )
+        emitted = False
+        try:
+            async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
+                async with client.stream(
+                    "POST",
+                    f"/models/{self.model}:streamGenerateContent?alt=sse",
+                    headers={"x-goog-api-key": self.api_key},
+                    json=payload,
+                ) as response:
+                    if response.status_code != 200:
+                        await response.aread()
+                        response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        stripped = line.strip()
+                        if not stripped.startswith("data:"):
+                            continue
+                        raw = stripped[len("data:") :].strip()
+                        if not raw or raw == "[DONE]":
+                            continue
+                        try:
+                            data = json.loads(raw)
+                        except ValueError:
+                            continue
+                        delta = _extract_text(data)
+                        if delta:
+                            emitted = True
+                            yield delta
+        except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.RequestError) as exc:
+            if emitted:
+                # A partial answer already reached the client; surface a clean error.
+                raise LLMProviderError(GEMINI_UNAVAILABLE_MESSAGE) from exc
+            _log_gemini_event(
+                message="Gemini streaming unavailable; falling back to non-streaming generation",
+                level=logging.WARNING,
+                model=self.model,
+                attempt_number=0,
+                status_code=getattr(getattr(exc, "response", None), "status_code", None),
+                error_category="stream_fallback",
+            )
+            response = await self.generate(prompt=prompt, system_prompt=system_prompt)
+            async for chunk in chunk_text(response.content):
+                yield chunk
 
     async def generate_messages(
         self,
