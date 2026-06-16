@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import { DashboardShell } from "@/components/DashboardShell";
+import { PersonalDashboard } from "@/features/dashboard/PersonalDashboard";
 import { Button, EmptyState, ErrorState, LoadingSkeleton } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import { Badge } from "@/components/ui/Badge";
@@ -242,12 +243,18 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user) {
     return (
       <DashboardShell activeItem="dashboard" title="Dashboard">
-        <ErrorState message="This dashboard is available to admin and super admin accounts." title="Admin access required" />
+        <ErrorState message="Please sign in to view your dashboard." title="Sign in required" />
       </DashboardShell>
     );
+  }
+
+  // Standard users get a personal home (workspaces, documents, chat).
+  // The admin operations dashboard below is reserved for admin / super admin.
+  if (!isAdmin) {
+    return <PersonalDashboard />;
   }
 
   return (

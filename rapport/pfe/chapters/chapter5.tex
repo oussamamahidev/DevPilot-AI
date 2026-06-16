@@ -1,0 +1,213 @@
+\chapter{Validation et résultats}
+\label{chap:validation}
+
+Ce chapitre présente les interfaces réalisées, puis la stratégie de validation
+(tests unitaires, d'intégration, d'API, RAG, \emph{streaming} et performance),
+avant une analyse critique honnête des limites et un retour d'expérience. Les
+emplacements de captures d'écran sont à renseigner manuellement à partir de
+l'application en fonctionnement.
+
+\section{Présentation des interfaces}
+Pour chaque page, nous précisons l'objectif, les actions utilisateur et une
+analyse fonctionnelle.
+
+\subsection{Page d'accueil (Landing)}
+\screenshotfig{Figure — Page d'accueil de DevPilot AI}{fig:cap-landing}
+\textbf{Objectif.} Présenter la proposition de valeur et orienter vers la
+connexion. \textbf{Actions.} Lecture des sections, navigation vers
+\emph{Connexion}/\emph{Inscription}. \textbf{Analyse fonctionnelle.} Vitrine
+toujours sombre, structurée en sections (problème, fonctionnalités, comparaison),
+qui communique la différenciation (ancrage, traçabilité, observabilité).
+
+\subsection{Connexion}
+\screenshotfig{Figure — Interface de connexion}{fig:cap-login}
+\textbf{Objectif.} Authentifier l'utilisateur. \textbf{Actions.} Saisie de
+l'e-mail et du mot de passe, soumission. \textbf{Analyse fonctionnelle.} Émission
+d'un jeton JWT, gestion des erreurs et redirection vers le tableau de bord ;
+champs accessibles avec retours de validation.
+
+\subsection{Inscription}
+\screenshotfig{Figure — Interface d'inscription}{fig:cap-register}
+\textbf{Objectif.} Créer un compte. \textbf{Actions.} Saisie du nom, de l'e-mail
+et du mot de passe. \textbf{Analyse fonctionnelle.} Création d'un utilisateur de
+rôle \texttt{user}, mot de passe haché, sans renvoi de données sensibles.
+
+\subsection{Tableau de bord (personnel et administrateur)}
+\screenshotfig{Figure — Tableau de bord personnel}{fig:cap-dashboard}
+\textbf{Objectif.} Offrir un point d'entrée adapté au rôle. \textbf{Actions.}
+Créer un espace, accéder aux documents et au chat ; pour l'administrateur,
+consulter la vue d'exploitation. \textbf{Analyse fonctionnelle.} Le tableau de
+bord est \emph{adapté au rôle} : les utilisateurs disposent d'un espace personnel
+(création d'espaces, actions rapides), les administrateurs d'une vue d'opérations.
+
+\subsection{Espaces de travail}
+\screenshotfig{Figure — Gestion des espaces de travail}{fig:cap-workspaces}
+\textbf{Objectif.} Organiser les connaissances par espace isolé. \textbf{Actions.}
+Créer, ouvrir et gérer un espace et ses membres. \textbf{Analyse fonctionnelle.}
+L'isolation par espace conditionne l'accès aux documents et conversations.
+
+\subsection{Documents}
+\screenshotfig{Figure — Gestion documentaire}{fig:cap-documents}
+\textbf{Objectif.} Téléverser et suivre les documents. \textbf{Actions.}
+Glisser-déposer, téléversement par lots, suivi de statut, relance.
+\textbf{Analyse fonctionnelle.} Les statuts (\texttt{queued}, \texttt{processing},
+\texttt{indexed}, \texttt{failed}) reflètent l'ingestion asynchrone ; les
+documents en échec peuvent être relancés.
+
+\subsection{Chat (streaming et citations)}
+\screenshotfig{Figure — Interface de chat conversationnel}{fig:cap-chat}
+\textbf{Objectif.} Poser des questions et recevoir des réponses citées.
+\textbf{Actions.} Saisir une question, suivre la réponse en \emph{streaming},
+consulter les sources. \textbf{Analyse fonctionnelle.} La réponse s'écrit jeton
+par jeton ; les citations et sources sont reliées aux passages ; un accès à la
+trace est offert aux administrateurs.
+
+\subsection{Paramètres}
+\screenshotfig{Figure — Paramètres}{fig:cap-settings}
+\textbf{Objectif.} Configurer le compte et consulter l'état du système.
+\textbf{Actions.} Consultation et ajustement des préférences.
+\textbf{Analyse fonctionnelle.} Page personnelle accessible à tout utilisateur
+authentifié.
+
+\subsection{Tableau de bord d'administration (Operations Overview)}
+\screenshotfig{Figure — Vue d'exploitation administrateur}{fig:cap-admin}
+\textbf{Objectif.} Synthétiser la santé de la plateforme. \textbf{Actions.}
+Consulter les métriques, surveiller les anneaux de santé et les listes de
+surveillance. \textbf{Analyse fonctionnelle.} Indicateurs de santé, pipeline
+documentaire, qualité RAG, latence des agents, usage et coût des modèles, et
+listes d'actions/réponses/documents à risque.
+
+\subsection{Tableau de bord Qualité}
+\screenshotfig{Figure — Tableau de bord Qualité}{fig:cap-quality}
+\textbf{Objectif.} Analyser la qualité des réponses. \textbf{Actions.} Lire les
+distributions et les listes des pires réponses. \textbf{Analyse fonctionnelle.}
+Carte de score, distributions de fidélité et d'hallucination, issues des réponses
+et latence par agent.
+
+\subsection{Tour de contrôle RAGOps}
+\screenshotfig{Figure — Tour de contrôle RAGOps}{fig:cap-ragops}
+\textbf{Objectif.} Superviser l'exploitation du pipeline. \textbf{Actions.}
+Examiner la santé des services, la santé par espace et le centre des échecs.
+\textbf{Analyse fonctionnelle.} Santé Qdrant/Redis/Celery, couverture
+d'\emph{embedding}, file d'ingestion et relance des documents en échec.
+
+\subsection{Observatoire des traces RAG}
+\screenshotfig{Figure — Observatoire des traces (liste)}{fig:cap-traces}
+\textbf{Objectif.} Explorer et filtrer les traces. \textbf{Actions.} Filtrer
+(espace, utilisateur, fidélité, hallucination, dates), trier, ouvrir une trace.
+\textbf{Analyse fonctionnelle.} Cartes de trace interactives avec score de santé,
+distributions et bandeau « à investiguer ».
+
+\subsection{Détail d'une trace (AI Trace Inspector)}
+\screenshotfig{Figure — Inspecteur de traces}{fig:cap-trace-detail}
+\textbf{Objectif.} Reconstruire le cycle de vie complet d'une requête.
+\textbf{Actions.} Parcourir les neuf sections d'analyse. \textbf{Analyse
+fonctionnelle.} Résumé, chronologie des agents, explorateurs de récupération, de
+reclassement et de citations, centre d'évaluation, analyse du correcteur (\emph{diff}),
+usage des modèles et graphe interactif.
+
+\subsection{AI Execution Studio}
+\screenshotfig{Figure — AI Execution Studio}{fig:cap-studio}
+\textbf{Objectif.} Visualiser l'exécution du pipeline en temps réel.
+\textbf{Actions.} Lancer une question, observer les dix étapes animées, rejouer.
+\textbf{Analyse fonctionnelle.} Pipeline animé piloté par le flux SSE réel, avatar
+réactif et contrôles de lecture (1×/2×/5×).
+
+\subsection{Architecture Explorer}
+\screenshotfig{Figure — Architecture Explorer}{fig:cap-archi}
+\textbf{Objectif.} Explorer l'architecture de façon interactive. \textbf{Actions.}
+Lancer une requête (flux animé), cliquer un n{\oe}ud pour l'inspecter.
+\textbf{Analyse fonctionnelle.} Carte React Flow avec flux de requête animé,
+inspecteur de n{\oe}ud (rôle, configuration réelle, métriques d'exécution) et
+pages immersives par composant.
+
+\section{Tests unitaires}
+La couche de présentation est couverte par \textbf{39 tests} (Vitest et Testing
+Library) portant sur les fonctions pures : algorithme de \emph{diff} mot à mot
+(plus longue sous-séquence commune), score de santé de trace, mappage des tons,
+construction des paramètres de filtre de l'observatoire, mise en \emph{buckets}
+des distributions, et rendu des composants \texttt{StatusBadge}/\texttt{Badge}. Le
+\emph{backend} dispose d'une suite \texttt{pytest}.
+
+\screenshotfig{Figure — Exécution de la suite de tests unitaires}{fig:cap-tests}
+
+\section{Tests d'intégration}
+Les tests d'intégration valident la chaîne ingestion $\rightarrow$ indexation
+$\rightarrow$ récupération sur un corpus contrôlé, en vérifiant que les fragments
+téléversés deviennent récupérables avec des scores cohérents.
+
+\section{Tests d'API}
+Les contrats des \emph{endpoints} sont vérifiés (codes de statut, schémas,
+autorisation) à l'aide de requêtes \texttt{curl} contre l'API réelle, en
+particulier le rejet des accès non autorisés (401/403) et la non-divulgation des
+secrets par \texttt{/system/ai-config}.
+
+\section{Tests RAG}
+La qualité est validée selon trois axes : récupération (pertinence des passages),
+ancrage (réponse étayée par le contexte) et citation (références correctes).
+L'agent évaluateur fournit une mesure continue de la fidélité, de la pertinence,
+de la précision du contexte et du risque d'hallucination.
+
+\section{Tests de streaming}
+La diffusion SSE a été vérifiée par \texttt{curl} : les événements arrivent
+\emph{progressivement} (\texttt{trace}, puis une succession de \texttt{token},
+puis \texttt{evaluation}, \texttt{message}, \texttt{done}), confirmant un
+\emph{streaming} réel de jetons après la correction du comportement de génération
+simulée du fournisseur.
+
+\section{Tests de performance}
+Les routes pèsent de 110 à 175~kB environ ; les visualisations lourdes sont
+chargées de façon différée ; les animations s'exécutent à 60~images/s grâce à
+l'usage exclusif de \texttt{transform}/\texttt{opacity} ; le \emph{backend}
+asynchrone et la recherche HNSW concourent à une expérience réactive. Le
+tableau~\ref{tab:accept} synthétise les critères d'acceptation.
+
+\begin{table}[H]
+\centering\caption{Critères d'acceptation}\label{tab:accept}\small
+\begin{tabularx}{\textwidth}{@{}X X c@{}}
+\toprule
+\textbf{Objet validé} & \textbf{Critère} & \textbf{Résultat} \\
+\midrule
+Compilation \emph{frontend} & \texttt{next build} sans erreur & \checkmark \\
+Qualité du code & \texttt{eslint} sans avertissement & \checkmark \\
+Tests unitaires & 39 tests au vert & \checkmark \\
+Streaming & Jetons progressifs (SSE) & \checkmark \\
+Réponse RAG & Ancrée et citée & \checkmark \\
+Évaluation & Calculée et persistée & \checkmark \\
+Traçabilité & Trace reconstructible & \checkmark \\
+Sécurité & Aucune fuite de secret / inter-espaces & \checkmark \\
+Tests e2e automatisés (Playwright) & Couverture des parcours & À venir \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Analyse critique}
+Le système atteint un niveau de maturité notable, mais plusieurs points restent
+perfectibles. La migration de la couche de données vers React Query est en cours
+sur certaines pages historiques. L'évaluation repose sur des heuristiques et un
+juge LLM plutôt que sur un cadre formel à large échelle. Le déploiement cible est
+mono-machine. Enfin, la couverture de tests automatisés gagnerait à être étendue
+aux parcours de bout en bout.
+
+\section{Limitations du projet}
+La comptabilité fine d'usage des modèles dépend des métadonnées exposées par
+chaque fournisseur et n'est pas toujours disponible ; l'inspecteur affiche alors
+honnêtement « non capturé ». Le multi-tenant reste au niveau de l'espace de
+travail, sans cloisonnement organisationnel complet. Les visualisations de
+« l'univers vectoriel » représentent des positions projetées et non les
+coordonnées réelles en 768 dimensions, choix de visualisation assumé.
+
+\section{Retour d'expérience}
+Ce projet a confirmé que la valeur d'une plateforme d'IA d'entreprise ne réside
+pas seulement dans la qualité des réponses, mais dans leur auditabilité et leur
+exploitabilité. Concevoir pour l'observabilité dès l'origine, traiter les
+exigences non fonctionnelles comme des exigences de premier ordre et raisonner
+systématiquement en compromis ont été les enseignements majeurs, aux côtés de la
+maîtrise opérationnelle d'une pile distribuée conteneurisée.
+
+\section{Conclusion}
+La stratégie de validation couvre l'ensemble des couches, du test unitaire à
+l'acceptation, en accordant une attention particulière aux propriétés spécifiques
+d'une plateforme d'IA : ancrage, citations, qualité mesurée, \emph{streaming} et
+sécurité. Les résultats confirment que \devpilot{} satisfait ses objectifs, tout
+en identifiant honnêtement ses axes d'amélioration.

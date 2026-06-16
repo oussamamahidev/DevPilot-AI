@@ -1,0 +1,24 @@
+@startuml
+actor Client
+participant "API (SSE)" as API
+participant "Workflow" as WF
+participant "Qdrant" as QD
+participant "Gemini" as LLM
+
+Client -> API : POST /chat/stream (question)
+activate API
+API -> WF : exécuter le pipeline
+activate WF
+WF -> WF : router + réécriture
+WF -> QD : récupérer candidats (k=15)
+QD --> WF : passages + scores
+WF -> WF : reclasser (top 5)
+API --> Client : event: trace / citations
+WF -> LLM : générer (stream)
+LLM --> WF : flux de jetons
+API --> Client : event: token (xN)
+WF -> WF : évaluer + corriger
+API --> Client : event: evaluation / message / done
+deactivate WF
+deactivate API
+@enduml

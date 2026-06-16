@@ -1,0 +1,31 @@
+@startuml
+left to right direction
+actor Utilisateur as U
+actor Administrateur as A
+actor "Super-administrateur" as S
+actor Qdrant as Q
+actor Gemini as G
+
+A --|> U
+S --|> A
+
+rectangle "DevPilot AI" {
+  usecase "Gérer un espace" as UC1
+  usecase "Téléverser un document" as UC2
+  usecase "Poser une question (RAG)" as UC3
+  usecase "Consulter l'historique" as UC4
+  usecase "Administrer les utilisateurs" as UC5
+  usecase "Superviser (RAGOps)" as UC6
+  usecase "Inspecter une trace" as UC7
+}
+
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+A --> UC5
+A --> UC6
+S --> UC7
+UC3 ..> Q : <<include>>
+UC3 ..> G : <<include>>
+@enduml

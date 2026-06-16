@@ -1,0 +1,39 @@
+// DevPilot AI — Architecture RAGOps  (Eraser diagram-as-code)
+title RAGOps — Observabilité du système d'IA
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction down
+
+Sources [icon: database, color: green] {
+  Qdrant [icon: database, label: "Qdrant health"]
+  Postgres [icon: postgresql, label: "documents · chunks · evaluations · agent_runs"]
+  Metrics [icon: prometheus, label: "Prometheus / Grafana"]
+}
+
+Services [icon: server, color: blue] {
+  RagopsSvc [icon: activity, label: "ragops_service"]
+  TracesSvc [icon: layers, label: "rag_traces_service"]
+  AdminSvc [icon: settings, label: "admin_service"]
+}
+
+ControlTower [icon: monitor, color: purple] {
+  Health [icon: heart, label: "Health Monitoring"]
+  Coverage [icon: pie-chart, label: "Embedding Coverage"]
+  Quality [icon: shield, label: "Evaluation Intelligence"]
+  WorkspaceHealth [icon: grid, label: "Workspace Health (0–100)"]
+  AgentMon [icon: bar-chart, label: "Agent Monitoring"]
+  Failures [icon: alert-triangle, label: "Failure Center · retry"]
+}
+
+Qdrant > RagopsSvc
+Postgres > TracesSvc
+Postgres > AdminSvc
+Metrics > Health
+RagopsSvc > Health
+RagopsSvc > Coverage
+RagopsSvc > WorkspaceHealth
+RagopsSvc > Failures
+TracesSvc > Quality
+AdminSvc > AgentMon

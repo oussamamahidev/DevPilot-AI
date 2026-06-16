@@ -1,0 +1,27 @@
+@startuml
+package "backend.app" {
+  package api
+  package core
+  package db
+  package models
+  package schemas
+  package services
+  package agents
+  package workers
+  package utils
+}
+package "frontend" {
+  package app
+  package components
+  package features
+  package lib
+}
+api --> services
+services --> models
+services --> agents
+agents --> utils
+workers --> services
+app --> features
+features --> components
+features --> lib
+@enduml

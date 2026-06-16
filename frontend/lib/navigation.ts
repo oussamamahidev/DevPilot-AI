@@ -11,6 +11,8 @@ export const mainNav: NavItem[] = [
   { id: "dashboard", label: "Home", href: "/dashboard", icon: "home" },
   { id: "documents", label: "Documents", href: "/documents", icon: "file" },
   { id: "chat", label: "Chat", href: "/chat", icon: "message" },
+  { id: "ai-execution-studio", label: "AI Studio", href: "/ai-execution-studio", icon: "zap" },
+  { id: "architecture-explorer", label: "Architecture", href: "/architecture-explorer", icon: "workflow" },
   { id: "settings", label: "Settings", href: "/settings", icon: "settings" },
 ];
 

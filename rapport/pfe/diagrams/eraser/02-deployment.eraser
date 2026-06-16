@@ -1,0 +1,39 @@
+// DevPilot AI — Diagramme de déploiement  (Eraser diagram-as-code)
+title DevPilot AI — Déploiement Docker Compose
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction down
+
+Docker Host [icon: docker, color: blue] {
+  frontend [icon: nextjs, label: "frontend · Next.js (3001)"]
+  backend [icon: python, label: "backend · FastAPI/uvicorn (8000)"]
+  celery_worker [icon: python, label: "celery_worker"]
+  postgres [icon: postgresql, label: "postgres:16 (5433)"]
+  redis [icon: redis, label: "redis:7 (6379)"]
+  qdrant [icon: database, label: "qdrant 1.12 (6333)"]
+  prometheus [icon: prometheus, label: "prometheus (9090)"]
+  grafana [icon: grafana, label: "grafana (3000)"]
+}
+
+Ollama Host [icon: server, color: teal] {
+  ollama [icon: cpu, label: "Ollama · host.docker.internal:11434"]
+}
+
+Gemini Cloud [icon: google, color: orange] {
+  gemini [icon: cloud, label: "Gemini API"]
+}
+
+frontend > backend: HTTPS / SSE
+backend > postgres
+backend > redis
+backend > qdrant
+backend > ollama
+backend > gemini
+celery_worker > redis
+celery_worker > postgres
+celery_worker > qdrant
+celery_worker > ollama
+backend > prometheus
+prometheus > grafana

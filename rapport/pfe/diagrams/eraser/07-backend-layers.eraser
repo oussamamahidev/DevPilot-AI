@@ -1,0 +1,25 @@
+// DevPilot AI — Architecture backend en couches  (Eraser diagram-as-code)
+title Backend FastAPI — architecture en couches
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction down
+
+API [icon: server, color: blue, label: "api · routes REST + SSE"]
+Schemas [icon: file-text, color: blue, label: "schemas · Pydantic"]
+Services [icon: settings, color: purple, label: "services · logique métier"]
+Agents [icon: cpu, color: purple, label: "agents · AgenticRAGWorkflow"]
+Workers [icon: refresh-cw, color: orange, label: "workers · Celery"]
+Models [icon: box, color: green, label: "models · SQLAlchemy"]
+Core [icon: lock, color: gray, label: "core · config · sécurité"]
+DB [icon: database, color: green, label: "db · session ORM"]
+
+API > Schemas
+API > Services
+API > Core
+Services > Agents
+Services > Models
+Workers > Services
+Agents > Models
+Models > DB

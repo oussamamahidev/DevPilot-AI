@@ -116,7 +116,9 @@ class GeminiLLMProvider:
             messages=[{"role": "user", "content": prompt}],
             system_prompt=system_prompt,
         )
+        payload = _maybe_disable_thinking(payload, self.model)
         emitted = False
+        used_fallback = False
         try:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
                 async with client.stream(
@@ -154,6 +156,24 @@ class GeminiLLMProvider:
                 attempt_number=0,
                 status_code=getattr(getattr(exc, "response", None), "status_code", None),
                 error_category="stream_fallback",
+            )
+            used_fallback = True
+            response = await self.generate(prompt=prompt, system_prompt=system_prompt)
+            async for chunk in chunk_text(response.content):
+                yield chunk
+
+        if not emitted and not used_fallback:
+            # The stream connected (HTTP 200) but produced no answer text — e.g.
+            # the model consumed its budget on internal reasoning, or returned a
+            # safety/finish chunk without content. Fall back to the non-streaming
+            # endpoint, which returns the complete answer.
+            _log_gemini_event(
+                message="Gemini stream returned no text; falling back to non-streaming generation",
+                level=logging.WARNING,
+                model=self.model,
+                attempt_number=0,
+                status_code=200,
+                error_category="empty_stream_fallback",
             )
             response = await self.generate(prompt=prompt, system_prompt=system_prompt)
             async for chunk in chunk_text(response.content):
@@ -247,6 +267,7 @@ class GeminiLLMProvider:
         payload: dict[str, object],
         model: str,
     ) -> httpx.Response:
+        payload = _maybe_disable_thinking(payload, model)
         for attempt in range(self.retry_attempts + 1):
             attempt_number = attempt + 1
             try:
@@ -334,6 +355,24 @@ class GeminiLLMProvider:
                 "parts": [{"text": system_prompt.strip()}],
             }
         return payload
+
+
+def _maybe_disable_thinking(payload: dict[str, object], model: str) -> dict[str, object]:
+    """Disable the implicit "thinking" budget for Gemini 2.5 models.
+
+    The 2.5 series reserves output tokens for hidden reasoning; with a modest
+    ``maxOutputTokens`` this can consume the entire budget and yield an empty
+    answer. Setting ``thinkingBudget = 0`` directs all tokens to the response.
+    Older models (e.g. 2.0) do not accept ``thinkingConfig``, so the option is
+    only added for 2.5 models.
+    """
+    if "2.5" not in model:
+        return payload
+    generation_config = dict(payload.get("generationConfig", {}) or {})  # type: ignore[arg-type]
+    generation_config["thinkingConfig"] = {"thinkingBudget": 0}
+    updated = dict(payload)
+    updated["generationConfig"] = generation_config
+    return updated
 
 
 def _content_from_message(message: Mapping[str, str]) -> dict[str, object] | None:

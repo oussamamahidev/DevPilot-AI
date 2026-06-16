@@ -1,0 +1,298 @@
+\chapter{Architecture et réalisation}
+\label{chap:archi}
+
+Ce chapitre constitue le c{\oe}ur du travail d'ingénierie. Il détaille
+l'architecture globale et par couche, les pipelines RAG, RAGOps, de traçabilité
+et de l'AI Execution Studio, les flux d'exécution, ainsi que les aspects
+transverses de sécurité, de performance, de scalabilité et d'observabilité.
+
+\section{Architecture globale}
+\devpilot{} est un système orienté services déployé par conteneurs. La vision
+architecturale repose sur quatre principes : séparation des responsabilités en
+couches, asynchronisme pour découpler le chemin critique du traitement lourd,
+traçabilité native (chaque étape produit une trace persistée) et neutralité
+vis-à-vis des fournisseurs d'IA.
+
+\paragraph{Explication.} Le diagramme suivant présente le flux de bout en bout à
+travers les composants principaux.
+\paragraph{Hypothèses.} Les magasins de données sont distingués ; le pipeline
+agentique est synthétisé en un composant.
+
+\begin{lstlisting}[style=eraser,caption={Architecture globale et flux de données (Eraser)},label={lst:global}]
+colorMode bold
+styleMode shadow
+direction down
+
+User [icon: user]
+Client [icon: monitor, color: blue] { Frontend [icon: nextjs] }
+API Gateway [icon: server, color: blue] { FastAPI [icon: python]; Auth [icon: lock] }
+Orchestration [icon: workflow, color: purple] { Workflow [icon: cpu, label: "7 agents"] }
+Async [icon: refresh-cw, color: orange] { Redis [icon: redis]; Celery [icon: python] }
+Data [icon: database, color: green] { Postgres [icon: postgresql]; Qdrant [icon: database] }
+AI [icon: cpu, color: teal] { Ollama [icon: server]; Gemini [icon: google] }
+Obs [icon: activity, color: red] { Prometheus [icon: prometheus]; Grafana [icon: grafana] }
+
+User > Frontend: question
+Frontend > FastAPI: HTTPS / SSE
+FastAPI > Workflow
+FastAPI > Redis: enqueue
+Redis > Celery
+Workflow > Qdrant: recherche
+Workflow > Ollama: embeddings
+Workflow > Gemini: génération
+Celery > Qdrant: upsert
+FastAPI > Postgres
+Celery > Postgres
+FastAPI > Prometheus
+Prometheus > Grafana
+\end{lstlisting}
+
+\paragraph{Interprétation.} La requête synchrone traverse l'API et le pipeline ;
+l'ingestion documentaire est déléguée à Celery via Redis. PostgreSQL conserve
+l'état et les traces, Qdrant les vecteurs.
+\eraserfig{Architecture système globale}{fig:global}
+
+\section{Architecture Backend}
+Le \emph{backend} FastAPI s'organise en couches aux frontières nettes :
+\texttt{api} (routes et intégration HTTP), \texttt{core} (configuration, sécurité,
+exceptions), \texttt{db} (session et base ORM), \texttt{models} (modèles
+SQLAlchemy), \texttt{schemas} (schémas Pydantic), \texttt{services} (logique
+applicative), \texttt{agents} (orchestration agentique), \texttt{workers} (tâches
+Celery) et \texttt{utils}. Les routes restent minces et délèguent aux services, ce
+qui isole la logique métier et facilite les tests.
+
+\section{Architecture Frontend}
+Le \emph{frontend} Next.js (\emph{App Router}, React~19) adopte une organisation
+par modules fonctionnels (\texttt{features/}), un système de design fondé sur des
+jetons CSS (« Horizon », thème clair/sombre) et la gestion de l'état serveur par
+React Query. Les visualisations lourdes (AI Execution Studio, Architecture
+Explorer) sont chargées de manière différée (\emph{lazy loading}) afin de
+préserver le poids initial des routes.
+
+\section{Architecture Base de données}
+Le modèle relationnel comprend onze tables gérées par SQLAlchemy et versionnées
+par Alembic. \devpilot{} repose sur un \textbf{stockage dual} : PostgreSQL
+conserve le texte canonique des fragments et une référence \texttt{vector\_id}
+vers le point Qdrant correspondant, tandis que Qdrant stocke les vecteurs
+indexés en HNSW (distance cosinus). Cette séparation préserve l'intégrité
+référentielle tout en confiant la recherche vectorielle à un moteur spécialisé.
+
+\section{Architecture API}
+L'API est versionnée sous \texttt{/api/v1} et organisée en routeurs
+(authentification, espaces, documents, chat, système, administration, RAGOps,
+traces). Elle expose une interface REST pour les opérations CRUD et une interface
+\emph{streaming} (SSE) pour la génération. L'autorisation repose sur des
+dépendances FastAPI appliquant le contrôle d'accès par rôles.
+
+\section{Architecture RAG}
+La génération suit un pipeline en plusieurs étapes : \textbf{ingestion} (extraction
+du texte), \textbf{découpage} en fragments à fenêtres chevauchantes,
+\textbf{vectorisation} (\emph{embeddings} \texttt{nomic-embed-text}, 768
+dimensions), \textbf{indexation} dans Qdrant, \textbf{récupération} hybride
+(sémantique et lexicale) d'un ensemble large de candidats, \textbf{reclassement}
+fin, \textbf{construction du prompt} (système + contexte + question) et
+\textbf{génération} ancrée et citée. La récupération suit une stratégie « rappel
+large puis précision fine » : quinze candidats sont remontés puis réduits aux cinq
+meilleurs.
+
+\paragraph{Explication.} Le diagramme suivant détaille le flux agentique de sept
+agents coopérants.
+\paragraph{Hypothèses.} Chaque agent est isolé et persisté ; le correcteur
+n'intervient qu'en cas de réponse non fidèle.
+
+\begin{lstlisting}[style=eraser,caption={Pipeline agentique RAG (Eraser)},label={lst:pipe}]
+colorMode bold
+styleMode shadow
+direction right
+
+Question [icon: message-circle, color: blue]
+Pipeline [icon: workflow, color: purple] {
+  Router [icon: git-branch]; QueryRewriter [icon: edit]; Retrieval [icon: search]
+  Reranker [icon: bar-chart]; Generator [icon: sparkles]; Evaluator [icon: shield]; Corrector [icon: tool]
+}
+Qdrant [icon: database, color: green, label: "k=15"]
+Gemini [icon: google, color: teal]
+Answer [icon: check-circle, color: green, label: "ancrée + citée"]
+
+Question > Router > QueryRewriter > Retrieval
+Retrieval > Qdrant: 15 candidats
+Retrieval > Reranker > Generator
+Generator > Gemini: stream
+Generator > Evaluator
+Evaluator > Corrector: si non fidèle
+Evaluator > Answer: si fidèle
+Corrector > Answer
+\end{lstlisting}
+
+\paragraph{Interprétation.} Le flux est linéaire jusqu'à l'évaluation ; le
+correcteur constitue une boucle de réparation conditionnelle garantissant la
+fidélité de la réponse diffusée.
+\eraserfig{Pipeline de génération agentique}{fig:pipe}
+
+\section{Architecture RAGOps}
+RAGOps constitue la couche d'\emph{exploitation} du pipeline RAG — le pont entre
+architecture et observabilité. Là où un tableau de bord classique rapporte des
+métriques métier, RAGOps rapporte la santé et la qualité du système d'IA lui-même.
+Il agrège plusieurs dimensions :
+
+\begin{description}[leftmargin=2.6cm,style=nextline]
+\item[Health Monitoring] Santé de la collection Qdrant et état des services
+(\texttt{/admin/ragops/qdrant/health}, \texttt{ops-health}, \texttt{vector-health}).
+\item[Retrieval Analytics] Stratégie de récupération, nombre de candidats et
+qualité du contexte récupéré.
+\item[Evaluation Intelligence] Fidélité moyenne, comptage des réponses à risque
+d'hallucination et des réponses corrigées.
+\item[Embedding Analytics] Couverture d'\emph{embedding} par espace
+(\texttt{chunks\_with\_vector\_id} / \texttt{total\_chunks}).
+\item[Workspace Health] Score de santé RAG par espace (0--100) combinant ratio
+d'indexation, couverture, fidélité et fiabilité.
+\item[Agent Monitoring] Latence moyenne par agent et comptabilité des jetons et
+coûts.
+\item[Failure Center] Documents en échec et relance de l'ingestion
+(\texttt{POST /admin/ragops/documents/\{id\}/retry}).
+\item[Observability] Métriques Prometheus et tableaux de bord Grafana.
+\end{description}
+
+RAGOps est essentiel dans les systèmes d'IA d'entreprise car la qualité d'un
+pipeline RAG dérive silencieusement (documents non indexés, couverture partielle,
+hausse des hallucinations) : sans observabilité spécifique à l'IA, ces régressions
+restent invisibles jusqu'à l'incident.
+
+\section{Architecture Traceability}
+La traçabilité est modélisée comme une chaîne dirigée centrée sur le message
+assistant.
+
+\paragraph{Explication.} Le diagramme présente la lignée d'exécution persistée.
+\paragraph{Hypothèses.} Chaque message assistant agrège ses exécutions d'agents,
+ses passages, son évaluation et sa comptabilité d'usage.
+
+\begin{lstlisting}[style=eraser,caption={Chaîne de traçabilité (Eraser)},label={lst:trace}]
+colorMode bold
+styleMode shadow
+direction right
+
+Message [icon: message-square, color: blue]
+Lineage [icon: layers, color: purple] {
+  AgentRuns [icon: cpu, label: "agent_runs"]
+  RetrievedChunks [icon: file-text, label: "retrieved_chunks"]
+  Evaluations [icon: shield, label: "evaluations"]
+  LLMUsage [icon: dollar-sign, label: "llm_usage"]
+}
+Storage [icon: database, color: green, label: "PostgreSQL"]
+Inspector [icon: search, color: teal, label: "Trace Inspector"]
+
+Message > AgentRuns: 1..*
+Message > RetrievedChunks: 1..*
+Message > Evaluations: 1..1
+Message > LLMUsage: 0..*
+AgentRuns > Storage
+Evaluations > Storage
+Storage > Inspector: reconstruction
+\end{lstlisting}
+
+\paragraph{Interprétation.} Toute réponse est \emph{reconstructible a posteriori}
+à partir de ces données, sans dépendance à des journaux externes. Cela fonde
+quatre propriétés : \textbf{auditabilité} (justifier une réponse), \textbf{reproductibilité}
+(rejouer et comparer), \textbf{explicabilité} (exposer le raisonnement) et
+\textbf{débogage/gouvernance} (diagnostiquer les régressions et tracer les actions
+d'administration via le journal d'audit).
+\eraserfig{Chaîne de traçabilité}{fig:trace}
+
+\section{Architecture AI Execution Studio}
+L'AI Execution Studio transforme le pipeline RAG en une expérience animée en temps
+réel : au lieu d'afficher des métriques, il donne à voir le raisonnement du système.
+Il est piloté par les \emph{mêmes API réelles} que le chat (flux SSE + endpoints de
+trace). Il visualise séquentiellement les dix étapes : question, \emph{embedding},
+recherche vectorielle, récupération des fragments, reclassement, construction du
+contexte, construction du prompt, génération (\emph{streaming} de jetons),
+évaluation (jauges animées) et persistance de la trace. Sa valeur est double :
+\textbf{pédagogique} (comprendre le RAG en une trentaine de secondes) et
+\textbf{d'observabilité} (visualiser où se dépensent la latence et la qualité).
+
+\section{Flux d'ingestion}
+L'ingestion est entièrement asynchrone (cf. figure~\ref{fig:seq-ingest}) : l'API
+persiste le document avec le statut \texttt{pending} et délègue à Celery la tâche
+\texttt{process\_document\_task}, relancée jusqu'à trois fois en cas d'échec, avant
+passage au statut \texttt{failed}.
+
+\section{Flux de recherche}
+La recherche vectorise la requête réécrite, interroge Qdrant pour un ensemble de
+candidats, fusionne signaux sémantiques et lexicaux (récupération hybride), puis
+reclasse pour ne conserver que les passages les plus pertinents dans la limite du
+budget de contexte (6000 caractères).
+
+\section{Flux de génération}
+Le générateur construit le prompt final (système + contexte + question) et produit
+une réponse ancrée. Les fragments retenus sont reliés à des marqueurs de citation
+\texttt{[n]} ; un mécanisme garantit la présence d'au moins une citation lorsque
+du contexte est disponible.
+
+\section{Flux de streaming SSE}
+La diffusion repose sur \emph{Server-Sent Events} : le \emph{backend} renvoie une
+\texttt{StreamingResponse} (\texttt{text/event-stream}, en-tête
+\texttt{X-Accel-Buffering: no}) émettant une séquence d'événements typés
+(\texttt{start}, \texttt{trace}, \texttt{token}, \texttt{citations},
+\texttt{evaluation}, \texttt{correction}, \texttt{message}, \texttt{done},
+\texttt{error}). Le \emph{streaming} repose sur l'API \texttt{streamGenerateContent}
+de Gemini ; côté client, le flux est consommé via \texttt{fetch} et un
+\texttt{ReadableStream}. Le listing~\ref{lst:sse} illustre le générateur côté
+serveur.
+
+\begin{lstlisting}[style=code,language=Python,caption={Génération du flux SSE (extrait)},label={lst:sse}]
+async def event_stream() -> AsyncIterator[str]:
+    async for event, data in chat_service.stream_chat_events(...):
+        yield sse_event(event, data)
+
+return StreamingResponse(
+    event_stream(),
+    media_type="text/event-stream",
+    headers={"X-Accel-Buffering": "no"},
+)
+\end{lstlisting}
+
+\section{Sécurité}
+La sécurité est multicouche : authentification JWT, autorisation par rôles,
+isolation des données par espace de travail (toute requête est cantonnée aux
+espaces dont l'utilisateur est membre), journalisation des actions
+d'administration et masquage systématique des secrets (clés contenant
+\emph{password}, \emph{secret}, \emph{token}, \emph{api\_key}) dans les vues de
+débogage et de traçabilité.
+
+\section{Authentification JWT}
+L'authentification repose sur des jetons JWT signés, émis à la connexion et
+transmis dans l'en-tête \texttt{Authorization: Bearer}. Les dépendances FastAPI
+résolvent l'utilisateur courant et vérifient son activité avant tout accès aux
+ressources protégées.
+
+\section{Gestion des permissions}
+Trois rôles structurent l'accès : \texttt{user}, \texttt{admin} et
+\texttt{super\_admin}. Le contrôle s'applique à deux niveaux : par route (les
+\emph{endpoints} d'administration, RAGOps et traces exigent un rôle privilégié) et
+par espace de travail (l'appartenance conditionne l'accès aux documents et
+conversations).
+
+\section{Performance}
+Les leviers de performance sont l'asynchronisme bout-en-bout (E/S non bloquantes,
+déport du calcul lourd vers Celery), la recherche HNSW sous-linéaire, le
+\emph{streaming} (réduction du \emph{time-to-first-token}), ainsi que le
+chargement différé et le découpage des \emph{bundles} côté \emph{frontend}
+(routes de 110 à 175~kB environ).
+
+\section{Scalabilité}
+Le \emph{backend} sans état est horizontalement extensible derrière un répartiteur
+de charge ; les \emph{workers} Celery se multiplient pour absorber les pics
+d'ingestion ; Qdrant supporte le partitionnement et PostgreSQL la réplication en
+lecture.
+
+\section{Observabilité}
+L'observabilité opère à trois niveaux complémentaires : métriques système
+(Prometheus, tableaux Grafana), exploitation applicative (RAGOps) et traçabilité
+des requêtes (explorateur et inspecteur de traces), auxquels s'ajoute la
+visualisation pédagogique de l'AI Execution Studio.
+
+\section{Conclusion}
+L'architecture de \devpilot{} traduit ses principes directeurs en un système
+concret, en couches, asynchrone, traçable et neutre vis-à-vis des fournisseurs
+d'IA. Les pipelines documentaire, de récupération, de génération agentique et
+d'évaluation, instrumentés par RAGOps et la traçabilité, forment un tout cohérent.
+Le chapitre suivant justifie les choix technologiques et détaille l'implémentation.

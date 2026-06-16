@@ -1,0 +1,15 @@
+@startuml
+actor Admin
+participant "Frontend" as FE
+participant "API Admin" as API
+database "PostgreSQL" as PG
+
+Admin -> FE : ouvrir /admin/rag-traces/{id}
+FE -> API : GET trace + retrieval + reranking + evaluation
+activate API
+API -> PG : lire la lignée du message
+PG --> API : agent_runs, retrieved_chunks, evaluations
+API --> FE : trace complète
+deactivate API
+FE --> Admin : reconstruction des 9 sections
+@enduml

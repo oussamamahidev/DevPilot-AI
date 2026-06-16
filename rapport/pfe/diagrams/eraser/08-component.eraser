@@ -1,0 +1,30 @@
+// DevPilot AI — Diagramme de composants  (Eraser diagram-as-code)
+title DevPilot AI — Composants et dépendances
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction down
+
+Frontend [icon: nextjs, color: blue, label: "Frontend Next.js"]
+API [icon: python, color: blue, label: "API FastAPI"]
+Workflow [icon: cpu, color: purple, label: "Pipeline agentique"]
+Celery [icon: refresh-cw, color: orange, label: "Celery worker"]
+Redis [icon: redis, color: orange]
+Postgres [icon: postgresql, color: green]
+Qdrant [icon: database, color: green]
+Ollama [icon: server, color: teal]
+Gemini [icon: google, color: teal]
+Observability [icon: activity, color: red, label: "Prometheus / Grafana"]
+
+Frontend > API
+API > Workflow
+API > Postgres
+API > Redis
+Redis > Celery
+Workflow > Qdrant
+Workflow > Ollama
+Workflow > Gemini
+Celery > Postgres
+Celery > Qdrant
+API > Observability

@@ -1,0 +1,67 @@
+%====================== CONCLUSION GÉNÉRALE ======================
+\chapter*{Conclusion générale}
+\addcontentsline{toc}{chapter}{Conclusion générale}
+\markboth{Conclusion générale}{Conclusion générale}
+
+Ce projet de fin d'études a abouti à la conception et à la réalisation de
+\devpilot{}, une plateforme agentique de RAG de qualité production. L'objectif
+initial — combler l'écart entre la puissance générative des grands modèles de
+langage et l'exigence de réponses \emph{fondées}, \emph{citées}, \emph{mesurées}
+et \emph{traçables} — est atteint et validé sur l'ensemble du pipeline.
+
+\paragraph{Réalisations.} La plateforme centralise les connaissances en espaces
+isolés, les ingère de façon asynchrone, les indexe vectoriellement, et restitue
+des réponses ancrées et citées via un flux agentique de sept agents diffusé en
+\emph{streaming}. Chaque réponse est évaluée et, le cas échéant, corrigée.
+L'ensemble est instrumenté par trois contributions distinctives : la tour de
+contrôle \textbf{RAGOps}, le sous-système de \textbf{traçabilité} (explorateur et
+inspecteur de traces) et l'\textbf{AI Execution Studio}.
+
+\paragraph{Maturité architecturale.} L'architecture en couches, asynchrone et
+neutre vis-à-vis des fournisseurs d'IA, la discipline de typage statique de bout
+en bout, la conteneurisation complète et la fondation de tests confèrent au
+système une maturité dépassant celle d'un prototype académique.
+
+\paragraph{Compétences acquises.} Ce travail a consolidé des compétences en
+architecture des systèmes distribués, en ingénierie des plateformes d'IA (RAG,
+agents, évaluation), en observabilité et traçabilité, ainsi qu'en ingénierie
+\emph{frontend} avancée et en pratiques DevOps.
+
+\paragraph{Enseignement principal.} La valeur d'une plateforme d'IA d'entreprise
+ne réside pas seulement dans la qualité de ses réponses, mais dans leur
+\emph{auditabilité} et leur \emph{exploitabilité}. Concevoir pour l'observabilité
+dès l'origine et raisonner systématiquement en compromis d'ingénierie ont été les
+leviers déterminants de ce projet.
+
+%====================== TRAVAUX FUTURS ======================
+\chapter*{Perspectives et travaux futurs}
+\addcontentsline{toc}{chapter}{Perspectives et travaux futurs}
+\markboth{Perspectives}{Perspectives}
+
+Plusieurs axes d'évolution prolongent naturellement ce travail.
+
+\begin{description}[leftmargin=2.4cm,style=nextline]
+\item[Orchestration multi-agents] Adoption d'un graphe d'exécution explicite
+(type LangGraph) pour modéliser les transitions, les boucles et les stratégies de
+repli du flux agentique.
+\item[RAG avancé] Récupération hybride enrichie, fenêtre de contexte adaptative,
+et \textbf{GraphRAG} exploitant un graphe de connaissances pour les questions
+multi-sauts.
+\item[Évaluation formelle] Intégration de RAGAS~\cite{es2023} et de jeux
+d'évaluation versionnés pour un suivi longitudinal de la qualité.
+\item[MCP et connecteurs d'entreprise] Intégration du \emph{Model Context
+Protocol} et de connecteurs (dépôts de code, wikis, tickets) pour étendre les
+sources de connaissance.
+\item[Agents autonomes] Agents capables de planifier des actions multi-étapes et
+d'invoquer des outils sous contrôle de gouvernance.
+\item[RAGOps avancé et gouvernance de l'IA] Détection d'anomalies, budgets de
+coût et de latence, politiques de rétention, et pistes d'audit étendues pour la
+gouvernance de l'IA.
+\item[Déploiement cloud et multi-tenant] Migration vers une orchestration
+Kubernetes, cloisonnement organisationnel, quotas et facturation par locataire.
+\end{description}
+
+Ces perspectives s'appuient sur les fondations posées — traçabilité native,
+architecture découplée et observabilité — et visent à faire évoluer \devpilot{}
+d'une plateforme de démonstration aboutie vers un produit d'entreprise à grande
+échelle.

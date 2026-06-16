@@ -1,0 +1,35 @@
+// DevPilot AI — Pipeline RAG agentique  (Eraser diagram-as-code)
+title Pipeline RAG agentique — 7 agents
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction right
+
+Question [icon: message-circle, color: blue]
+
+Pipeline [icon: workflow, color: purple] {
+  Router [icon: git-branch, label: "Router"]
+  QueryRewriter [icon: edit, label: "Query Rewriter"]
+  Retrieval [icon: search, label: "Retrieval"]
+  Reranker [icon: bar-chart, label: "Reranker"]
+  Generator [icon: sparkles, label: "Generator"]
+  Evaluator [icon: shield, label: "Evaluator"]
+  Corrector [icon: tool, label: "Corrector"]
+}
+
+Qdrant [icon: database, color: green, label: "Qdrant · k=15"]
+Gemini [icon: google, color: teal, label: "Gemini 2.5 Flash"]
+Answer [icon: check-circle, color: green, label: "Réponse ancrée + citée"]
+
+Question > Router
+Router > QueryRewriter
+QueryRewriter > Retrieval
+Retrieval > Qdrant: 15 candidats
+Retrieval > Reranker
+Reranker > Generator: top 5
+Generator > Gemini: stream
+Generator > Evaluator
+Evaluator > Corrector: si non fidèle
+Evaluator > Answer: si fidèle
+Corrector > Answer

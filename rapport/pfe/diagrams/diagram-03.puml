@@ -1,0 +1,25 @@
+@startuml
+class users { +id : UUID\n+email\n+role\n+is_active }
+class workspaces { +id : UUID\n+name\n+owner_id }
+class workspace_members { +id : UUID\n+role }
+class documents { +id : UUID\n+filename\n+status }
+class chunks { +id : UUID\n+chunk_index\n+vector_id }
+class conversations { +id : UUID\n+title }
+class messages { +id : UUID\n+role\n+content }
+class agent_runs { +id : UUID\n+agent_type\n+latency_ms }
+class retrieved_chunks { +id : UUID\n+rank\n+score }
+class evaluations { +id : UUID\n+faithfulness\n+hallucination_score }
+class llm_usage { +id : UUID\n+total_tokens\n+cost_usd }
+
+users "1" -- "0..*" workspaces
+users "1" -- "0..*" workspace_members
+workspaces "1" -- "0..*" workspace_members
+workspaces "1" *-- "0..*" documents
+documents "1" *-- "0..*" chunks
+users "1" -- "0..*" conversations
+conversations "1" *-- "1..*" messages
+messages "1" -- "0..*" agent_runs
+messages "1" -- "0..*" retrieved_chunks
+messages "1" -- "1" evaluations
+messages "1" -- "0..*" llm_usage
+@enduml

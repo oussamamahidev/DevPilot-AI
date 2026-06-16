@@ -1,0 +1,521 @@
+\chapter{Analyse et conception}
+\label{chap:conception}
+
+Ce chapitre formalise la conception de \devpilot{} : identification des acteurs,
+cas d'utilisation, modèle du domaine, diagrammes de classes, de séquence, modèle
+de données, et vues d'architecture (logique, physique, déploiement, composants,
+paquets, communication). Une attention particulière est portée à la modélisation
+des quatre modules distinctifs : le moteur RAG, RAGOps, le système de traçabilité
+et l'AI Execution Studio. Chaque diagramme est introduit par son explication, ses
+hypothèses de modélisation, son code PlantUML et son interprétation.
+
+\section{Identification des acteurs}
+Trois acteurs humains interagissent avec le système, selon une hiérarchie de
+droits : l'\textbf{Utilisateur} (membre d'une équipe d'ingénierie), l'\textbf{Administrateur}
+(gestion de la plateforme) et le \textbf{Super-administrateur} (observabilité
+approfondie). Trois acteurs systèmes externes participent au pipeline :
+\textbf{Qdrant} (base vectorielle), \textbf{Ollama} (\emph{embeddings}) et
+\textbf{Gemini} (génération).
+
+\section{Cas d'utilisation}
+Les cas d'utilisation clés sont : gérer un espace de travail, téléverser et suivre
+un document, poser une question (RAG) et recevoir une réponse citée en
+\emph{streaming}, consulter l'historique, superviser les pipelines (RAGOps) et
+inspecter une trace. Le tableau~\ref{tab:uc} détaille le cas pivot.
+
+\begin{table}[H]
+\centering\caption{Cas d'utilisation détaillé : « Poser une question (RAG) »}
+\label{tab:uc}\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Acteur & Utilisateur authentifié, membre d'un espace de travail \\
+Pré-condition & L'espace contient au moins un document indexé \\
+Déclencheur & Soumission d'une question dans l'interface de chat \\
+Scénario nominal & Router, réécriture, récupération, reclassement, génération, évaluation, correction, diffusion en \emph{streaming} \\
+Post-condition & Message, agents, passages et évaluation persistés \\
+Exceptions & Aucun passage pertinent $\rightarrow$ repli explicite ; échec LLM $\rightarrow$ modèle de \emph{fallback} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagramme de cas d'utilisation}
+\paragraph{Explication.} Ce diagramme présente les acteurs et leurs interactions
+avec les fonctionnalités principales, ainsi que la relation d'héritage entre rôles.
+\paragraph{Hypothèses.} Les acteurs systèmes (Qdrant, Ollama, Gemini) sont
+représentés comme acteurs secondaires sollicités par le cas « Poser une question ».
+Le super-administrateur hérite de l'administrateur, qui hérite de l'utilisateur.
+
+\begin{lstlisting}[style=plantuml,caption={Diagramme de cas d'utilisation},label={lst:uc}]
+@startuml
+left to right direction
+actor Utilisateur as U
+actor Administrateur as A
+actor "Super-administrateur" as S
+actor Qdrant as Q
+actor Gemini as G
+
+A --|> U
+S --|> A
+
+rectangle "DevPilot AI" {
+  usecase "Gérer un espace" as UC1
+  usecase "Téléverser un document" as UC2
+  usecase "Poser une question (RAG)" as UC3
+  usecase "Consulter l'historique" as UC4
+  usecase "Administrer les utilisateurs" as UC5
+  usecase "Superviser (RAGOps)" as UC6
+  usecase "Inspecter une trace" as UC7
+}
+
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+A --> UC5
+A --> UC6
+S --> UC7
+UC3 ..> Q : <<include>>
+UC3 ..> G : <<include>>
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} L'utilisateur dispose des cas métier (espaces,
+documents, RAG, historique). L'administrateur ajoute la supervision, le
+super-administrateur l'inspection fine. Le cas RAG inclut systématiquement la
+recherche vectorielle et la génération.
+\plantumlfig{Diagramme de cas d'utilisation global}{fig:uc}
+
+\section{Modèle du domaine}
+\paragraph{Explication.} Le modèle du domaine articule les concepts métier
+centraux et leurs relations, indépendamment de la persistance.
+\paragraph{Hypothèses.} La \emph{Trace} est élevée au rang de concept du domaine
+(agrégat des exécutions d'agents, passages récupérés et évaluation), choix
+déterminant pour l'observabilité.
+
+\begin{lstlisting}[style=plantuml,caption={Modèle du domaine},label={lst:domaine}]
+@startuml
+class Utilisateur
+class EspaceTravail
+class Adhesion
+class Document
+class Chunk
+class Conversation
+class Message
+class Trace
+
+Utilisateur "1" -- "0..*" Adhesion
+EspaceTravail "1" -- "0..*" Adhesion
+EspaceTravail "1" -- "0..*" Document
+Document "1" *-- "0..*" Chunk
+Utilisateur "1" -- "0..*" Conversation
+Conversation "1" *-- "1..*" Message
+Message "1" -- "0..1" Trace
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} Un utilisateur accède aux espaces via des adhésions ;
+un espace contient des documents découpés en \emph{chunks} ; les conversations
+agrègent des messages, et chaque message assistant porte une trace.
+\plantumlfig{Modèle du domaine}{fig:domaine}
+
+\section{Diagrammes de classes}
+\subsection{Entités persistantes}
+\paragraph{Explication.} Ce diagramme présente les onze entités persistantes avec
+leurs attributs clés et leurs cardinalités.
+\paragraph{Hypothèses.} Les identifiants sont des UUID ; les attributs techniques
+communs (horodatages) sont omis pour la lisibilité.
+
+\begin{lstlisting}[style=plantuml,caption={Diagramme de classes — entités persistantes},label={lst:classes}]
+@startuml
+class users { +id : UUID\n+email\n+role\n+is_active }
+class workspaces { +id : UUID\n+name\n+owner_id }
+class workspace_members { +id : UUID\n+role }
+class documents { +id : UUID\n+filename\n+status }
+class chunks { +id : UUID\n+chunk_index\n+vector_id }
+class conversations { +id : UUID\n+title }
+class messages { +id : UUID\n+role\n+content }
+class agent_runs { +id : UUID\n+agent_type\n+latency_ms }
+class retrieved_chunks { +id : UUID\n+rank\n+score }
+class evaluations { +id : UUID\n+faithfulness\n+hallucination_score }
+class llm_usage { +id : UUID\n+total_tokens\n+cost_usd }
+
+users "1" -- "0..*" workspaces
+users "1" -- "0..*" workspace_members
+workspaces "1" -- "0..*" workspace_members
+workspaces "1" *-- "0..*" documents
+documents "1" *-- "0..*" chunks
+users "1" -- "0..*" conversations
+conversations "1" *-- "1..*" messages
+messages "1" -- "0..*" agent_runs
+messages "1" -- "0..*" retrieved_chunks
+messages "1" -- "1" evaluations
+messages "1" -- "0..*" llm_usage
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} Les compositions (\emph{chunks} dans \emph{documents},
+\emph{messages} dans \emph{conversations}) traduisent un cycle de vie lié ; la
+relation 1--1 entre \texttt{messages} et \texttt{evaluations} formalise l'unicité
+de l'évaluation par réponse.
+\plantumlfig{Diagramme de classes des entités persistantes}{fig:classes}
+
+\subsection{Moteur agentique}
+\paragraph{Explication.} Ce diagramme modélise le flux agentique : un orchestrateur
+coordonne sept agents, appuyés par des services applicatifs.
+\paragraph{Hypothèses.} Les agents partagent une interface commune d'exécution ;
+seuls les services principaux sont représentés.
+
+\begin{lstlisting}[style=plantuml,caption={Diagramme de classes — moteur agentique},label={lst:agents}]
+@startuml
+class AgenticRAGWorkflow {
+  +run(question) : Result
+}
+interface Agent {
+  +execute(ctx)
+}
+class RouterAgent
+class QueryRewriterAgent
+class RetrievalAgent
+class RerankerAgent
+class GeneratorAgent
+class EvaluatorAgent
+class CorrectorAgent
+class RetrievalService
+class RerankingService
+class EvaluationService
+class RagTracesService
+
+RouterAgent ..|> Agent
+QueryRewriterAgent ..|> Agent
+RetrievalAgent ..|> Agent
+RerankerAgent ..|> Agent
+GeneratorAgent ..|> Agent
+EvaluatorAgent ..|> Agent
+CorrectorAgent ..|> Agent
+
+AgenticRAGWorkflow o-- RouterAgent
+AgenticRAGWorkflow o-- QueryRewriterAgent
+AgenticRAGWorkflow o-- RetrievalAgent
+AgenticRAGWorkflow o-- RerankerAgent
+AgenticRAGWorkflow o-- GeneratorAgent
+AgenticRAGWorkflow o-- EvaluatorAgent
+AgenticRAGWorkflow o-- CorrectorAgent
+RetrievalAgent --> RetrievalService
+RerankerAgent --> RerankingService
+EvaluatorAgent --> EvaluationService
+AgenticRAGWorkflow --> RagTracesService
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} L'orchestrateur agrège les sept agents (agrégation
+\texttt{o--}) qui réalisent une interface commune ; les agents délèguent aux
+services métier la récupération, le reclassement et l'évaluation.
+\plantumlfig{Diagramme de classes du moteur agentique}{fig:agents}
+
+\section{Diagrammes de séquence}
+\subsection{Ingestion documentaire asynchrone}
+\paragraph{Explication.} Séquence du téléversement à l'indexation, exécutée hors
+du chemin critique par Celery.
+\paragraph{Hypothèses.} Le stockage de fichiers et la base relationnelle sont
+distingués ; la réponse HTTP est immédiate (202).
+
+\begin{lstlisting}[style=plantuml,caption={Séquence — ingestion documentaire},label={lst:seq-ingest}]
+@startuml
+actor Client
+participant "API (FastAPI)" as API
+participant "Stockage" as ST
+participant "Celery" as CEL
+participant "Qdrant" as QD
+
+Client -> API : POST /documents (fichier)
+activate API
+API -> ST : persister fichier + métadonnées
+API -> CEL : enqueue process_document_task
+API --> Client : 202 Accepted (statut=pending)
+deactivate API
+activate CEL
+CEL -> ST : lire + extraire le texte
+CEL -> CEL : découper + vectoriser (768-d)
+CEL -> QD : upsert vecteurs
+CEL -> ST : statut = indexed
+deactivate CEL
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} L'API rend la main immédiatement ; le \emph{worker}
+réalise l'extraction, le découpage, la vectorisation et l'indexation, puis met à
+jour le statut du document.
+\plantumlfig{Diagramme de séquence — ingestion asynchrone}{fig:seq-ingest}
+
+\subsection{Requête RAG en streaming}
+\paragraph{Explication.} Séquence de la requête RAG diffusée en \emph{streaming}
+SSE à travers le flux agentique.
+\paragraph{Hypothèses.} Les sept agents sont synthétisés au niveau du
+\texttt{Workflow} ; les événements SSE sont émis au fil de l'eau.
+
+\begin{lstlisting}[style=plantuml,caption={Séquence — requête RAG en streaming},label={lst:seq-rag}]
+@startuml
+actor Client
+participant "API (SSE)" as API
+participant "Workflow" as WF
+participant "Qdrant" as QD
+participant "Gemini" as LLM
+
+Client -> API : POST /chat/stream (question)
+activate API
+API -> WF : exécuter le pipeline
+activate WF
+WF -> WF : router + réécriture
+WF -> QD : récupérer candidats (k=15)
+QD --> WF : passages + scores
+WF -> WF : reclasser (top 5)
+API --> Client : event: trace / citations
+WF -> LLM : générer (stream)
+LLM --> WF : flux de jetons
+API --> Client : event: token (xN)
+WF -> WF : évaluer + corriger
+API --> Client : event: evaluation / message / done
+deactivate WF
+deactivate API
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} La diffusion entrelace les étapes du pipeline et les
+événements SSE : les citations précèdent les jetons, suivis de l'évaluation et de
+l'événement de clôture.
+\plantumlfig{Diagramme de séquence — requête RAG en streaming}{fig:seq-rag}
+
+\subsection{Inspection d'une trace}
+\paragraph{Explication.} Séquence de consultation d'une trace par
+l'administrateur.
+\paragraph{Hypothèses.} L'inspecteur agrège quatre appels parallèles (trace,
+récupération, reclassement, évaluation).
+
+\begin{lstlisting}[style=plantuml,caption={Séquence — inspection de trace},label={lst:seq-trace}]
+@startuml
+actor Admin
+participant "Frontend" as FE
+participant "API Admin" as API
+database "PostgreSQL" as PG
+
+Admin -> FE : ouvrir /admin/rag-traces/{id}
+FE -> API : GET trace + retrieval + reranking + evaluation
+activate API
+API -> PG : lire la lignée du message
+PG --> API : agent_runs, retrieved_chunks, evaluations
+API --> FE : trace complète
+deactivate API
+FE --> Admin : reconstruction des 9 sections
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} La trace est reconstruite intégralement à partir des
+données persistées, sans dépendance à des journaux externes.
+\plantumlfig{Diagramme de séquence — inspection de trace}{fig:seq-trace}
+
+\section{Modèle de données}
+\paragraph{Explication.} Le modèle relationnel comprend onze tables ; la
+figure~\ref{fig:erd} en présente la vue entité-association.
+\paragraph{Hypothèses.} Les clés étrangères sont implicites dans les associations ;
+les colonnes techniques sont omises.
+
+\begin{lstlisting}[style=plantuml,caption={Modèle de données (ERD)},label={lst:erd}]
+@startuml
+entity users
+entity workspaces
+entity workspace_members
+entity documents
+entity chunks
+entity conversations
+entity messages
+entity agent_runs
+entity retrieved_chunks
+entity evaluations
+entity llm_usage
+
+users ||--o{ workspaces
+users ||--o{ workspace_members
+workspaces ||--o{ workspace_members
+workspaces ||--o{ documents
+documents ||--o{ chunks
+users ||--o{ conversations
+conversations ||--o{ messages
+messages ||--o{ agent_runs
+messages ||--o{ retrieved_chunks
+messages ||--|| evaluations
+messages ||--o{ llm_usage
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} Le schéma matérialise la chaîne de traçabilité
+\texttt{message} $\rightarrow$ \texttt{agent\_runs} $\rightarrow$
+\texttt{retrieved\_chunks} $\rightarrow$ \texttt{evaluations}, complétée par
+\texttt{llm\_usage}.
+\plantumlfig{Modèle de données — vue entité-association}{fig:erd}
+
+\section{Architecture logique}
+L'application s'organise en couches aux responsabilités strictes : présentation
+(\emph{frontend}), application (API et services), domaine IA (pipeline agentique),
+traitement asynchrone (Celery) et données (PostgreSQL, Qdrant, stockage). Les
+dépendances ne circulent que du haut vers le bas, condition de la maintenabilité.
+
+\section{Architecture physique}
+Les composants sont déployés sous forme de conteneurs indépendants communiquant
+par le réseau : services applicatifs sans état, magasins de données persistants et
+services d'IA (Ollama local, Gemini distant). Cette séparation autorise une montée
+en charge ciblée de chaque composant.
+
+\section{Architecture de déploiement}
+\paragraph{Explication.} Diagramme de déploiement des huit services conteneurisés,
+de l'hôte Ollama et de l'API Gemini externe.
+\paragraph{Hypothèses.} Un n{\oe}ud unique héberge les conteneurs ; Ollama
+s'exécute sur l'hôte, Gemini est un service \emph{cloud}.
+
+\begin{lstlisting}[style=eraser,caption={Diagramme de déploiement (Eraser)},label={lst:deploy}]
+colorMode bold
+styleMode shadow
+direction down
+
+Docker Host [icon: docker, color: blue] {
+  frontend [icon: nextjs, label: "frontend (3001)"]
+  backend [icon: python, label: "backend uvicorn (8000)"]
+  celery_worker [icon: python]
+  postgres [icon: postgresql, label: "postgres:16"]
+  redis [icon: redis, label: "redis:7"]
+  qdrant [icon: database, label: "qdrant 1.12"]
+  prometheus [icon: prometheus]
+  grafana [icon: grafana]
+}
+Ollama Host [icon: server, color: teal] { ollama [icon: cpu, label: "Ollama :11434"] }
+Gemini Cloud [icon: google, color: orange] { gemini [icon: cloud, label: "Gemini API"] }
+
+frontend > backend: HTTPS / SSE
+backend > postgres
+backend > redis
+backend > qdrant
+backend > ollama
+backend > gemini
+celery_worker > redis
+celery_worker > postgres
+celery_worker > qdrant
+backend > prometheus
+prometheus > grafana
+\end{lstlisting}
+
+\paragraph{Interprétation.} Le \emph{backend} et le \emph{worker} partagent les
+magasins de données ; Redis relie l'API au \emph{worker} ; l'observabilité repose
+sur Prometheus et Grafana.
+\eraserfig{Diagramme de déploiement}{fig:deploy}
+
+\section{Diagramme de composants}
+\paragraph{Explication.} Vue des composants applicatifs et de leurs dépendances.
+\paragraph{Hypothèses.} Les interfaces réseau (REST, SSE) sont représentées par
+les flèches de dépendance.
+
+\begin{lstlisting}[style=eraser,caption={Diagramme de composants (Eraser)},label={lst:comp}]
+colorMode bold
+styleMode shadow
+direction down
+
+Frontend [icon: nextjs, color: blue]
+API [icon: python, color: blue, label: "API FastAPI"]
+Workflow [icon: cpu, color: purple, label: "Pipeline agentique"]
+Celery [icon: refresh-cw, color: orange]
+Redis [icon: redis, color: orange]
+Postgres [icon: postgresql, color: green]
+Qdrant [icon: database, color: green]
+Ollama [icon: server, color: teal]
+Gemini [icon: google, color: teal]
+Observability [icon: activity, color: red, label: "Prometheus / Grafana"]
+
+Frontend > API
+API > Workflow
+API > Postgres
+API > Redis
+Redis > Celery
+Workflow > Qdrant
+Workflow > Ollama
+Workflow > Gemini
+Celery > Postgres
+Celery > Qdrant
+API > Observability
+\end{lstlisting}
+
+\paragraph{Interprétation.} Le \emph{frontend} ne dépend que de l'API ; le
+pipeline agentique concentre les dépendances vers Qdrant et les fournisseurs d'IA.
+\eraserfig{Diagramme de composants}{fig:comp}
+
+\section{Diagramme de paquets}
+\paragraph{Explication.} Organisation modulaire du code \emph{backend} et
+\emph{frontend}.
+\paragraph{Hypothèses.} Seuls les paquets principaux sont représentés.
+
+\begin{lstlisting}[style=plantuml,caption={Diagramme de paquets},label={lst:pkg}]
+@startuml
+package "backend.app" {
+  package api
+  package core
+  package db
+  package models
+  package schemas
+  package services
+  package agents
+  package workers
+  package utils
+}
+package "frontend" {
+  package app
+  package components
+  package features
+  package lib
+}
+api --> services
+services --> models
+services --> agents
+agents --> utils
+workers --> services
+app --> features
+features --> components
+features --> lib
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} Le découpage en paquets reflète la séparation des
+responsabilités : routes, logique métier, agents et accès aux données côté
+serveur ; pages, modules fonctionnels, composants et bibliothèques côté client.
+\plantumlfig{Diagramme de paquets}{fig:pkg}
+
+\section{Diagramme de communication}
+\paragraph{Explication.} Vue de collaboration numérotée de la requête RAG.
+\paragraph{Hypothèses.} Les messages sont ordonnés selon la séquence
+d'exécution.
+
+\begin{lstlisting}[style=plantuml,caption={Diagramme de communication — requête RAG},label={lst:comm}]
+@startuml
+object Client
+object API
+object Workflow
+object Qdrant
+object Gemini
+
+Client -> API : 1: question
+API -> Workflow : 2: exécuter
+Workflow -> Qdrant : 3: récupérer
+Qdrant -> Workflow : 4: passages
+Workflow -> Gemini : 5: générer
+Gemini -> Workflow : 6: jetons
+Workflow -> API : 7: trace + réponse
+API -> Client : 8: stream + citations
+@enduml
+\end{lstlisting}
+
+\paragraph{Interprétation.} La numérotation explicite l'ordre des échanges et met
+en évidence le rôle central de l'orchestrateur dans la coordination.
+\plantumlfig{Diagramme de communication}{fig:comm}
+
+\section{Conclusion}
+La conception traduit les besoins en modèles exploitables : cas d'utilisation,
+modèle du domaine, diagrammes de classes (entités et moteur agentique), scénarios
+d'interaction, modèle de données à onze tables et vues d'architecture. La
+modélisation explicite de la trace et du flux agentique prépare directement
+l'architecture détaillée au chapitre~\ref{chap:archi}.
