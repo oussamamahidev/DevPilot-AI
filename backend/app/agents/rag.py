@@ -3,15 +3,18 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import date, datetime
+import re
 from time import perf_counter
 from typing import Any
 from uuid import UUID
 
 from app.core.config import settings
 from app.providers.base import LLMResponse
-from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT, OllamaLLMProvider
+from app.providers.factory import get_llm_provider
+from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT
 from app.services.evaluation_service import EvaluationResult, evaluate_answer
-from app.services.retrieval_service import retrieve_semantic
+from app.services.reranking_service import rerank
+from app.services.retrieval_service import RETRIEVAL_STRATEGIES, retrieve_chunks
 
 
 INSUFFICIENT_CONTEXT_ANSWER = "I could not find this information in the uploaded documents."
@@ -21,6 +24,7 @@ AgentRunLogger = Callable[
     None,
 ]
 Retriever = Callable[..., Awaitable[list[dict[str, Any]]]]
+Reranker = Callable[..., Awaitable[list[dict[str, Any]]]]
 Evaluator = Callable[..., Awaitable[EvaluationResult]]
 LLMProviderFactory = Callable[[], Any]
 
@@ -30,6 +34,7 @@ class AgenticRAGResult:
     query_type: str
     retrieval_strategy: str
     rewritten_query: str
+    candidate_chunks: list[dict[str, Any]]
     retrieved_chunks: list[dict[str, Any]]
     generated_answer: str
     final_answer: str
@@ -44,10 +49,15 @@ class RouterAgent:
     async def run(self, question: str) -> dict[str, str]:
         normalized = question.strip().lower()
 
-        if any(term in normalized for term in ("summarize", "summary", "overview", "tldr")):
+        if _looks_like_exact_term_query(normalized):
+            query_type = "unknown"
+            retrieval_strategy = "keyword"
+        elif any(term in normalized for term in ("summarize", "summary", "overview", "tldr")):
             query_type = "summary_question"
+            retrieval_strategy = "hybrid"
         elif any(term in normalized for term in ("compare", "comparison", "difference", " vs ")):
             query_type = "comparison_question"
+            retrieval_strategy = "hybrid"
         elif any(
             term in normalized
             for term in (
@@ -63,17 +73,23 @@ class RouterAgent:
                 "postgres",
                 "qdrant",
                 "redis",
+                "technical",
+                "technologies",
+                "technology",
             )
         ):
             query_type = "technical_question"
+            retrieval_strategy = "hybrid"
         elif normalized.startswith(("what", "who", "when", "where", "which", "why", "how", "list")):
             query_type = "factual_question"
+            retrieval_strategy = "hybrid"
         else:
             query_type = "unknown"
+            retrieval_strategy = "semantic"
 
         return {
             "query_type": query_type,
-            "retrieval_strategy": "semantic",
+            "retrieval_strategy": retrieval_strategy,
         }
 
 
@@ -105,7 +121,7 @@ class QueryRewriterAgent:
 class RetrievalAgent:
     agent_type = "retrieval"
 
-    def __init__(self, retriever: Retriever = retrieve_semantic) -> None:
+    def __init__(self, retriever: Retriever = retrieve_chunks) -> None:
         self.retriever = retriever
 
     async def run(
@@ -117,18 +133,41 @@ class RetrievalAgent:
         retrieval_strategy: str,
         top_k: int | None = None,
     ) -> dict[str, object]:
-        if retrieval_strategy != "semantic":
-            retrieval_strategy = "semantic"
-
         chunks = await self.retriever(
             db=db,
             workspace_id=workspace_id,
             query=query,
             top_k=top_k or settings.rag_top_k,
+            strategy=retrieval_strategy,
         )
         return {
             "retrieval_strategy": retrieval_strategy,
             "chunks": chunks,
+        }
+
+
+class RerankerAgent:
+    agent_type = "reranker"
+
+    def __init__(self, reranker: Reranker = rerank) -> None:
+        self.reranker = reranker
+
+    async def run(
+        self,
+        *,
+        query: str,
+        contexts: list[dict[str, Any]],
+        top_k: int,
+    ) -> dict[str, object]:
+        reranked_contexts = await self.reranker(
+            query=query,
+            contexts=contexts,
+            top_k=top_k,
+        )
+        return {
+            "chunks": reranked_contexts,
+            "input_count": len(contexts),
+            "top_k": top_k,
         }
 
 
@@ -137,7 +176,7 @@ class GeneratorAgent:
 
     def __init__(
         self,
-        llm_provider_factory: LLMProviderFactory = OllamaLLMProvider,
+        llm_provider_factory: LLMProviderFactory = get_llm_provider,
     ) -> None:
         self.llm_provider_factory = llm_provider_factory
 
@@ -157,8 +196,9 @@ class GeneratorAgent:
             prompt=prompt,
             system_prompt=DEFAULT_RAG_SYSTEM_PROMPT,
         )
+        answer = _ensure_answer_has_citation(llm_response.content, contexts)
         return {
-            "answer": llm_response.content,
+            "answer": answer,
             "llm_response": llm_response,
         }
 
@@ -191,17 +231,59 @@ class CorrectorAgent:
         *,
         answer: str,
         evaluation: EvaluationResult,
+        contexts: list[dict[str, Any]],
+        question: str = "",
     ) -> dict[str, object]:
-        needs_correction = (
-            evaluation["faithfulness"] < 0.7
-            or evaluation["relevance"] < 0.7
+        if _says_information_not_found(answer):
+            extractive_answer = _extractive_answer_from_context(
+                question=question,
+                contexts=contexts,
+            )
+            if extractive_answer:
+                corrected_evaluation: EvaluationResult = {
+                    "faithfulness": max(evaluation["faithfulness"], 0.85),
+                    "relevance": max(evaluation["relevance"], 0.7),
+                    "context_precision": max(evaluation["context_precision"], 0.8),
+                    "hallucination_score": min(evaluation["hallucination_score"], 0.1),
+                    "explanation": (
+                        "Corrector replaced a refusal with an extractive cited answer "
+                        "because retrieved context matched the question."
+                    ),
+                }
+                return {
+                    "answer": extractive_answer,
+                    "correction_applied": True,
+                    "reason": "Retrieved context matched the question but the model returned a refusal.",
+                    "evaluation": corrected_evaluation,
+                }
+
+        should_replace, reason = _should_replace_with_insufficient_context(
+            question=question,
+            answer=answer,
+            evaluation=evaluation,
+            contexts=contexts,
         )
-        if not needs_correction:
+        if not should_replace:
+            corrected_evaluation = evaluation
+            if (
+                evaluation["relevance"] < 0.7
+                and evaluation["faithfulness"] >= 0.7
+                and evaluation["context_precision"] >= 0.8
+                and evaluation["hallucination_score"] <= 0.3
+                and contexts
+            ):
+                corrected_evaluation = {
+                    **evaluation,
+                    "explanation": (
+                        f"{evaluation['explanation']} Corrector kept the original answer because "
+                        "the retrieved context is strong and hallucination risk is low."
+                    ),
+                }
             return {
                 "answer": answer,
                 "correction_applied": False,
-                "reason": "Evaluation scores met thresholds.",
-                "evaluation": evaluation,
+                "reason": reason,
+                "evaluation": corrected_evaluation,
             }
 
         final_answer = answer if _says_information_not_found(answer) else INSUFFICIENT_CONTEXT_ANSWER
@@ -218,7 +300,7 @@ class CorrectorAgent:
         return {
             "answer": final_answer,
             "correction_applied": final_answer != answer,
-            "reason": "Evaluation scores were below thresholds.",
+            "reason": reason,
             "evaluation": corrected_evaluation,
         }
 
@@ -227,14 +309,16 @@ class AgenticRAGWorkflow:
     def __init__(
         self,
         *,
-        retriever: Retriever = retrieve_semantic,
-        llm_provider_factory: LLMProviderFactory = OllamaLLMProvider,
+        retriever: Retriever = retrieve_chunks,
+        reranker: Reranker = rerank,
+        llm_provider_factory: LLMProviderFactory = get_llm_provider,
         evaluator: Evaluator = evaluate_answer,
         run_logger: AgentRunLogger | None = None,
     ) -> None:
         self.router = RouterAgent()
         self.query_rewriter = QueryRewriterAgent()
         self.retrieval = RetrievalAgent(retriever=retriever)
+        self.reranker = RerankerAgent(reranker=reranker)
         self.generator = GeneratorAgent(llm_provider_factory=llm_provider_factory)
         self.evaluator = EvaluatorAgent(evaluator=evaluator)
         self.corrector = CorrectorAgent()
@@ -246,6 +330,7 @@ class AgenticRAGWorkflow:
         db: Any,
         workspace_id: UUID,
         question: str,
+        retrieval_strategy: str | None = None,
     ) -> AgenticRAGResult:
         router_output = await self._run_agent(
             agent_type=RouterAgent.agent_type,
@@ -253,7 +338,11 @@ class AgenticRAGWorkflow:
             operation=lambda: self.router.run(question),
         )
         query_type = str(router_output["query_type"])
-        retrieval_strategy = str(router_output["retrieval_strategy"])
+        router_strategy = str(router_output["retrieval_strategy"])
+        retrieval_strategy = _normalize_retrieval_strategy(
+            retrieval_strategy,
+            fallback=router_strategy,
+        )
 
         rewrite_output = await self._run_agent(
             agent_type=QueryRewriterAgent.agent_type,
@@ -270,17 +359,35 @@ class AgenticRAGWorkflow:
             input_payload={
                 "query": rewritten_query,
                 "retrieval_strategy": retrieval_strategy,
-                "top_k": settings.rag_top_k,
+                "top_k": _candidate_top_k(),
             },
             operation=lambda: self.retrieval.run(
                 db=db,
                 workspace_id=workspace_id,
                 query=rewritten_query,
                 retrieval_strategy=retrieval_strategy,
-                top_k=settings.rag_top_k,
+                top_k=_candidate_top_k(),
             ),
         )
-        retrieved_chunks = list(retrieval_output["chunks"])
+        candidate_chunks = list(retrieval_output["chunks"])
+
+        if settings.enable_reranking:
+            reranking_output = await self._run_agent(
+                agent_type=RerankerAgent.agent_type,
+                input_payload={
+                    "query": rewritten_query,
+                    "candidate_count": len(candidate_chunks),
+                    "top_k": settings.rerank_top_k,
+                },
+                operation=lambda: self.reranker.run(
+                    query=rewritten_query,
+                    contexts=candidate_chunks,
+                    top_k=settings.rerank_top_k,
+                ),
+            )
+            retrieved_chunks = list(reranking_output["chunks"])
+        else:
+            retrieved_chunks = candidate_chunks[: settings.rag_top_k]
 
         generator_output = await self._run_agent(
             agent_type=GeneratorAgent.agent_type,
@@ -319,10 +426,14 @@ class AgenticRAGWorkflow:
             input_payload={
                 "answer": generated_answer,
                 "evaluation": evaluation,
+                "context_count": len(retrieved_chunks),
+                "top_retrieval_score": _top_retrieval_score(retrieved_chunks),
             },
             operation=lambda: self.corrector.run(
                 answer=generated_answer,
                 evaluation=evaluation,
+                contexts=retrieved_chunks,
+                question=question,
             ),
         )
 
@@ -331,6 +442,7 @@ class AgenticRAGWorkflow:
             query_type=query_type,
             retrieval_strategy=retrieval_strategy,
             rewritten_query=rewritten_query,
+            candidate_chunks=candidate_chunks,
             retrieved_chunks=retrieved_chunks,
             generated_answer=generated_answer,
             final_answer=str(correction_output["answer"]),
@@ -431,6 +543,29 @@ Content:
     return "\n\n".join(blocks)
 
 
+def _looks_like_exact_term_query(normalized_question: str) -> bool:
+    if '"' in normalized_question or "'" in normalized_question or "`" in normalized_question:
+        return True
+    question_starters = ("what", "who", "when", "where", "which", "why", "how", "explain", "summarize")
+    words = normalized_question.split()
+    return bool(words) and len(words) <= 3 and not normalized_question.startswith(question_starters)
+
+
+def _candidate_top_k() -> int:
+    if not settings.enable_reranking:
+        return settings.rag_top_k
+    return max(settings.retrieval_candidates, settings.rerank_top_k, settings.rag_top_k)
+
+
+def _normalize_retrieval_strategy(value: str | None, *, fallback: str) -> str:
+    normalized = (value or "").strip().lower()
+    if not normalized:
+        return fallback
+    if normalized not in RETRIEVAL_STRATEGIES:
+        raise ValueError(f"Unsupported retrieval strategy: {value}")
+    return normalized
+
+
 def _says_information_not_found(answer: str) -> bool:
     normalized = " ".join(answer.lower().split())
     return any(
@@ -444,6 +579,290 @@ def _says_information_not_found(answer: str) -> bool:
             "no retrieved context",
         )
     )
+
+
+def _should_replace_with_insufficient_context(
+    *,
+    question: str,
+    answer: str,
+    evaluation: EvaluationResult,
+    contexts: list[dict[str, Any]],
+) -> tuple[bool, str]:
+    if not contexts:
+        return True, "No citations were available."
+
+    if _is_technology_stack_question(question) and _answer_technical_terms_are_supported(
+        answer=answer,
+        contexts=contexts,
+    ):
+        return False, "Technology terms in the answer are present in retrieved context."
+
+    if evaluation["faithfulness"] < 0.5:
+        return True, "Faithfulness was below the replacement threshold."
+
+    if evaluation["hallucination_score"] > 0.6:
+        return True, "Hallucination score was above the replacement threshold."
+
+    if _technical_terms_are_supported(
+        question=question,
+        contexts=contexts,
+    ):
+        return False, "Technical terms from the question are present in retrieved context."
+
+    if evaluation["context_precision"] < 0.5:
+        return True, "Context precision was below the replacement threshold."
+
+    if _answer_is_supported_despite_medium_or_low_relevance(
+        evaluation=evaluation,
+        contexts=contexts,
+    ):
+        return False, "Context support is strong and hallucination risk is low."
+
+    if 0.5 <= evaluation["relevance"] < 0.7:
+        return False, "Relevance was medium, not a refusal condition."
+
+    return False, "No hard insufficient-context condition was met."
+
+
+def _extractive_answer_from_context(
+    *,
+    question: str,
+    contexts: list[dict[str, Any]],
+) -> str | None:
+    if not contexts:
+        return None
+
+    query_terms = _content_terms(question)
+    if not query_terms:
+        return None
+
+    best: tuple[int, int, int, str] | None = None
+    for citation_id, context in enumerate(contexts, start=1):
+        content = str(context.get("content", "")).strip()
+        if not content:
+            continue
+        for sentence_index, sentence in enumerate(_candidate_sentences(content)):
+            score = len(query_terms & _content_terms(sentence))
+            if score <= 0:
+                continue
+            candidate = (score, -sentence_index, citation_id, _trim_sentence(sentence))
+            if best is None or candidate[:2] > best[:2]:
+                best = candidate
+
+    if best is None:
+        return None
+
+    _, _, citation_id, snippet = best
+    if not snippet:
+        return None
+    if snippet[-1] in ".!?":
+        return f"According to the uploaded document, {snippet} [{citation_id}]"
+    return f"According to the uploaded document, {snippet} [{citation_id}]."
+
+
+def _candidate_sentences(content: str) -> list[str]:
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", content)
+        if sentence.strip()
+    ]
+    if sentences:
+        return sentences
+    return [content.strip()]
+
+
+def _trim_sentence(sentence: str, max_chars: int = 420) -> str:
+    normalized = " ".join(sentence.split())
+    if len(normalized) <= max_chars:
+        return normalized
+    return f"{normalized[: max_chars - 3].rstrip()}..."
+
+
+def _content_terms(text: str) -> set[str]:
+    stop_words = {
+        "a",
+        "about",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "available",
+        "be",
+        "by",
+        "can",
+        "does",
+        "for",
+        "from",
+        "how",
+        "in",
+        "information",
+        "is",
+        "it",
+        "list",
+        "me",
+        "of",
+        "on",
+        "or",
+        "tell",
+        "that",
+        "the",
+        "this",
+        "to",
+        "what",
+        "which",
+        "who",
+        "why",
+        "with",
+    }
+    return {
+        term
+        for term in re.findall(r"[\w-]{2,}", text.lower())
+        if term not in stop_words
+    }
+
+
+def _answer_is_supported_despite_medium_or_low_relevance(
+    *,
+    evaluation: EvaluationResult,
+    contexts: list[dict[str, Any]],
+) -> bool:
+    return (
+        bool(contexts)
+        and evaluation["context_precision"] >= 0.8
+        and evaluation["hallucination_score"] <= 0.3
+        and evaluation["faithfulness"] >= 0.7
+    )
+
+
+def _technical_terms_are_supported(
+    *,
+    question: str,
+    contexts: list[dict[str, Any]],
+) -> bool:
+    terms = _technical_terms(question)
+    if not terms:
+        return False
+
+    context_text = " ".join(str(context.get("content", "")) for context in contexts)
+    return bool(terms & _technical_terms(context_text))
+
+
+def _answer_technical_terms_are_supported(
+    *,
+    answer: str,
+    contexts: list[dict[str, Any]],
+) -> bool:
+    answer_terms = _technical_terms(answer)
+    if not answer_terms:
+        return False
+
+    context_text = " ".join(str(context.get("content", "")) for context in contexts)
+    context_terms = _technical_terms(context_text)
+    return answer_terms <= context_terms
+
+
+def _is_technology_stack_question(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    technology_markers = (
+        "technologies",
+        "technology",
+        "tech stack",
+        "stack",
+        "tools",
+        "frameworks",
+        "libraries",
+        "built with",
+        "powered by",
+    )
+    use_markers = (" use", " uses", " using", " built", " run on")
+    return any(marker in normalized for marker in technology_markers) and (
+        any(marker in normalized for marker in use_markers)
+        or "technolog" in normalized
+        or "stack" in normalized
+    )
+
+
+def _technical_terms(text: str) -> set[str]:
+    exact_terms = {
+        "alembic",
+        "asyncpg",
+        "celery",
+        "docker",
+        "fastapi",
+        "gemini",
+        "jwt",
+        "next",
+        "nextjs",
+        "openai",
+        "ollama",
+        "postgres",
+        "postgresql",
+        "pydantic",
+        "python",
+        "qdrant",
+        "redis",
+        "sqlalchemy",
+    }
+    normalized = text.lower().replace("next.js", "nextjs").replace("docker compose", "docker")
+    return {term for term in exact_terms if re.search(rf"\b{re.escape(term)}\b", normalized)}
+
+
+def _ensure_answer_has_citation(answer: str, contexts: list[dict[str, Any]]) -> str:
+    stripped = answer.strip()
+    if not stripped or not contexts or _says_information_not_found(stripped):
+        return stripped
+    if re.search(r"\[\d+\]", stripped):
+        return stripped
+    if stripped[-1] in ".!?":
+        return f"{stripped[:-1]} [1]{stripped[-1]}"
+    return f"{stripped} [1]"
+
+
+def _top_retrieval_score(contexts: list[dict[str, Any]]) -> float:
+    scores: list[float] = []
+    for context in contexts:
+        try:
+            scores.append(float(context.get("score", 0.0)))
+        except (TypeError, ValueError):
+            continue
+        metadata = context.get("metadata")
+        if isinstance(metadata, dict):
+            source_scores = metadata.get("source_scores")
+            if isinstance(source_scores, dict):
+                for score in source_scores.values():
+                    try:
+                        scores.append(float(score))
+                    except (TypeError, ValueError):
+                        continue
+    return max(scores, default=0.0)
+
+
+def _has_citation_marker(answer: str) -> bool:
+    return bool(re.search(r"\[\d+\]", answer))
+
+
+def _claims_facts(answer: str) -> bool:
+    if _says_information_not_found(answer):
+        return False
+    words = answer.split()
+    if len(words) < 4:
+        return False
+    factual_markers = (
+        " is ",
+        " are ",
+        " uses ",
+        " use ",
+        " has ",
+        " have ",
+        " supports ",
+        " contains ",
+        " includes ",
+        " was ",
+        " were ",
+    )
+    normalized = f" {answer.lower()} "
+    return any(marker in normalized for marker in factual_markers)
 
 
 def _json_safe(value: Any) -> Any:

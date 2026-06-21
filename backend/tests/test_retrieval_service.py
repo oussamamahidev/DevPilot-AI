@@ -24,15 +24,15 @@ class FakeEmbeddingProvider:
 
 
 class FakeExecuteResult:
-    def __init__(self, rows: list[tuple[Chunk, str]]) -> None:
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
         self.rows = rows
 
-    def all(self) -> list[tuple[Chunk, str]]:
+    def all(self) -> list[tuple[object, ...]]:
         return self.rows
 
 
 class FakeRetrievalSession:
-    def __init__(self, rows: list[tuple[Chunk, str]]) -> None:
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
         self.rows = rows
 
     async def execute(self, statement: object) -> FakeExecuteResult:
@@ -126,4 +126,124 @@ async def test_retrieve_semantic_returns_ranked_hydrated_chunks(
     assert results[0]["content"] == "Second relevant chunk"
     assert results[0]["filename"] == "guide.txt"
     assert results[0]["score"] == 0.91
+    assert results[0]["retrieval_strategy"] == "semantic"
     assert results[0]["metadata"] == {"start_char": 21, "end_char": 42}
+
+
+@pytest.mark.asyncio
+async def test_retrieve_keyword_returns_postgres_ranked_chunks() -> None:
+    workspace_id = uuid4()
+    document_id = uuid4()
+    chunk = Chunk(
+        id=uuid4(),
+        document_id=document_id,
+        workspace_id=workspace_id,
+        content="FastAPI PostgreSQL Redis Celery Ollama Qdrant",
+        chunk_index=0,
+        token_count=6,
+        metadata_={"start_char": 0, "end_char": 45},
+        created_at=datetime.now(UTC),
+    )
+
+    results = await retrieval_service.retrieve_keyword(
+        db=FakeRetrievalSession(rows=[(chunk, "stack.txt", 0.42)]),  # type: ignore[arg-type]
+        workspace_id=workspace_id,
+        query="FastAPI Qdrant",
+        top_k=3,
+    )
+
+    assert results == [
+        {
+            "chunk_id": chunk.id,
+            "document_id": document_id,
+            "filename": "stack.txt",
+            "content": "FastAPI PostgreSQL Redis Celery Ollama Qdrant",
+            "chunk_index": 0,
+            "score": 0.42,
+            "metadata": {"start_char": 0, "end_char": 45},
+            "retrieval_strategy": "keyword",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_retrieve_hybrid_merges_semantic_and_keyword_with_rrf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    first_id = uuid4()
+    second_id = uuid4()
+    third_id = uuid4()
+
+    async def fake_semantic(**kwargs: object) -> list[dict[str, object]]:
+        assert kwargs["workspace_id"] == workspace_id
+        assert kwargs["query"] == "FastAPI Qdrant"
+        assert kwargs["top_k"] == 3
+        return [
+            {
+                "chunk_id": first_id,
+                "document_id": uuid4(),
+                "filename": "semantic-1.txt",
+                "content": "Semantic first",
+                "chunk_index": 0,
+                "score": 0.91,
+                "metadata": {},
+                "retrieval_strategy": "semantic",
+            },
+            {
+                "chunk_id": second_id,
+                "document_id": uuid4(),
+                "filename": "shared.txt",
+                "content": "Shared result",
+                "chunk_index": 1,
+                "score": 0.82,
+                "metadata": {},
+                "retrieval_strategy": "semantic",
+            },
+        ]
+
+    async def fake_keyword(**kwargs: object) -> list[dict[str, object]]:
+        assert kwargs["workspace_id"] == workspace_id
+        assert kwargs["query"] == "FastAPI Qdrant"
+        assert kwargs["top_k"] == 3
+        return [
+            {
+                "chunk_id": second_id,
+                "document_id": uuid4(),
+                "filename": "shared.txt",
+                "content": "Shared result",
+                "chunk_index": 1,
+                "score": 0.44,
+                "metadata": {},
+                "retrieval_strategy": "keyword",
+            },
+            {
+                "chunk_id": third_id,
+                "document_id": uuid4(),
+                "filename": "keyword-2.txt",
+                "content": "Keyword second",
+                "chunk_index": 2,
+                "score": 0.33,
+                "metadata": {},
+                "retrieval_strategy": "keyword",
+            },
+        ]
+
+    monkeypatch.setattr(retrieval_service, "_retrieve_semantic", fake_semantic)
+    monkeypatch.setattr(retrieval_service, "_retrieve_keyword", fake_keyword)
+
+    results = await retrieval_service.retrieve_chunks(
+        db=FakeRetrievalSession(rows=[]),  # type: ignore[arg-type]
+        workspace_id=workspace_id,
+        query="FastAPI Qdrant",
+        top_k=3,
+        strategy="hybrid",
+    )
+
+    assert [result["chunk_id"] for result in results] == [second_id, first_id, third_id]
+    assert all(result["retrieval_strategy"] == "hybrid" for result in results)
+    assert results[0]["score"] == pytest.approx((1 / 62) + (1 / 61))
+    assert results[0]["metadata"]["source_scores"] == {  # type: ignore[index]
+        "semantic": 0.82,
+        "keyword": 0.44,
+    }

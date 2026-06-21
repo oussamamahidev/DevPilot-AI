@@ -1,5 +1,0 @@
-DevPilot AI is a private document intelligence platform.
-
-It helps users upload private documents, process them asynchronously, retrieve relevant chunks, and answer questions with citations.
-
-DevPilot AI uses FastAPI, PostgreSQL, Redis, Celery, Ollama, and Qdrant.

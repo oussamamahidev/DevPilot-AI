@@ -1,4 +1,4 @@
-.PHONY: help up down logs build backend-test backend-dev frontend-dev frontend-install migrate revision
+.PHONY: help up down logs build backend-install-dev test test-backend test-integration test-ingestion test-rag test-cov backend-test backend-dev frontend-dev frontend-install migrate revision
 
 POSTGRES_USER ?= devpilot
 POSTGRES_PASSWORD ?= devpilot
@@ -12,6 +12,13 @@ help:
 	@echo "  make down              Stop Docker Compose services"
 	@echo "  make logs              Follow Docker Compose logs"
 	@echo "  make build             Build Docker Compose services"
+	@echo "  make backend-install-dev  Install backend package with dev test dependencies"
+	@echo "  make test              Run backend unit tests and live integration smoke tests"
+	@echo "  make test-backend      Run backend tests locally"
+	@echo "  make test-integration  Run live-stack integration tests that do not require ingestion/RAG"
+	@echo "  make test-ingestion    Run live-stack document ingestion, Ollama, and Qdrant tests"
+	@echo "  make test-rag          Run live-stack RAG, evaluation, agents, and reranking tests"
+	@echo "  make test-cov          Run backend tests with coverage"
 	@echo "  make backend-test      Run backend tests locally"
 	@echo "  make backend-dev       Run backend locally"
 	@echo "  make frontend-install  Install frontend dependencies"
@@ -30,6 +37,26 @@ logs:
 
 build:
 	docker compose build
+
+backend-install-dev:
+	cd backend && python -m pip install -e ".[dev]"
+
+test: test-backend test-integration
+
+test-backend:
+	cd backend && pytest
+
+test-integration:
+	python -m pytest tests/integration -m "not ingestion and not rag"
+
+test-ingestion:
+	DEVPILOT_RUN_INGESTION=1 python -m pytest tests/integration -m "ingestion and not rag"
+
+test-rag:
+	DEVPILOT_RUN_INGESTION=1 DEVPILOT_RUN_RAG=1 python -m pytest tests/integration -m "rag"
+
+test-cov:
+	cd backend && pytest --cov=app --cov-report=term-missing
 
 backend-test:
 	cd backend && pytest

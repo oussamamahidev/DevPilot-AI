@@ -1,7 +1,10 @@
+from collections.abc import AsyncIterator
+import json
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_active_user
@@ -26,6 +29,10 @@ from app.services.vector_store_service import VectorStoreError
 router = APIRouter(tags=["chat"])
 
 
+def sse_event(event: str, data: dict[str, object]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+
 @router.post(
     "/workspaces/{workspace_id}/chat/query",
     response_model=ChatQueryResponse,
@@ -45,6 +52,7 @@ async def query_workspace_chat(
             user=current_user,
             question=payload.question,
             conversation_id=payload.conversation_id,
+            retrieval_strategy=payload.retrieval_strategy,
         )
     except chat_service.ConversationNotFoundError as exc:
         raise HTTPException(
@@ -56,6 +64,40 @@ async def query_workspace_chat(
             message=str(exc),
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         ) from exc
+
+
+@router.post("/workspaces/{workspace_id}/chat/stream")
+async def stream_workspace_chat(
+    workspace_id: UUID,
+    payload: ChatQueryRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace: Annotated[Workspace, Depends(get_workspace_or_403)],
+) -> StreamingResponse:
+    _ = workspace_id
+
+    async def event_stream() -> AsyncIterator[str]:
+        async for event, data in chat_service.stream_chat_events(
+            db=db,
+            workspace=workspace,
+            user=current_user,
+            question=payload.question,
+            conversation_id=payload.conversation_id,
+            retrieval_strategy=payload.retrieval_strategy,
+        ):
+            if await request.is_disconnected():
+                break
+            yield sse_event(event, data)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get(
@@ -93,7 +135,7 @@ async def get_conversation(
             detail="Conversation not found or access denied",
         )
 
-    if current_user.role != "admin":
+    if current_user.role not in {"admin", "super_admin"}:
         member = await workspace_service.get_workspace_member(
             db=db,
             workspace_id=workspace_id,
@@ -132,7 +174,7 @@ async def get_message_evaluation(
             db=db,
             message_id=message_id,
             user_id=current_user.id,
-            is_admin=current_user.role == "admin",
+            is_admin=current_user.role in {"admin", "super_admin"},
         )
     except evaluation_service.EvaluationNotFoundError as exc:
         raise HTTPException(

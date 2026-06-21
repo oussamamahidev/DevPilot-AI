@@ -5,6 +5,7 @@ from app.agents.rag import (
     EvaluatorAgent,
     GeneratorAgent,
     QueryRewriterAgent,
+    RerankerAgent,
     RetrievalAgent,
     RouterAgent,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "EvaluatorAgent",
     "GeneratorAgent",
     "QueryRewriterAgent",
+    "RerankerAgent",
     "RetrievalAgent",
     "RouterAgent",
 ]

@@ -1,0 +1,217 @@
+\chapter{Technologies et implémentation}
+\label{chap:techno}
+
+Ce chapitre justifie les choix technologiques selon une grille uniforme
+(pourquoi, comment, bénéfices, limites, alternatives) puis détaille les points
+saillants de l'implémentation.
+
+\section{Présentation de la pile technologique}
+Le tableau~\ref{tab:stack} synthétise la pile par niveau.
+
+\begin{table}[H]
+\centering\caption{Pile technologique de DevPilot AI}\label{tab:stack}\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l l X@{}}
+\toprule
+Niveau & Technologie & Rôle \\
+\midrule
+Backend & FastAPI, Pydantic & API REST et \emph{streaming}, validation \\
+ & SQLAlchemy, Alembic & ORM asynchrone et migrations \\
+Base de données & PostgreSQL 16 & État relationnel et traces \\
+Messagerie & Redis 7 & Courtier Celery et \emph{cache} \\
+Asynchrone & Celery & Traitement documentaire \\
+Vectoriel & Qdrant 1.12 & Recherche HNSW (cosinus) \\
+Modèles IA & Ollama, Gemini & \emph{Embeddings} locaux, génération \\
+Frontend & Next.js 15, React 19, TypeScript & Interface, chat, tableaux de bord \\
+ & React Query, Tailwind, Framer Motion, React Flow & État serveur, design, animations, graphes \\
+Observabilité & Prometheus, Grafana & Métriques et tableaux de bord \\
+Déploiement & Docker, Docker Compose & Conteneurisation (8 services) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Technologies backend}
+
+\subsection{FastAPI}
+\textbf{Pourquoi.} Framework Python asynchrone hautes performances avec validation
+native. \textbf{Comment.} Routeurs versionnés, dépendances d'autorisation,
+\texttt{StreamingResponse} pour le SSE. \textbf{Bénéfices.} Concurrence par E/S
+non bloquantes, documentation OpenAPI automatique. \textbf{Limites.} Écosystème
+plus jeune que des frameworks synchrones établis. \textbf{Alternatives.} Django
+REST Framework, Flask~\cite{fastapi}.
+
+\subsection{PostgreSQL}
+\textbf{Pourquoi.} SGBD relationnel robuste et transactionnel, idéal pour l'état et
+les traces structurées. \textbf{Comment.} Onze tables, clés UUID, support JSON
+pour les champs semi-structurés (\emph{previews} d'agents). \textbf{Bénéfices.}
+Intégrité, requêtes analytiques, maturité. \textbf{Limites.} Inadapté au stockage
+vectoriel natif, d'où le recours à Qdrant. \textbf{Alternatives.} MySQL,
+SQLite~\cite{postgres}.
+
+\subsection{SQLAlchemy et Alembic}
+\textbf{Pourquoi.} ORM expressif et migrations versionnées. \textbf{Comment.}
+Modèles déclaratifs asynchrones (asyncpg), migrations Alembic. \textbf{Bénéfices.}
+Typage, portabilité, évolution maîtrisée du schéma. \textbf{Limites.} Courbe
+d'apprentissage de l'API asynchrone. \textbf{Alternatives.} Tortoise ORM,
+SQLModel.
+
+\subsection{Redis}
+\textbf{Pourquoi.} Courtier de messages à faible latence et magasin de résultats.
+\textbf{Comment.} \emph{Broker} et \emph{backend} de Celery, socle de \emph{cache}.
+\textbf{Bénéfices.} Rapidité, simplicité opérationnelle. \textbf{Limites.}
+Persistance mémoire à dimensionner. \textbf{Alternatives.} RabbitMQ,
+Amazon SQS~\cite{redis}.
+
+\subsection{Celery}
+\textbf{Pourquoi.} Standard éprouvé du traitement de tâches asynchrones en Python.
+\textbf{Comment.} Tâche \texttt{process\_document\_task} (extraction, découpage,
+vectorisation, indexation), relancée jusqu'à trois fois. \textbf{Bénéfices.}
+Découplage du chemin critique, montée en charge des \emph{workers}.
+\textbf{Limites.} Complexité opérationnelle accrue. \textbf{Alternatives.} RQ,
+Dramatiq~\cite{celery}.
+
+\subsection{Qdrant}
+\textbf{Pourquoi.} Base vectorielle spécialisée et auto-hébergeable.
+\textbf{Comment.} Collection indexée en HNSW, distance cosinus, vecteurs de
+dimension~768. \textbf{Bénéfices.} Recherche par plus proches voisins en temps
+quasi logarithmique~\cite{malkov2018}. \textbf{Limites.} Composant additionnel à
+exploiter. \textbf{Alternatives.} Milvus, Weaviate, pgvector~\cite{qdrant}.
+
+\subsection{Ollama}
+\textbf{Pourquoi.} Exécution locale de modèles d'\emph{embedding}, fonctionnement
+hors-ligne. \textbf{Comment.} Modèle \texttt{nomic-embed-text}, vectorisation par
+lots. \textbf{Bénéfices.} Confidentialité, absence de coût d'API pour les
+\emph{embeddings}. \textbf{Limites.} Dépendance aux ressources de l'hôte.
+\textbf{Alternatives.} \emph{embeddings} OpenAI, Sentence-Transformers~\cite{ollama,reimers2019}.
+
+\subsection{Gemini}
+\textbf{Pourquoi.} Génération de haute qualité avec \emph{streaming} natif.
+\textbf{Comment.} \texttt{gemini-2.5-flash} (repli \texttt{gemini-2.0-flash}),
+température 0,2, 1000 jetons maximum, flux SSE via \texttt{streamGenerateContent}.
+\textbf{Bénéfices.} Fluidité, faible latence, repli automatique.
+\textbf{Limites.} Dépendance à un service distant. \textbf{Alternatives.}
+OpenAI GPT, modèles locaux via Ollama~\cite{gemini}.
+
+\section{Technologies frontend}
+
+\subsection{Next.js}
+\textbf{Pourquoi.} \emph{App Router} React 19, rendu hybride, excellente
+expérience développeur. \textbf{Comment.} Pages par route, modules fonctionnels,
+chargement différé des visualisations lourdes. \textbf{Bénéfices.} Découpage
+automatique des \emph{bundles}, \emph{streaming} côté client. \textbf{Limites.}
+Couplage fort à l'écosystème React. \textbf{Alternatives.} Remix,
+SvelteKit~\cite{nextjs}.
+
+\subsection{TypeScript}
+\textbf{Pourquoi.} Sûreté de typage à grande échelle. \textbf{Comment.} Mode
+strict, zéro \texttt{any} sur l'ensemble du code applicatif. \textbf{Bénéfices.}
+Détection précoce des erreurs, refactorisations sûres. \textbf{Limites.} Surcoût
+de typage initial. \textbf{Alternatives.} JavaScript + JSDoc, Flow.
+
+\subsection{React Query}
+\textbf{Pourquoi.} Gestion robuste de l'état serveur. \textbf{Comment.} Requêtes
+mises en cache, dédupliquées et invalidées (inspecteur de traces, observatoire,
+tableau de bord personnel). \textbf{Bénéfices.} Suppression des conditions de
+course, standardisation des états de chargement et d'erreur. \textbf{Limites.}
+Migration progressive depuis les appels manuels. \textbf{Alternatives.} SWR,
+RTK Query.
+
+\subsection{Tailwind CSS et système de design « Horizon »}
+\textbf{Pourquoi.} Cohérence visuelle et productivité. \textbf{Comment.} Jetons CSS
+(thème clair/sombre) mappés sur des utilitaires sémantiques ; primitives
+réutilisables (Button, Card, DataCard, MetricCard, Badge, Dialog). \textbf{Bénéfices.}
+Homogénéité, accessibilité, faible poids. \textbf{Limites.} Verbosité des classes.
+\textbf{Alternatives.} CSS Modules, styled-components, bibliothèque shadcn/ui.
+
+\subsection{Framer Motion et React Flow}
+\textbf{Pourquoi.} Animations fluides et graphes interactifs pour les
+fonctionnalités phares. \textbf{Comment.} Framer Motion anime l'AI Execution
+Studio (pipeline, avatar, jauges) ; React Flow dessine l'Architecture Explorer.
+\textbf{Bénéfices.} 60~images/s via animations sur \texttt{transform}/\texttt{opacity},
+respect de \emph{prefers-reduced-motion}. \textbf{Limites.} Poids des
+bibliothèques, atténué par le chargement différé. \textbf{Alternatives.} GSAP,
+react-spring ; D3, Cytoscape.
+
+\section{DevOps}
+\textbf{Docker et Docker Compose.} L'ensemble est conteneurisé en huit services
+(PostgreSQL, Redis, Qdrant, \emph{backend}, \emph{worker} Celery, \emph{frontend},
+Prometheus, Grafana), garantissant la reproductibilité de l'environnement.
+\textbf{Prometheus et Grafana} assurent la collecte et la visualisation des
+métriques système~\cite{docker}.
+
+\section{Détails d'implémentation}
+
+\subsection{Implémentation backend}
+Les routes délèguent aux services ; les modèles SQLAlchemy déclarent les onze
+tables. Le listing~\ref{lst:model} illustre un modèle représentatif.
+
+\begin{lstlisting}[style=code,language=Python,caption={Modèle SQLAlchemy (extrait)},label={lst:model}]
+class AgentRun(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "agent_runs"
+    message_id: Mapped[UUID] = mapped_column(ForeignKey("messages.id"))
+    agent_type: Mapped[str]
+    status: Mapped[str]
+    latency_ms: Mapped[int | None]
+    input_preview: Mapped[dict] = mapped_column(JSONB)
+    output_preview: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None]
+\end{lstlisting}
+
+\subsection{Implémentation frontend}
+L'état serveur est géré par React Query. Le listing~\ref{lst:rq} illustre un
+\emph{hook} d'inspection de trace orchestrant des requêtes parallèles.
+
+\begin{lstlisting}[style=code,language=JavaScript,caption={Hook React Query (extrait)},label={lst:rq}]
+export function useTraceInspector(messageId, includeContent, enabled) {
+  const trace = useQuery({
+    queryKey: ["trace", messageId, includeContent],
+    queryFn: () => getRagTrace(messageId, includeContent),
+    enabled,
+  });
+  // requetes secondaires en parallele, degradation gracieuse
+  return { trace, /* retrieval, reranking, evaluation */ };
+}
+\end{lstlisting}
+
+\subsection{Implémentation API}
+L'API expose les domaines authentification, espaces, documents, chat (REST + SSE),
+système, administration, RAGOps et traces, sous \texttt{/api/v1}. Les
+\emph{endpoints} privilégiés (administration, RAGOps, traces) sont protégés par
+des dépendances de rôle.
+
+\subsection{Implémentation base de données}
+Le schéma est défini en SQLAlchemy et son évolution gérée par Alembic (schéma
+initial, évaluation des réponses, RBAC d'administration). Les fragments
+référencent leur point vectoriel Qdrant via \texttt{vector\_id}.
+
+\subsection{Implémentation RAG}
+Le flux agentique instancie les sept agents et journalise chaque exécution. Le
+listing~\ref{lst:wf} esquisse la boucle de génération en \emph{streaming}.
+
+\begin{lstlisting}[style=code,language=Python,caption={Génération en streaming (extrait)},label={lst:wf}]
+stream_generate = getattr(provider, "stream_generate", None)
+if callable(stream_generate):
+    async for token in stream_generate(prompt=prompt,
+                                       system_prompt=SYSTEM_PROMPT):
+        if token:
+            raw_parts.append(token)
+            yield ("token", {"text": token})
+\end{lstlisting}
+
+\subsection{Implémentation RAGOps}
+Les services \texttt{ragops\_service} et \texttt{rag\_traces\_service} agrègent la
+santé Qdrant, la file documentaire, la couverture d'\emph{embedding} et les
+indicateurs de qualité, exposés via \texttt{/admin/ragops/*} et
+\texttt{/admin/rag-traces/quality/summary}, puis restitués par la tour de contrôle.
+
+\subsection{Implémentation traçabilité}
+À la fin de chaque requête, le message et sa lignée (exécutions d'agents, passages
+récupérés, évaluation, usage) sont persistés. L'inspecteur les recharge via des
+requêtes parallèles et reconstruit les neuf sections d'analyse, en masquant les
+secrets dans la vue de débogage.
+
+\section{Conclusion}
+Chaque brique a été retenue à l'issue d'une analyse de compromis explicite, puis
+intégrée dans une implémentation cohérente : \emph{backend} en couches,
+\emph{frontend} typé et modulaire, pipeline RAG agentique traçable, et
+sous-systèmes d'exploitation et de visualisation. Le chapitre suivant valide ces
+choix par les tests et les résultats.

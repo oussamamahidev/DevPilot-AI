@@ -14,7 +14,7 @@ os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("LLM_PROVIDER", "ollama")
 os.environ.setdefault("EMBEDDING_PROVIDER", "ollama")
 os.environ.setdefault("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-os.environ.setdefault("OLLAMA_GENERATION_MODEL", "qwen3:8b")
+os.environ.setdefault("OLLAMA_GENERATION_MODEL", "qwen2.5:3b-instruct-q3_K_S")
 os.environ.setdefault("OLLAMA_CHAT_THINK", "false")
 os.environ.setdefault("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
 os.environ.setdefault("EMBEDDING_DIMENSION", "768")
@@ -26,6 +26,7 @@ os.environ.setdefault("FRONTEND_URL", "http://localhost:3000")
 os.environ.setdefault("BACKEND_CORS_ORIGINS", "http://localhost:3000")
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes import system as system_routes
@@ -43,19 +44,46 @@ def test_ai_config_is_ollama_first() -> None:
     assert response.json() == {
         "llm_provider": "ollama",
         "embedding_provider": "ollama",
-        "ollama_base_url": "http://host.docker.internal:11434",
-        "generation_model": "qwen3:8b",
-        "ollama_chat_think": False,
+        "generation_model": "qwen2.5:3b-instruct-q3_K_S",
         "embedding_model": "nomic-embed-text",
         "generation_temperature": 0.2,
         "generation_max_tokens": 1000,
-        "embedding_dimension": 768,
+        "enable_reranking": True,
+        "retrieval_candidates": 15,
+        "rerank_top_k": 5,
     }
+
+
+def test_ai_config_is_safe_for_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_routes.settings, "llm_provider", "gemini")
+    monkeypatch.setattr(system_routes.settings, "gemini_api_key", "secret-api-key")
+    monkeypatch.setattr(system_routes.settings, "gemini_generation_model", "gemini-2.5-flash")
+    monkeypatch.setattr(system_routes.settings, "gemini_temperature", 0.2)
+    monkeypatch.setattr(system_routes.settings, "gemini_max_output_tokens", 1000)
+
+    response = client.get("/api/v1/system/ai-config")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {
+        "llm_provider": "gemini",
+        "embedding_provider": "ollama",
+        "generation_model": "gemini-2.5-flash",
+        "embedding_model": "nomic-embed-text",
+        "generation_temperature": 0.2,
+        "generation_max_tokens": 1000,
+        "enable_reranking": True,
+        "retrieval_candidates": 15,
+        "rerank_top_k": 5,
+        "gemini_generation_model": "gemini-2.5-flash",
+    }
+    assert "GEMINI_API_KEY" not in data
+    assert "secret-api-key" not in response.text
 
 
 def test_ai_health_returns_ok_for_reachable_ollama(monkeypatch) -> None:
     async def fake_list_ollama_models(_: str) -> list[dict[str, object]]:
-        return [{"name": "qwen3:8b"}, {"name": "nomic-embed-text:latest"}]
+        return [{"name": "qwen2.5:3b-instruct-q3_K_S"}, {"name": "nomic-embed-text:latest"}]
 
     monkeypatch.setattr(system_routes, "list_ollama_models", fake_list_ollama_models)
 
@@ -64,7 +92,7 @@ def test_ai_health_returns_ok_for_reachable_ollama(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["provider"] == "ollama"
-    assert "qwen3:8b" in response.json()["models"]
+    assert "qwen2.5:3b-instruct-q3_K_S" in response.json()["models"]
     assert response.json()["generation_model_available"] is True
     assert response.json()["embedding_model_available"] is True
     assert response.json()["warnings"] == []

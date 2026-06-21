@@ -2,12 +2,226 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================================
+   DevPilot "Horizon" design tokens
+   Semantic tokens are theme-aware: light under :root, dark under .dark.
+   Tailwind (tailwind.config.ts) maps utilities -> these variables.
+   ========================================================================= */
 :root {
   color-scheme: light;
+
+  /* Type */
+  --dp-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --dp-font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, "Liberation Mono", monospace;
+
+  /* Surfaces */
+  --dp-bg-canvas: #f8fafc;
+  --dp-bg-surface: #ffffff;
+  --dp-bg-raised: #ffffff;
+  --dp-bg-overlay: #ffffff;
+  --dp-bg-sunken: #f1f5f9;
+  --dp-bg-hover: #f1f5f9;
+  --dp-overlay-backdrop: rgb(15 23 42 / 0.45);
+
+  /* Text */
+  --dp-text-primary: #0f172a;
+  --dp-text-secondary: #475569;
+  --dp-text-tertiary: #64748b;
+  --dp-text-inverse: #ffffff;
+
+  /* Borders */
+  --dp-border-default: #e2e8f0;
+  --dp-border-strong: #cbd5e1;
+  --dp-border-subtle: #f1f5f9;
+  --dp-border-focus: #7c4dff;
+
+  /* Brand (Iris violet) */
+  --dp-brand-solid: #6a35f0;
+  --dp-brand-solid-hover: #5826cc;
+  --dp-brand-fg: #5826cc;
+  --dp-brand-subtle-bg: #f2eeff;
+  --dp-brand-subtle-border: #d0c0ff;
+
+  /* Status — success */
+  --dp-success-solid: #059669;
+  --dp-success-fg: #047857;
+  --dp-success-subtle-bg: #ecfdf5;
+  --dp-success-subtle-border: #a7f3d0;
+  --dp-success-surface-fg: #065f46;
+
+  /* Status — warning */
+  --dp-warning-solid: #d97706;
+  --dp-warning-fg: #b45309;
+  --dp-warning-subtle-bg: #fffbeb;
+  --dp-warning-subtle-border: #fde68a;
+  --dp-warning-surface-fg: #92400e;
+
+  /* Status — danger */
+  --dp-danger-solid: #dc2626;
+  --dp-danger-fg: #b91c1c;
+  --dp-danger-subtle-bg: #fef2f2;
+  --dp-danger-subtle-border: #fecaca;
+  --dp-danger-surface-fg: #991b1b;
+
+  /* Status — info */
+  --dp-info-solid: #2563eb;
+  --dp-info-fg: #1d4ed8;
+  --dp-info-subtle-bg: #eff6ff;
+  --dp-info-subtle-border: #bfdbfe;
+  --dp-info-surface-fg: #1e40af;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Surfaces — purpose-built dark (not inverted slate) */
+  --dp-bg-canvas: #0a0b0e;
+  --dp-bg-surface: #111317;
+  --dp-bg-raised: #181b20;
+  --dp-bg-overlay: #1f232a;
+  --dp-bg-sunken: #0a0b0e;
+  --dp-bg-hover: rgb(255 255 255 / 0.05);
+  --dp-overlay-backdrop: rgb(0 0 0 / 0.6);
+
+  /* Text */
+  --dp-text-primary: #ecedee;
+  --dp-text-secondary: #a0a6b0;
+  --dp-text-tertiary: #6b7280;
+  --dp-text-inverse: #0f172a;
+
+  /* Borders */
+  --dp-border-default: #272b33;
+  --dp-border-strong: #3a404a;
+  --dp-border-subtle: #1c1f25;
+  --dp-border-focus: #9470ff;
+
+  /* Brand */
+  --dp-brand-solid: #7c4dff;
+  --dp-brand-solid-hover: #9470ff;
+  --dp-brand-fg: #b098ff;
+  --dp-brand-subtle-bg: rgb(124 77 255 / 0.14);
+  --dp-brand-subtle-border: rgb(124 77 255 / 0.32);
+
+  /* Status — success */
+  --dp-success-solid: #10b981;
+  --dp-success-fg: #34d399;
+  --dp-success-subtle-bg: rgb(16 185 129 / 0.14);
+  --dp-success-subtle-border: rgb(16 185 129 / 0.3);
+  --dp-success-surface-fg: #6ee7b7;
+
+  /* Status — warning */
+  --dp-warning-solid: #f59e0b;
+  --dp-warning-fg: #fbbf24;
+  --dp-warning-subtle-bg: rgb(245 158 11 / 0.14);
+  --dp-warning-subtle-border: rgb(245 158 11 / 0.3);
+  --dp-warning-surface-fg: #fcd34d;
+
+  /* Status — danger */
+  --dp-danger-solid: #ef4444;
+  --dp-danger-fg: #f87171;
+  --dp-danger-subtle-bg: rgb(239 68 68 / 0.14);
+  --dp-danger-subtle-border: rgb(239 68 68 / 0.3);
+  --dp-danger-surface-fg: #fca5a5;
+
+  /* Status — info */
+  --dp-info-solid: #3b82f6;
+  --dp-info-fg: #60a5fa;
+  --dp-info-subtle-bg: rgb(59 130 246 / 0.14);
+  --dp-info-subtle-border: rgb(59 130 246 / 0.3);
+  --dp-info-surface-fg: #93c5fd;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  max-width: 100%;
+  overflow-x: hidden;
+  background: var(--dp-bg-canvas);
+  color: var(--dp-text-primary);
+  font-family: var(--dp-font-sans);
+}
+
+a {
+  text-decoration: none;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+pre {
+  max-width: 100%;
+}
+
+/* Global focus baseline — every interactive element gets a visible ring
+   (component-level focus-visible rings refine this). */
+:focus-visible {
+  outline: 2px solid var(--dp-border-focus);
+  outline-offset: 2px;
+}
+
+/* Data tables (admin / observability) — now theme-aware */
+.admin-table-scroll {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--dp-border-default);
+}
+
+.admin-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.admin-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--dp-bg-sunken);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dp-text-tertiary);
+}
+
+.admin-table th,
+.admin-table td {
+  min-width: 0;
+  padding: 0.75rem;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-table th {
+  font-weight: 600;
+}
+
+.admin-table tbody > tr + tr > td {
+  border-top: 1px solid var(--dp-border-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

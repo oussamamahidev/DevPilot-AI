@@ -1,0 +1,29 @@
+// DevPilot AI — Chaîne de traçabilité  (Eraser diagram-as-code)
+title Traçabilité — lignée d'exécution persistée
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction right
+
+Message [icon: message-square, color: blue, label: "message"]
+
+Lineage [icon: layers, color: purple] {
+  AgentRuns [icon: cpu, label: "agent_runs · 7 agents"]
+  RetrievedChunks [icon: file-text, label: "retrieved_chunks"]
+  Evaluations [icon: shield, label: "evaluations"]
+  LLMUsage [icon: dollar-sign, label: "llm_usage"]
+}
+
+Storage [icon: database, color: green, label: "PostgreSQL"]
+Inspector [icon: search, color: teal, label: "AI Trace Inspector · 9 sections"]
+
+Message > AgentRuns: 1..*
+Message > RetrievedChunks: 1..*
+Message > Evaluations: 1..1
+Message > LLMUsage: 0..*
+AgentRuns > Storage
+RetrievedChunks > Storage
+Evaluations > Storage
+LLMUsage > Storage
+Storage > Inspector: reconstruction

@@ -1,8 +1,16 @@
 import httpx
 import pytest
 
-from app.providers.base import EmbeddingProviderError, LLMProviderError
-from app.providers.ollama_provider import DEFAULT_RAG_SYSTEM_PROMPT, OllamaEmbeddingProvider, OllamaLLMProvider
+from app.providers.base import (
+    EmbeddingProviderError,
+    EmbeddingProviderTimeoutError,
+    LLMProviderError,
+)
+from app.providers.ollama_provider import (
+    DEFAULT_RAG_SYSTEM_PROMPT,
+    OllamaEmbeddingProvider,
+    OllamaLLMProvider,
+)
 
 
 @pytest.mark.asyncio
@@ -77,6 +85,38 @@ async def test_ollama_embedding_provider_unreachable_message(
 
     assert "ollama serve" in str(exc_info.value)
     assert "ollama pull nomic-embed-text" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_ollama_embedding_provider_timeout_returns_timeout_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeAsyncClient:
+        def __init__(self, *, base_url: str, timeout: float) -> None:
+            self.base_url = base_url
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, path: str, json: dict[str, object]) -> httpx.Response:
+            request = httpx.Request("POST", f"{self.base_url}{path}")
+            raise httpx.TimeoutException("request timed out", request=request)
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    provider = OllamaEmbeddingProvider(
+        base_url="http://ollama:11434",
+        model="nomic-embed-text",
+    )
+
+    with pytest.raises(EmbeddingProviderTimeoutError) as exc_info:
+        await provider.embed("hello")
+
+    assert "Ollama embedding request timed out" in str(exc_info.value)
+    assert "nomic-embed-text" in str(exc_info.value)
 
 
 @pytest.mark.asyncio

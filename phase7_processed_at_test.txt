@@ -1,1 +1,0 @@
-This file tests that processed_at is filled after Celery processing.

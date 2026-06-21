@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncIterator
 from collections.abc import Sequence
 from time import perf_counter
 
@@ -9,9 +11,11 @@ from app.core.config import settings
 from app.providers.base import (
     BaseEmbeddingProvider,
     EmbeddingProviderError,
+    EmbeddingProviderTimeoutError,
     EmbeddingResponse,
     LLMProviderError,
     LLMResponse,
+    chunk_text,
 )
 
 
@@ -29,11 +33,13 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         self,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = 60.0,
+        timeout: float | None = None,
     ) -> None:
         self.base_url = (base_url or settings.ollama_url).rstrip("/")
         self.model = model or settings.active_embedding_model
-        self.timeout = timeout
+        self.timeout = (
+            timeout if timeout is not None else settings.ollama_embedding_timeout_seconds
+        )
 
     async def embed(self, text: str) -> list[float]:
         embeddings = await self.embed_batch([text])
@@ -71,7 +77,7 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
                 f"with `ollama pull {self.model}`."
             ) from exc
         except httpx.TimeoutException as exc:
-            raise EmbeddingProviderError(
+            raise EmbeddingProviderTimeoutError(
                 "Ollama embedding request timed out. Confirm Ollama is running and the "
                 f"`{self.model}` model is available."
             ) from exc
@@ -190,6 +196,46 @@ class OllamaLLMProvider:
             total_tokens=total_tokens,
             latency_ms=elapsed_ms,
         )
+
+    async def stream_generate(
+        self,
+        prompt: str,
+        system_prompt: str = DEFAULT_RAG_SYSTEM_PROMPT,
+    ) -> AsyncIterator[str]:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": True,
+            "think": settings.ollama_chat_think,
+            "options": {
+                "temperature": settings.generation_temperature,
+                "num_predict": settings.generation_max_tokens,
+            },
+        }
+
+        try:
+            async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
+                async with client.stream("POST", "/api/chat", json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        message = data.get("message")
+                        if isinstance(message, dict) and isinstance(message.get("content"), str):
+                            content = message["content"]
+                            if content:
+                                yield content
+        except Exception:
+            fallback = await self.generate(prompt=prompt, system_prompt=system_prompt)
+            async for chunk in chunk_text(fallback.content):
+                yield chunk
 
 
 def _int_or_zero(value: object) -> int:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
-from collections.abc import Sequence
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,10 @@ class EmbeddingResponse:
 
 class EmbeddingProviderError(RuntimeError):
     """Raised when an embedding provider cannot create embeddings."""
+
+
+class EmbeddingProviderTimeoutError(EmbeddingProviderError):
+    """Raised when an embedding provider request times out."""
 
 
 @dataclass(frozen=True)
@@ -27,6 +31,16 @@ class LLMResponse:
 
 class LLMProviderError(RuntimeError):
     """Raised when an LLM provider cannot generate a response."""
+
+
+async def chunk_text(text: str, *, chunk_size: int = 24) -> AsyncIterator[str]:
+    """Yield text in small chunks for providers without native streaming."""
+
+    normalized_chunk_size = max(chunk_size, 1)
+    for start in range(0, len(text), normalized_chunk_size):
+        chunk = text[start : start + normalized_chunk_size]
+        if chunk:
+            yield chunk
 
 
 class BaseEmbeddingProvider(ABC):

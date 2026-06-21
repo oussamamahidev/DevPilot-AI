@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpilot}
       POSTGRES_DB: ${POSTGRES_DB:-devpilot}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -48,6 +48,10 @@ services:
     build:
       context: ./backend
     container_name: devpilot-backend
+    command: >
+      sh -c "mkdir -p /tmp/prometheus-multiproc &&
+      rm -f /tmp/prometheus-multiproc/*.db &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
     restart: unless-stopped
     env_file:
       - path: .env
@@ -64,23 +68,38 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-devpilot}:${POSTGRES_PASSWORD:-devpilot}@postgres:5432/${POSTGRES_DB:-devpilot}
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
-      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL:-qwen3:8b}
+      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL:-qwen2.5:3b-instruct-q3_K_S}
       OLLAMA_CHAT_THINK: ${OLLAMA_CHAT_THINK:-false}
       OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      OLLAMA_EMBEDDING_TIMEOUT_SECONDS: ${OLLAMA_EMBEDDING_TIMEOUT_SECONDS:-120}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_GENERATION_MODEL: ${GEMINI_GENERATION_MODEL:-gemini-2.5-flash}
+      GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-60}
+      GEMINI_MAX_OUTPUT_TOKENS: ${GEMINI_MAX_OUTPUT_TOKENS:-1000}
+      GEMINI_TEMPERATURE: ${GEMINI_TEMPERATURE:-0.2}
+      GEMINI_MAX_RETRIES: ${GEMINI_MAX_RETRIES:-3}
+      GEMINI_RETRY_BACKOFF_SECONDS: ${GEMINI_RETRY_BACKOFF_SECONDS:-2}
+      GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL:-gemini-2.0-flash}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-4}
       GENERATION_TEMPERATURE: ${GENERATION_TEMPERATURE:-0.2}
       GENERATION_MAX_TOKENS: ${GENERATION_MAX_TOKENS:-1000}
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_MAX_CONTEXT_CHARS: ${RAG_MAX_CONTEXT_CHARS:-6000}
+      ENABLE_RERANKING: ${ENABLE_RERANKING:-true}
+      ENABLE_OLLAMA_RERANKER: ${ENABLE_OLLAMA_RERANKER:-false}
+      RETRIEVAL_CANDIDATES: ${RETRIEVAL_CANDIDATES:-15}
+      RERANK_TOP_K: ${RERANK_TOP_K:-5}
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10485760}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_GENERATION_MODEL: ${OPENAI_GENERATION_MODEL:-}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
     extra_hosts: *ollama_extra_hosts
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
@@ -93,13 +112,17 @@ services:
         condition: service_started
     volumes:
       - ./backend/app:/app/app
+      - ./backend/scripts:/app/scripts
       - ./backend/storage:/app/storage
+      - prometheus_multiproc:/tmp/prometheus-multiproc
 
   celery_worker:
     build:
       context: ./backend
     container_name: devpilot-celery-worker
-    command: celery -A app.workers.celery_app worker --loglevel=INFO
+    command: >
+      sh -c "mkdir -p /tmp/prometheus-multiproc &&
+      celery -A app.workers.celery_app worker --loglevel=INFO"
     restart: unless-stopped
     env_file:
       - path: .env
@@ -116,23 +139,38 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-devpilot}:${POSTGRES_PASSWORD:-devpilot}@postgres:5432/${POSTGRES_DB:-devpilot}
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
-      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL:-qwen3:8b}
+      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL:-qwen2.5:3b-instruct-q3_K_S}
       OLLAMA_CHAT_THINK: ${OLLAMA_CHAT_THINK:-false}
       OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      OLLAMA_EMBEDDING_TIMEOUT_SECONDS: ${OLLAMA_EMBEDDING_TIMEOUT_SECONDS:-120}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_GENERATION_MODEL: ${GEMINI_GENERATION_MODEL:-gemini-2.5-flash}
+      GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-60}
+      GEMINI_MAX_OUTPUT_TOKENS: ${GEMINI_MAX_OUTPUT_TOKENS:-1000}
+      GEMINI_TEMPERATURE: ${GEMINI_TEMPERATURE:-0.2}
+      GEMINI_MAX_RETRIES: ${GEMINI_MAX_RETRIES:-3}
+      GEMINI_RETRY_BACKOFF_SECONDS: ${GEMINI_RETRY_BACKOFF_SECONDS:-2}
+      GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL:-gemini-2.0-flash}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-4}
       GENERATION_TEMPERATURE: ${GENERATION_TEMPERATURE:-0.2}
       GENERATION_MAX_TOKENS: ${GENERATION_MAX_TOKENS:-1000}
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_MAX_CONTEXT_CHARS: ${RAG_MAX_CONTEXT_CHARS:-6000}
+      ENABLE_RERANKING: ${ENABLE_RERANKING:-true}
+      ENABLE_OLLAMA_RERANKER: ${ENABLE_OLLAMA_RERANKER:-false}
+      RETRIEVAL_CANDIDATES: ${RETRIEVAL_CANDIDATES:-15}
+      RERANK_TOP_K: ${RERANK_TOP_K:-5}
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10485760}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_GENERATION_MODEL: ${OPENAI_GENERATION_MODEL:-}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
     extra_hosts: *ollama_extra_hosts
     depends_on:
       postgres:
@@ -144,14 +182,18 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/storage:/app/storage
+      - prometheus_multiproc:/tmp/prometheus-multiproc
 
   frontend:
     build:
       context: ./frontend
     container_name: devpilot-frontend
     restart: unless-stopped
+    env_file:
+      - path: ./frontend/.env
+        required: false
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_HOST_PORT:-8000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
@@ -161,7 +203,42 @@ services:
       - /app/node_modules
       - /app/.next
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: devpilot-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    depends_on:
+      - backend
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: devpilot-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_HOST_PORT:-3002}:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
 volumes:
   postgres_data:
   redis_data:
   qdrant_data:
+  prometheus_data:
+  grafana_data:
+  prometheus_multiproc:

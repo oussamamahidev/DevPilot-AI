@@ -1,0 +1,20 @@
+// DevPilot AI — AI Execution Studio  (Eraser diagram-as-code)
+title AI Execution Studio — 10 étapes animées (pilotées par le flux SSE réel)
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction right
+
+Question [icon: message-circle, color: blue]
+Embedding [icon: cpu, label: "Query Embedding · 768-d"]
+Search [icon: search, label: "Vector Search"]
+Retrieval [icon: layers, label: "Chunk Retrieval"]
+Rerank [icon: bar-chart, label: "Reranking"]
+Context [icon: box, label: "Context Window"]
+Prompt [icon: code, label: "Prompt Builder"]
+Generation [icon: sparkles, color: green, label: "LLM Generation · stream"]
+Evaluation [icon: shield, color: orange, label: "Evaluation · jauges"]
+Persistence [icon: database, color: teal, label: "Trace Persistence"]
+
+Question > Embedding > Search > Retrieval > Rerank > Context > Prompt > Generation > Evaluation > Persistence

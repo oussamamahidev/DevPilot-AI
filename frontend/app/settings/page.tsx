@@ -1,3 +1,16 @@
+"use client";
+
+import { DashboardShell } from "@/components/DashboardShell";
+import { SettingsContent } from "@/components/settings/SettingsContent";
+
 export default function SettingsPage() {
-  return <main className="p-6">Settings module placeholder</main>;
+  return (
+    <DashboardShell
+      activeItem="settings"
+      title="Settings"
+      description="Enterprise profile, security, API key, preference, and workspace controls."
+    >
+      <SettingsContent />
+    </DashboardShell>
+  );
 }

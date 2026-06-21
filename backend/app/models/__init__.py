@@ -1,3 +1,4 @@
+from app.models.audit import AuditLog
 from app.models.conversation import (
     AgentRun,
     Conversation,
@@ -12,6 +13,7 @@ from app.models.workspace import Workspace, WorkspaceMember
 
 __all__ = [
     "AgentRun",
+    "AuditLog",
     "Chunk",
     "Conversation",
     "Document",

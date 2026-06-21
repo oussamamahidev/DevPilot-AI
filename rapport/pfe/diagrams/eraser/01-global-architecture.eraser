@@ -1,0 +1,58 @@
+// DevPilot AI — Architecture globale  (paste into https://app.eraser.io  → Diagram as Code)
+title DevPilot AI — Architecture globale
+
+colorMode bold
+styleMode shadow
+typeface clean
+direction down
+
+User [icon: user, color: gray]
+
+Client [icon: monitor, color: blue] {
+  Frontend [icon: nextjs, label: "Next.js 15 · React 19"]
+}
+
+API Gateway [icon: server, color: blue] {
+  FastAPI [icon: python, label: "FastAPI · REST + SSE"]
+  Auth [icon: lock, label: "JWT · RBAC"]
+}
+
+Orchestration [icon: workflow, color: purple] {
+  Workflow [icon: cpu, label: "Agentic RAG Workflow · 7 agents"]
+}
+
+Async Processing [icon: refresh-cw, color: orange] {
+  Redis [icon: redis, label: "Redis · broker/cache"]
+  Celery [icon: python, label: "Celery worker"]
+}
+
+Data Layer [icon: database, color: green] {
+  Postgres [icon: postgresql, label: "PostgreSQL 16 · état + traces"]
+  Qdrant [icon: database, label: "Qdrant · HNSW cosinus 768-d"]
+}
+
+AI Providers [icon: cpu, color: teal] {
+  Ollama [icon: server, label: "Ollama · nomic-embed-text"]
+  Gemini [icon: google, label: "Gemini 2.5 Flash"]
+}
+
+Observability [icon: activity, color: red] {
+  Prometheus [icon: prometheus]
+  Grafana [icon: grafana]
+}
+
+User > Frontend: question
+Frontend > FastAPI: HTTPS / SSE
+FastAPI > Auth
+FastAPI > Workflow
+FastAPI > Redis: enqueue
+Redis > Celery
+Workflow > Qdrant: recherche
+Workflow > Ollama: embeddings
+Workflow > Gemini: génération (stream)
+Celery > Ollama: embeddings
+Celery > Qdrant: upsert
+FastAPI > Postgres
+Celery > Postgres
+FastAPI > Prometheus
+Prometheus > Grafana

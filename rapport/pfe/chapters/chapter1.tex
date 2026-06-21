@@ -1,0 +1,271 @@
+\chapter{Contexte général du projet}
+\label{chap:contexte}
+
+\section{Présentation générale}
+Ce chapitre établit les fondations du projet \devpilot{}. Il caractérise le
+besoin métier, analyse l'existant à travers une étude comparative des solutions
+concurrentes, puis formalise les exigences fonctionnelles et non fonctionnelles,
+les contraintes, le cahier des charges et la gestion des risques. Cette analyse
+conditionne l'ensemble des décisions de conception et d'architecture présentées
+dans les chapitres~\ref{chap:conception} et~\ref{chap:archi}.
+
+\subsection{Contexte}
+Les équipes d'ingénierie logicielle produisent et consomment en permanence une
+connaissance technique abondante : spécifications, documents d'architecture, notes
+de conception, comptes rendus, directives internes et documentation de projet.
+Cette connaissance possède trois propriétés qui la rendent difficile à exploiter.
+Elle est d'abord \textbf{volumineuse et croissante}. Elle est ensuite
+\textbf{fragmentée}, répartie entre des outils, des formats et des silos
+hétérogènes. Elle est enfin \textbf{contextuelle} : une même question n'appelle
+pas la même réponse selon le projet, l'équipe ou la version concernée.
+
+La recherche par mots-clés des outils traditionnels échoue dès que le vocabulaire
+de la question diffère de celui du document ; elle ne comprend pas l'intention
+sémantique et renvoie des listes de documents que l'utilisateur doit encore lire
+et synthétiser. À l'inverse, les assistants génératifs généralistes produisent
+une synthèse directe, mais répondent à partir de paramètres figés au moment de
+l'entraînement, sans connaissance du patrimoine documentaire propre à
+l'organisation et sans garantie de véracité.
+
+\subsection{Organisme d'accueil}
+Ce projet de fin d'études a été réalisé au sein de [\textit{nom de l'organisme
+d'accueil — à compléter}], [\textit{secteur d'activité — à compléter}]. La
+structure d'accueil [\textit{présentation succincte de l'organisme, de ses
+activités et de l'équipe d'encadrement — à compléter}]. Le projet s'inscrit dans
+[\textit{contexte de la mission — à compléter}].
+
+\subsection{Problématique}
+La problématique centrale se décompose en deux familles de limites
+complémentaires. D'une part, les moteurs de recherche internes, fondés sur
+l'appariement lexical, ne comprennent pas la sémantique des requêtes. D'autre
+part, les grands modèles de langage généralistes souffrent
+d'\textbf{hallucinations}, d'une \textbf{absence de traçabilité}, d'une
+\textbf{absence de citations}, d'une \textbf{absence de visibilité} sur la qualité
+de récupération et d'une \textbf{absence d'observabilité}~\cite{lewis2020}.
+
+La question directrice du projet est donc la suivante : \emph{comment concevoir et
+réaliser une plateforme d'IA capable de centraliser les connaissances d'une équipe
+d'ingénierie, d'en récupérer l'information pertinente, de générer des réponses
+fondées et citées, d'en mesurer la qualité, et d'offrir une traçabilité et une
+observabilité permettant d'auditer et d'exploiter le système comme tout service
+critique d'entreprise~?}
+
+\subsection{Objectifs}
+Le projet vise à concevoir et implémenter \devpilot{}, une plateforme agentique de
+\emph{Génération Augmentée par Récupération} (RAG) multi-espaces. Les objectifs
+opérationnels sont synthétisés dans le tableau~\ref{tab:objectifs}.
+
+\begin{table}[H]
+\centering\caption{Objectifs opérationnels et capacités correspondantes}
+\label{tab:objectifs}\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Objectif & Capacité réalisée \\
+\midrule
+Centraliser & Espaces de travail isolés, gestion documentaire, ingestion asynchrone \\
+Récupérer & Recherche sémantique et hybride, reclassement par pertinence \\
+Générer & Réponses ancrées produites par un pipeline agentique de sept agents \\
+Citer & Génération de citations reliées aux passages sources \\
+Mesurer & Évaluation de la fidélité, de la pertinence et du risque d'hallucination \\
+Diffuser & \emph{Streaming} temps réel des réponses (Server-Sent Events) \\
+Superviser & RAGOps : santé des pipelines, couverture, file de traitement, alertes \\
+Tracer & Explorateur et inspecteur de traces de bout en bout \\
+Visualiser & AI Execution Studio : visualisation animée du pipeline d'exécution \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Méthodologie}
+La démarche adoptée est itérative et orientée production. Le développement s'est
+déroulé en \textbf{vingt-trois phases} incrémentales, de la fondation
+conteneurisée jusqu'aux fonctionnalités phares de visualisation. Chaque phase fixe
+un objectif vérifiable, introduit des fonctionnalités, justifie ses choix
+techniques et est validée par des tests dédiés. Cette progression, détaillée tout
+au long du rapport, garantit que le système reflète une évolution réelle et
+maîtrisée plutôt qu'une conception monolithique. Le chapitre~\ref{chap:archi}
+constitue le c{\oe}ur du travail d'ingénierie.
+
+\subsection{Analyse de l'existant}
+Aucune solution unique du marché ne couvre simultanément l'ancrage documentaire
+privé, la traçabilité et l'observabilité dans un cadre auto-hébergeable. Nous
+analysons ci-dessous six familles de solutions représentatives.
+
+\paragraph{ChatGPT (et assistants génériques).} \textbf{Forces :} qualité
+conversationnelle, fluidité, large couverture générale. \textbf{Limites :} répond
+depuis ses paramètres, pas depuis la base de connaissances privée ; hallucinations ;
+absence de citations vérifiables. \textbf{Manques :} traçabilité, isolation des
+données, observabilité opérationnelle.
+
+\paragraph{LangSmith.} \textbf{Forces :} excellente observabilité et traçabilité
+des applications à base de LLM~\cite{langsmith}. \textbf{Limites :} c'est un outil
+d'\emph{observabilité}, non une plateforme RAG complète et auto-suffisante.
+\textbf{Manques :} moteur d'ingestion/récupération intégré, interface utilisateur
+métier, gouvernance multi-espaces.
+
+\paragraph{LlamaIndex.} \textbf{Forces :} \emph{framework} riche pour
+l'indexation et la récupération~\cite{llamaindex}. \textbf{Limites :} bibliothèque
+de développement, non un produit clé en main ; pas d'observabilité ni d'interface
+intégrées. \textbf{Manques :} RAGOps, traçabilité persistée, expérience
+utilisateur complète.
+
+\paragraph{OpenWebUI.} \textbf{Forces :} interface conversationnelle agréable,
+auto-hébergeable. \textbf{Limites :} centrée sur le \emph{chat}, observabilité et
+évaluation limitées. \textbf{Manques :} évaluation systématique de la qualité,
+traçabilité fine, supervision de la santé du pipeline.
+
+\paragraph{Haystack.} \textbf{Forces :} \emph{framework} RAG modulaire et
+mature~\cite{haystack}. \textbf{Limites :} orienté développeur ; l'observabilité
+et l'interface restent à construire. \textbf{Manques :} tour de contrôle
+opérationnelle prête à l'emploi, visualisation pédagogique de l'exécution.
+
+\paragraph{Plateformes de connaissance d'entreprise.} \textbf{Forces :}
+intégration documentaire et gouvernance. \textbf{Limites :} recherche souvent
+lexicale ; capacités génératives et de traçabilité du raisonnement limitées.
+\textbf{Manques :} pipeline RAG agentique transparent et évalué.
+
+\paragraph{Différenciation de \devpilot{}.} \devpilot{} se distingue en
+\textbf{intégrant} l'application RAG \emph{et} son exploitation dans un système
+unique, auto-hébergeable : base de connaissances privée par espace de travail,
+réponses ancrées et citées, évaluation automatique, traçabilité complète
+(RAGOps, explorateur et inspecteur de traces) et visualisation d'exécution
+(AI Execution Studio). La transparence du pipeline de raisonnement est le c{\oe}ur
+de la proposition de valeur.
+
+\subsection{Étude comparative}
+Le tableau~\ref{tab:comparaison} positionne \devpilot{} face aux solutions
+analysées selon les capacités déterminantes pour une plateforme d'IA d'entreprise.
+
+\begin{table}[H]
+\centering\caption{Étude comparative des solutions}\label{tab:comparaison}
+\scriptsize\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.1cm} *{6}{>{\centering\arraybackslash}X}@{}}
+\toprule
+\textbf{Capacité} & \textbf{ChatGPT} & \textbf{LangSmith} & \textbf{LlamaIndex} & \textbf{Haystack} & \textbf{OpenWebUI} & \textbf{\devpilot{}} \\
+\midrule
+Réponses ancrées sur vos documents & Limité & N/A & Oui & Oui & Partiel & \textbf{Oui} \\
+Citations vérifiables & Non & N/A & Partiel & Partiel & Partiel & \textbf{Oui} \\
+Traçabilité complète des requêtes & Non & Oui & Non & Non & Non & \textbf{Oui} \\
+Isolation par espace de travail & Non & N/A & Non & Non & Partiel & \textbf{Oui} \\
+Score d'hallucination & Non & Partiel & Non & Non & Non & \textbf{Oui} \\
+Métriques de récupération & Non & Oui & Partiel & Partiel & Non & \textbf{Oui} \\
+Chronologie d'exécution des agents & Non & Oui & Non & Non & Non & \textbf{Oui} \\
+Auto-hébergement & Non & Partiel & Oui & Oui & Oui & \textbf{Oui} \\
+Évaluation intégrée & Non & Partiel & Non & Partiel & Non & \textbf{Oui} \\
+Observabilité opérationnelle (RAGOps) & Non & Partiel & Non & Non & Non & \textbf{Oui} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Besoins fonctionnels}
+Les exigences fonctionnelles (EF) sont synthétisées dans le
+tableau~\ref{tab:ef}.
+
+\begin{table}[H]
+\centering\caption{Exigences fonctionnelles principales}\label{tab:ef}\small
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Réf.} & \textbf{Domaine} & \textbf{Exigence} \\
+\midrule
+EF-1 & Authentification & Inscription, connexion et sessions sécurisées par jetons JWT \\
+EF-2 & Autorisation & Contrôle d'accès par rôles (utilisateur, admin, super-admin) \\
+EF-3 & Espaces & Création d'espaces isolés et gestion des membres \\
+EF-4 & Documents & Téléversement, listing, suivi de statut et suppression \\
+EF-5 & Ingestion & Traitement asynchrone : extraction, découpage, vectorisation, indexation \\
+EF-6 & Récupération & Recherche sémantique et hybride sur la base vectorielle \\
+EF-7 & Reclassement & Reclassement des candidats par pertinence (\emph{reranking}) \\
+EF-8 & Génération & Production de réponses ancrées par un pipeline agentique \\
+EF-9 & Citations & Génération de citations reliées aux passages utilisés \\
+EF-10 & Conversation & Historique de conversations et de messages persistants \\
+EF-11 & Streaming & Diffusion incrémentale des réponses (jeton par jeton) \\
+EF-12 & Évaluation & Mesure de la fidélité, de la pertinence et du risque d'hallucination \\
+EF-13 & Correction & Réparation automatique des réponses non fidèles \\
+EF-14 & Administration & Tableaux de bord d'administration et journal d'audit \\
+EF-15 & RAGOps & Supervision de la santé des pipelines et de la file de traitement \\
+EF-16 & Traçabilité & Explorateur et inspecteur de traces de requêtes RAG \\
+EF-17 & Visualisation & AI Execution Studio : visualisation animée de l'exécution \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Besoins non fonctionnels}
+\begin{description}[leftmargin=2.4cm,style=nextline]
+\item[Sécurité] Authentification JWT, autorisation par rôles, isolation stricte
+des données par espace, journalisation d'audit et masquage systématique des
+secrets dans les vues de débogage.
+\item[Performance] API asynchrone non bloquante, déport du traitement lourd via
+Celery, recherche par plus proches voisins approchés (HNSW) et \emph{streaming}
+réduisant le \emph{time-to-first-token}.
+\item[Scalabilité] \textit{Backend} sans état horizontalement extensible,
+\emph{workers} Celery ajoutables, base vectorielle Qdrant partitionnable.
+\item[Disponibilité] Conteneurisation, dépendances de santé explicites et
+politiques de relance des tâches asynchrones.
+\item[Maintenabilité] Architecture en couches, typage statique de bout en bout,
+migrations de schéma versionnées (Alembic).
+\item[Observabilité] Traçabilité complète, métriques Prometheus, tableaux de bord
+Grafana, RAGOps et inspecteur de traces.
+\item[Fiabilité] Repli de modèles de génération, agent correcteur et relance
+automatique des ingestions échouées.
+\item[Utilisabilité] Interface conversationnelle réactive, rendu Markdown, cartes
+de citation interactives, thème clair/sombre.
+\end{description}
+
+\subsection{Contraintes}
+\begin{description}[leftmargin=2.4cm,style=nextline]
+\item[Techniques] Reproductibilité par conteneurs ; possibilité d'exécution
+hors-ligne via des modèles locaux (Ollama) ; budget mémoire et calcul maîtrisé.
+\item[Académiques] Démonstration d'une démarche d'ingénierie rigoureuse et d'un
+raisonnement architectural.
+\item[Temps] Réalisation dans le cadre temporel d'un projet de fin d'études.
+\item[Ressources] Environnement d'exécution mono-machine, sans infrastructure
+\emph{cloud} dédiée.
+\end{description}
+
+\subsection{Cahier des charges}
+Le tableau~\ref{tab:cdc} relie les objectifs aux livrables vérifiables.
+
+\begin{table}[H]
+\centering\caption{Synthèse du cahier des charges}\label{tab:cdc}\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}l X@{}}
+\toprule
+Objectif & Livrable \\
+\midrule
+Ingestion & Pipeline asynchrone Celery (extraction, découpage, vectorisation, indexation Qdrant) \\
+Récupération & Service de recherche hybride avec reclassement \\
+Génération & Flux agentique de sept agents avec citations \\
+Évaluation & Module d'évaluation (fidélité, pertinence, hallucination) \\
+Exploitation & Tour de contrôle RAGOps \\
+Traçabilité & Explorateur et inspecteur de traces \\
+Visualisation & AI Execution Studio \\
+Déploiement & Orchestration Docker Compose (8 services) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Gestion des risques}
+Le tableau~\ref{tab:risques} recense les principaux risques et leurs mesures de
+mitigation.
+
+\begin{table}[H]
+\centering\caption{Gestion des risques}\label{tab:risques}\small
+\begin{tabularx}{\textwidth}{@{}X c c X@{}}
+\toprule
+\textbf{Risque} & \textbf{Prob.} & \textbf{Impact} & \textbf{Mitigation} \\
+\midrule
+Hallucination du LLM & Moyenne & Élevé & Ancrage strict, évaluation de fidélité, agent correcteur \\
+Indisponibilité du fournisseur LLM & Faible & Élevé & Modèle de repli (\emph{fallback}) ; embeddings locaux \\
+Couverture d'\emph{embedding} incomplète & Moyenne & Moyen & Suivi RAGOps de la couverture, relance d'ingestion \\
+Échec d'ingestion documentaire & Moyenne & Moyen & Relance Celery (3 tentatives), centre des échecs \\
+Volume de \emph{node\_modules} conteneur & Faible & Faible & Procédure de réinstallation documentée \\
+Dégradation des performances & Faible & Moyen & Recherche HNSW, \emph{streaming}, chargement différé \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Conclusion}
+Ce chapitre a établi que le besoin n'est pas un \emph{chatbot} supplémentaire,
+mais une plateforme d'IA \emph{fondée}, \emph{mesurable} et \emph{observable}.
+L'étude comparative montre que \devpilot{} occupe une position distinctive en
+unifiant moteur RAG, exploitation et traçabilité. Les exigences non fonctionnelles
+— sécurité, scalabilité, observabilité — sont aussi structurantes que les
+exigences fonctionnelles. Le chapitre suivant traduit ces besoins en modèles de
+conception.

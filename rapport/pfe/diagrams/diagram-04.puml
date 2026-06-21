@@ -1,0 +1,39 @@
+@startuml
+class AgenticRAGWorkflow {
+  +run(question) : Result
+}
+interface Agent {
+  +execute(ctx)
+}
+class RouterAgent
+class QueryRewriterAgent
+class RetrievalAgent
+class RerankerAgent
+class GeneratorAgent
+class EvaluatorAgent
+class CorrectorAgent
+class RetrievalService
+class RerankingService
+class EvaluationService
+class RagTracesService
+
+RouterAgent ..|> Agent
+QueryRewriterAgent ..|> Agent
+RetrievalAgent ..|> Agent
+RerankerAgent ..|> Agent
+GeneratorAgent ..|> Agent
+EvaluatorAgent ..|> Agent
+CorrectorAgent ..|> Agent
+
+AgenticRAGWorkflow o-- RouterAgent
+AgenticRAGWorkflow o-- QueryRewriterAgent
+AgenticRAGWorkflow o-- RetrievalAgent
+AgenticRAGWorkflow o-- RerankerAgent
+AgenticRAGWorkflow o-- GeneratorAgent
+AgenticRAGWorkflow o-- EvaluatorAgent
+AgenticRAGWorkflow o-- CorrectorAgent
+RetrievalAgent --> RetrievalService
+RerankerAgent --> RerankingService
+EvaluatorAgent --> EvaluationService
+AgenticRAGWorkflow --> RagTracesService
+@enduml

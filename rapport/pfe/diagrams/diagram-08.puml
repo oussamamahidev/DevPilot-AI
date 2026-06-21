@@ -1,0 +1,25 @@
+@startuml
+entity users
+entity workspaces
+entity workspace_members
+entity documents
+entity chunks
+entity conversations
+entity messages
+entity agent_runs
+entity retrieved_chunks
+entity evaluations
+entity llm_usage
+
+users ||--o{ workspaces
+users ||--o{ workspace_members
+workspaces ||--o{ workspace_members
+workspaces ||--o{ documents
+documents ||--o{ chunks
+users ||--o{ conversations
+conversations ||--o{ messages
+messages ||--o{ agent_runs
+messages ||--o{ retrieved_chunks
+messages ||--|| evaluations
+messages ||--o{ llm_usage
+@enduml

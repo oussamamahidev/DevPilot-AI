@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.metrics import DOCUMENTS_UPLOADED_TOTAL
 from app.models.document import Document
 from app.models.user import User
 from app.models.workspace import Workspace
@@ -109,6 +110,8 @@ async def upload_document(
     if created_document is None:
         raise RuntimeError("Uploaded document could not be loaded")
 
+    DOCUMENTS_UPLOADED_TOTAL.labels(file_type=file_type).inc()
+
     from app.workers.document_tasks import process_document_task
 
     process_document_task.delay(str(created_document.id))
@@ -140,7 +143,7 @@ async def get_document_for_user(
     if document is None or document.status == "deleted":
         return None
 
-    if user.role == "admin":
+    if user.role in {"admin", "super_admin"}:
         return document
 
     member = await workspace_service.get_workspace_member(

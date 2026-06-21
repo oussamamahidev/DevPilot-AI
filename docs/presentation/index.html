@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevPilot AI — PFE Defense | ENSIAS</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#13151a;          /* near-black text */
+  --ink-soft:#4a4f5a;     /* secondary text */
+  --ink-faint:#8a909c;    /* tertiary */
+  --line:#e3e6ec;         /* hairlines */
+  --line-soft:#eef0f4;
+  --paper:#ffffff;
+  --paper-2:#fafbfc;
+  --brand:#27408b;        /* deep royal indigo (accent) */
+  --brand-2:#3a5bd9;
+  --accent:#0f766e;       /* teal for second-tier accent */
+  --amber:#b45309;
+  --rose:#b91c1c;
+  --ok:#15803d;
+}
+
+/* ---------- base ---------- */
+.reveal{ font-family:'Inter',system-ui,sans-serif; font-size:30px; color:var(--ink); font-weight:400; }
+.reveal .slides{ text-align:left; }
+.reveal .slides section{ height:100%; }
+.reveal h1,.reveal h2,.reveal h3,.reveal h4{ font-family:'Newsreader','Newsreader',serif; color:var(--ink); font-weight:600; text-transform:none; letter-spacing:-0.01em; line-height:1.12; margin:0 0 .35em; }
+.reveal h1{ font-size:2.5em; }
+.reveal h2{ font-size:1.72em; }
+.reveal h3{ font-size:1.18em; }
+.reveal p{ line-height:1.45; margin:0 0 .55em; }
+.reveal strong{ color:var(--ink); font-weight:700; }
+.reveal em{ color:var(--brand); font-style:normal; font-weight:600; }
+.reveal a{ color:var(--brand); }
+.reveal ul,.reveal ol{ display:block; margin:0 0 .4em; }
+.reveal li{ line-height:1.4; margin:.18em 0; }
+.reveal section img{ border:none; box-shadow:none; }
+.reveal .slide-number{ background:transparent; color:var(--ink-faint); font-family:'Inter'; font-size:15px; }
+
+/* a thin brand rule under every slide kicker */
+.kicker{ display:inline-block; font-family:'Inter'; font-size:.5em; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--brand); margin-bottom:.5em; }
+.kicker::after{ content:""; display:block; width:42px; height:3px; background:var(--brand); margin-top:.5em; border-radius:2px; }
+
+.lead{ font-size:1.05em; color:var(--ink-soft); }
+.muted{ color:var(--ink-soft); }
+.faint{ color:var(--ink-faint); }
+.small{ font-size:.72em; }
+.tiny{ font-size:.6em; }
+.mono{ font-family:'JetBrains Mono',monospace; }
+.center{ text-align:center; }
+
+/* ---------- layout helpers ---------- */
+.grid{ display:grid; gap:18px; }
+.g2{ grid-template-columns:1fr 1fr; }
+.g3{ grid-template-columns:1fr 1fr 1fr; }
+.g4{ grid-template-columns:repeat(4,1fr); }
+.g-12{ grid-template-columns:1.1fr .9fr; }
+.row{ display:flex; gap:16px; align-items:stretch; }
+.fill{ flex:1; }
+
+/* ---------- cards ---------- */
+.card{ background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+.card.soft{ background:var(--paper-2); }
+.card h3{ margin:0 0 .25em; font-family:'Inter'; font-weight:700; font-size:.82em; letter-spacing:.01em; }
+.card p{ font-size:.74em; color:var(--ink-soft); margin:0; line-height:1.4; }
+.card .ic{ font-size:1.2em; }
+
+.pill{ display:inline-block; padding:3px 11px; border-radius:999px; font-family:'Inter'; font-size:.55em; font-weight:600; border:1px solid var(--line); color:var(--ink-soft); background:var(--paper-2); }
+.pill.b{ color:var(--brand); border-color:#c9d3f0; background:#f3f6fe; }
+.pill.t{ color:var(--accent); border-color:#bfe3df; background:#effaf8; }
+.pill.a{ color:var(--amber); border-color:#f0dcb8; background:#fdf6ec; }
+
+.tag{ font-family:'JetBrains Mono'; font-size:.6em; color:var(--ink-soft); background:var(--paper-2); border:1px solid var(--line); border-radius:7px; padding:4px 9px; display:inline-block; }
+
+/* numbered list with brand index */
+.steps{ list-style:none; margin:0; padding:0; counter-reset:s; }
+.steps li{ position:relative; padding-left:46px; margin:.5em 0; font-size:.82em; }
+.steps li::before{ counter-increment:s; content:counter(s); position:absolute; left:0; top:-2px; width:30px; height:30px; border-radius:8px; background:var(--brand); color:#fff; font-family:'Inter'; font-weight:700; font-size:.7em; display:flex; align-items:center; justify-content:center; }
+
+/* feature bullet */
+.fb{ display:flex; gap:12px; align-items:flex-start; margin:.45em 0; }
+.fb .dot{ flex:0 0 auto; width:9px; height:9px; border-radius:3px; background:var(--brand); margin-top:.5em; }
+.fb .dot.t{ background:var(--accent); } .fb .dot.a{ background:var(--amber); } .fb .dot.r{ background:var(--rose); }
+.fb p{ margin:0; font-size:.82em; }
+
+/* table */
+.reveal table{ width:100%; border-collapse:collapse; font-size:.64em; }
+.reveal table th{ text-align:left; font-family:'Inter'; font-weight:700; color:var(--ink); border-bottom:2px solid var(--ink); padding:9px 12px; }
+.reveal table td{ border-bottom:1px solid var(--line); padding:9px 12px; color:var(--ink-soft); vertical-align:top; }
+.reveal table tr:last-child td{ border-bottom:none; }
+.reveal table td strong{ color:var(--ink); }
+td .yes{ color:var(--ok); font-weight:700; } td .no{ color:var(--ink-faint); } td .part{ color:var(--amber); font-weight:600; }
+
+/* metric */
+.metric{ text-align:center; }
+.metric .v{ font-family:'Newsreader',serif; font-size:2.1em; font-weight:600; color:var(--brand); line-height:1; }
+.metric .l{ font-size:.62em; color:var(--ink-soft); margin-top:.4em; letter-spacing:.02em; }
+
+/* pipeline flow */
+.flow{ display:flex; align-items:stretch; gap:0; flex-wrap:wrap; }
+.flow .node{ flex:1; min-width:0; background:var(--paper); border:1px solid var(--line); border-radius:11px; padding:11px 8px; text-align:center; font-size:.62em; font-weight:600; color:var(--ink); position:relative; }
+.flow .node .s{ display:block; font-size:.8em; color:var(--ink-faint); font-weight:500; margin-top:2px; }
+.flow .arr{ display:flex; align-items:center; color:var(--brand); font-weight:700; padding:0 6px; font-size:.8em; }
+.flow.col{ flex-direction:column; gap:8px; }
+.flow.col .node{ text-align:left; padding:10px 14px; }
+
+/* layered architecture */
+.layer{ border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:8px 0; background:var(--paper); display:flex; align-items:center; gap:16px; }
+.layer .lname{ flex:0 0 165px; font-family:'Inter'; font-weight:700; font-size:.62em; color:var(--brand); letter-spacing:.04em; text-transform:uppercase; }
+.layer .lbody{ display:flex; gap:8px; flex-wrap:wrap; }
+.layer .chip{ font-size:.6em; font-family:'JetBrains Mono'; background:var(--paper-2); border:1px solid var(--line); border-radius:7px; padding:5px 10px; color:var(--ink-soft); }
+.layer.brand{ border-color:#c9d3f0; background:#f6f8ff; }
+.layer.brand .lname{ color:var(--brand); }
+.layer.obs{ border-color:#bfe3df; background:#f0faf8; }
+.layer.obs .lname{ color:var(--accent); }
+
+/* code block */
+.code{ background:#0f1117; border-radius:11px; padding:14px 18px; font-family:'JetBrains Mono'; font-size:.56em; line-height:1.6; color:#d7dbe6; overflow:auto; }
+.code .k{ color:#c4b5fd; } .code .s{ color:#86efac; } .code .c{ color:#6b7280; } .code .n{ color:#fca5a5; }
+
+/* callout */
+.callout{ border-left:4px solid var(--brand); background:var(--paper-2); padding:12px 18px; border-radius:0 10px 10px 0; font-size:.82em; }
+.callout.t{ border-color:var(--accent); }
+.callout.a{ border-color:var(--amber); }
+
+/* section divider slides */
+.divider{ display:flex; flex-direction:column; justify-content:center; height:100%; }
+.divider .n{ font-family:'Newsreader',serif; font-size:1.1em; color:var(--brand); font-weight:600; }
+
+/* slide header */
+.shead{ margin-bottom:18px; }
+.shead h2{ margin:0; }
+
+/* footer brand on content slides */
+.brandmark{ position:fixed; bottom:18px; left:24px; font-family:'Inter'; font-weight:800; font-size:13px; letter-spacing:.02em; color:var(--ink-faint); z-index:30; }
+.brandmark b{ color:var(--brand); }
+
+/* progress + controls tint */
+.reveal .progress{ color:var(--brand); height:4px; }
+.reveal .controls{ color:var(--brand); }
+
+/* title slide */
+.title-wrap{ height:100%; display:flex; flex-direction:column; justify-content:center; }
+.title-wrap .top-rule{ width:60px; height:4px; background:var(--brand); border-radius:2px; margin-bottom:30px; }
+.title-wrap h1{ font-size:3.1em; margin-bottom:.1em; }
+.title-wrap .sub{ font-size:1.15em; color:var(--ink-soft); font-weight:400; margin-bottom:1em; }
+.title-meta{ display:flex; gap:40px; margin-top:34px; padding-top:26px; border-top:1px solid var(--line); }
+.title-meta .blk .k{ font-size:.5em; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); font-weight:700; }
+.title-meta .blk .v{ font-size:.78em; color:var(--ink); font-weight:600; margin-top:4px; }
+
+.qend h1{ font-size:3.4em; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section data-background-color="#ffffff">
+  <div class="title-wrap">
+    <div class="top-rule"></div>
+    <div class="kicker" style="margin-bottom:.2em">Engineering Final-Year Project · Defense</div>
+    <h1>DevPilot&nbsp;AI</h1>
+    <p class="sub">A Production-Grade <strong>Agentic RAG Platform</strong> with Built-in Observability, Traceability &amp; Governance</p>
+    <p class="muted" style="font-size:.8em; max-width:21em">Turning the chatbot into an auditable AI <em>system</em> — knowledge management, retrieval, evaluation and execution visualization in one platform.</p>
+
+    <div class="title-meta">
+      <div class="blk"><div class="k">Student</div><div class="v">Oussama Mahi</div></div>
+      <div class="blk"><div class="k">Supervisor</div><div class="v">Pr. [Supervisor Name]</div></div>
+      <div class="blk"><div class="k">School</div><div class="v">ENSIAS — Mohammed V University</div></div>
+      <div class="blk"><div class="k">Year</div><div class="v">2025 / 2026</div></div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> DevPilot AI is not a chatbot — it is a production-grade AI <i>platform</i> that makes Retrieval-Augmented Generation observable, traceable and governable.</p>
+    <p><b>🎤 SAY:</b> "Good morning. My name is Oussama. Over the next 15 minutes I want to show you how I took the most common AI project — a document chatbot — and turned it into something an enterprise could actually run in production: a system where every answer can be traced, measured, and trusted. The project is called DevPilot AI."</p>
+    <p><b>❓ Q: Why this title 'Agentic RAG Platform'?</b><br><b>A:</b> Because retrieval and generation are split across seven specialized agents — router, rewriter, retrieval, reranker, generator, evaluator, corrector — and because the system ships the operational tooling around RAG, not just the chat endpoint.</p>
+    <p><i>⚠️ Replace student/supervisor placeholders before presenting.</i></p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 2 — AGENDA ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">Agenda</span><h2>What we'll cover</h2></div>
+  <div class="grid g2" style="gap:14px 40px">
+    <div>
+      <ol class="steps" style="counter-reset:s 0">
+        <li><strong>The problem</strong> — why generic chatbots fail in the enterprise</li>
+        <li><strong>State of the art</strong> — existing tools &amp; the gap they leave</li>
+        <li><strong>Architecture</strong> — global design &amp; technology stack</li>
+        <li><strong>The RAG engine</strong> — agentic pipeline, ingestion, streaming</li>
+      </ol>
+    </div>
+    <div>
+      <ol class="steps" style="counter-reset:s 4">
+        <li><strong>RAGOps &amp; Traceability</strong> — observability for AI</li>
+        <li><strong>AI Execution Studio</strong> — the flagship innovation</li>
+        <li><strong>Engineering rigor</strong> — security, testing, results</li>
+        <li><strong>Reflection &amp; vision</strong> — lessons, skills, future work</li>
+      </ol>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:24px">The talk follows one storyline: <em>Problem → Challenges → Solution → Architecture → Innovation → Results → Vision.</em></div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> There is a narrative arc — keep the jury anchored to it.</p>
+    <p><b>🎤 SAY:</b> "I'll move through eight blocks. The two I'm most proud of — and the two that make this more than an academic project — are RAGOps observability and the AI Execution Studio. Hold those in mind."</p>
+    <p><b>❓ Q: How long is the demo?</b> A: "I have a 2-minute live run of the Execution Studio reserved for slide 19 if the jury would like to see it."</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 3 — CONTEXT ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">01 · Context</span><h2>LLMs are rewriting software engineering</h2></div>
+  <div class="grid g3">
+    <div class="card"><div class="ic">⚙️</div><h3>A new interface to knowledge</h3><p>LLMs let any employee query documentation, code and process knowledge in natural language — no SQL, no search syntax.</p></div>
+    <div class="card"><div class="ic">🏢</div><h3>Why companies build internal AI</h3><p>Public models can't see private repos, runbooks or specs — and sending that data outside is a compliance risk. The value is <strong>internal, grounded</strong> AI.</p></div>
+    <div class="card soft" style="border-color:#f0dcb8; background:#fdf9f1"><div class="ic">⚠️</div><h3>Where generic chatbots break</h3><p>They answer confidently from <strong>parametric memory</strong> — no sources, no audit trail, no way to know <em>why</em> an answer was produced.</p></div>
+  </div>
+  <div class="callout a" style="margin-top:22px">A demo chatbot answers a question. A <em>production</em> AI system has to prove the answer is correct — and let an engineer debug it when it isn't.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The interesting problem in 2026 is not "can an LLM answer?" — it's "can you operate it safely at enterprise scale?"</p>
+    <p><b>🎤 SAY:</b> "LLMs gave us a magical interface to knowledge. But the moment a company puts one in front of real users on real internal data, three questions appear that a demo never asks: where did this answer come from, is it actually correct, and who can I show when it's wrong? Generic chatbots have no answer to any of those."</p>
+    <p><b>❓ Q: Isn't this just RAG, which is well known?</b><br><b>A:</b> RAG solves grounding. It does <i>not</i> solve operations — observability, evaluation, traceability, governance. That operational layer is the actual contribution.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 4 — PROBLEM STATEMENT ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">01 · Problem</span><h2>Six gaps between a chatbot and a trustworthy system</h2></div>
+  <div class="grid g2" style="gap:14px 28px">
+    <div class="fb"><span class="dot r"></span><p><strong>Knowledge is fragmented.</strong> Specs, wikis, PDFs and runbooks live in silos — no single grounded source of truth.</p></div>
+    <div class="fb"><span class="dot r"></span><p><strong>Documentation is hard to exploit.</strong> Long, unstructured documents are not directly usable by an LLM.</p></div>
+    <div class="fb"><span class="dot r"></span><p><strong>LLMs hallucinate.</strong> Plausible, fluent, and wrong — with no built-in signal that anything is off.</p></div>
+    <div class="fb"><span class="dot r"></span><p><strong>Answers aren't traceable.</strong> No citations, no record of which sources or steps produced the output.</p></div>
+    <div class="fb"><span class="dot r"></span><p><strong>No observability.</strong> When quality drops, teams are blind — no metrics on retrieval or faithfulness.</p></div>
+    <div class="fb"><span class="dot r"></span><p><strong>No governance.</strong> No roles, no isolation between tenants, no audit log of who asked what.</p></div>
+  </div>
+  <div class="callout" style="margin-top:18px"><strong>Problem statement:</strong> How do we deliver answers that are <em>grounded, measurable, traceable and governed</em> — not just fluent?</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Six concrete, defensible gaps — each one maps to a feature later in the deck.</p>
+    <p><b>🎤 SAY:</b> "I framed the problem as six gaps. Notice they aren't all AI problems — three of them are operations and governance problems. That framing is what shaped the whole architecture: every gap on this slide has a corresponding subsystem in DevPilot."</p>
+    <p><b>❓ Q: Which gap is hardest?</b><br><b>A:</b> Hallucination, because you can't fully eliminate it — so my answer is to <i>measure</i> it (faithfulness + hallucination score per answer) and <i>correct</i> it (corrector agent), rather than pretend it's solved.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 5 — OBJECTIVES ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">01 · Objectives</span><h2>What success looks like</h2></div>
+  <div class="grid g3">
+    <div class="card">
+      <span class="pill b">Functional</span>
+      <div style="margin-top:12px">
+        <div class="fb"><span class="dot"></span><p>Upload &amp; index private documents per workspace</p></div>
+        <div class="fb"><span class="dot"></span><p>Answer questions with <strong>citations</strong></p></div>
+        <div class="fb"><span class="dot"></span><p>Real-time streaming responses</p></div>
+        <div class="fb"><span class="dot"></span><p>Admin tooling for quality &amp; users</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="pill t">Technical</span>
+      <div style="margin-top:12px">
+        <div class="fb"><span class="dot t"></span><p>Async, scalable ingestion (Celery)</p></div>
+        <div class="fb"><span class="dot t"></span><p>Pluggable LLM &amp; embedding providers</p></div>
+        <div class="fb"><span class="dot t"></span><p>Full execution tracing &amp; metrics</p></div>
+        <div class="fb"><span class="dot t"></span><p>Multi-tenant isolation &amp; RBAC</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="pill a">Research</span>
+      <div style="margin-top:12px">
+        <div class="fb"><span class="dot a"></span><p>Agentic vs. linear RAG quality</p></div>
+        <div class="fb"><span class="dot a"></span><p>Automatic answer evaluation (LLM-as-judge + heuristics)</p></div>
+        <div class="fb"><span class="dot a"></span><p>Hybrid retrieval (semantic + keyword via RRF)</p></div>
+        <div class="fb"><span class="dot a"></span><p>Making AI execution <em>explainable</em></p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Three layers of ambition — it works, it's engineered well, and it asks research questions.</p>
+    <p><b>🎤 SAY:</b> "I set objectives on three levels. Functional — it has to actually work for a user. Technical — it has to be built like production software. And research — I wanted to investigate whether an agentic pipeline and automatic evaluation measurably improve answer quality and explainability."</p>
+    <p><b>❓ Q: Were the research objectives met?</b><br><b>A:</b> Partially and honestly — the agentic pipeline and evaluation are fully implemented and measurable; I'll show the metrics on the results slide and I'm candid about what's heuristic vs. LLM-judged.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 6 — EXISTING SOLUTIONS ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">02 · State of the Art</span><h2>Existing solutions — and what they leave out</h2></div>
+  <table>
+    <thead><tr><th>Tool</th><th>Strength</th><th>Limitation for our problem</th></tr></thead>
+    <tbody>
+      <tr><td><strong>ChatGPT / generic chatbots</strong></td><td>Fluent, general reasoning</td><td>No private grounding, no citations, no audit trail, no tenancy</td></tr>
+      <tr><td><strong>LangSmith</strong></td><td>Excellent LLM tracing &amp; eval</td><td>Observability only — not a full app; external SaaS, data leaves your VPC</td></tr>
+      <tr><td><strong>LlamaIndex</strong></td><td>Rich RAG building blocks</td><td>A library, not a platform — you still build ingestion, UI, ops, governance</td></tr>
+      <tr><td><strong>OpenWebUI</strong></td><td>Nice self-hosted chat UI</td><td>Thin RAG, no evaluation, no trace forensics, no RAGOps</td></tr>
+      <tr><td><strong>Haystack</strong></td><td>Solid pipelines &amp; retrievers</td><td>Framework-level; observability/governance left to the integrator</td></tr>
+    </tbody>
+  </table>
+  <div class="callout" style="margin-top:18px"><strong>Gap analysis:</strong> each tool covers <em>one</em> slice — a UI, <em>or</em> a pipeline, <em>or</em> tracing. None ships the <em>vertically integrated</em> path: ingestion → agentic RAG → evaluation → trace forensics → ops dashboard → governance, self-hosted.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The market is fragmented horizontally; DevPilot integrates vertically and self-hosted.</p>
+    <p><b>🎤 SAY:</b> "I studied five reference tools. Each is excellent at one layer. LangSmith is the closest in spirit to my observability work — but it's a hosted product that only watches the LLM; it isn't the application, and your data leaves your network. My thesis was: combine the best of each into one self-hosted, integrated platform."</p>
+    <p><b>❓ Q: Why not just use LangSmith + LlamaIndex and assemble them?</b><br><b>A:</b> You could — but you'd ship four vendor integrations, send private data to a SaaS, and still build governance and the UI yourself. Integrating them natively let me trace <i>through</i> my own agents and keep everything on-prem with Ollama.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 7 — WHY DEVPILOT ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">02 · Positioning</span><h2>Why DevPilot AI</h2></div>
+  <div class="callout" style="margin-bottom:16px"><strong>Value proposition:</strong> the only piece that is <em>self-hosted, end-to-end, and observable by design</em> — every answer is grounded, scored, and fully replayable.</div>
+  <table>
+    <thead><tr><th>Capability</th><th>Generic chatbot</th><th>RAG library</th><th>Tracing SaaS</th><th>DevPilot AI</th></tr></thead>
+    <tbody>
+      <tr><td>Private-doc grounding + citations</td><td class="no">—</td><td class="part">DIY</td><td class="no">—</td><td class="yes">✓ native</td></tr>
+      <tr><td>Agentic pipeline (7 agents)</td><td class="no">—</td><td class="part">manual</td><td class="no">—</td><td class="yes">✓</td></tr>
+      <tr><td>Automatic evaluation per answer</td><td class="no">—</td><td class="no">—</td><td class="part">add-on</td><td class="yes">✓</td></tr>
+      <tr><td>Full trace forensics &amp; replay</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td>RAGOps health dashboard</td><td class="no">—</td><td class="no">—</td><td class="part">partial</td><td class="yes">✓</td></tr>
+      <tr><td>Multi-tenant RBAC &amp; audit</td><td class="no">—</td><td class="no">—</td><td class="part">partial</td><td class="yes">✓</td></tr>
+      <tr><td>Visual live execution studio</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓ unique</td></tr>
+      <tr><td>Self-hosted / data stays in-VPC</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+    </tbody>
+  </table>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The rightmost column is the only one fully checked — and the Execution Studio row is unique to DevPilot.</p>
+    <p><b>🎤 SAY:</b> "If you read down the last column, DevPilot is the only option that checks every row — and the bottom two rows, the visual execution studio and full self-hosting, are where it stands genuinely apart."</p>
+    <p><b>❓ Q: Isn't this table self-serving?</b><br><b>A:</b> It's scoped to <i>this</i> problem — internal, governed, grounded AI. For general chat, ChatGPT wins; I'm not claiming otherwise. The comparison is deliberately about the enterprise-RAG use case.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 8 — GLOBAL ARCHITECTURE ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">03 · Architecture</span><h2>Global architecture — seven layers</h2></div>
+  <div class="layer"><div class="lname">Client</div><div class="lbody"><span class="chip">Next.js 15 · App Router</span><span class="chip">React 19</span><span class="chip">React Query</span><span class="chip">SSE consumer</span></div></div>
+  <div class="layer brand"><div class="lname">Gateway</div><div class="lbody"><span class="chip">FastAPI · REST + SSE</span><span class="chip">JWT auth middleware</span><span class="chip">request-ID tracing</span></div></div>
+  <div class="layer"><div class="lname">Security</div><div class="lbody"><span class="chip">JWT / RBAC</span><span class="chip">Workspace isolation</span><span class="chip">Audit log</span></div></div>
+  <div class="layer"><div class="lname">Data &amp; Ingestion</div><div class="lbody"><span class="chip">Celery workers</span><span class="chip">PostgreSQL 16</span><span class="chip">Qdrant (vectors)</span><span class="chip">Redis (broker)</span></div></div>
+  <div class="layer brand"><div class="lname">Orchestration</div><div class="lbody"><span class="chip">Agentic RAG workflow</span><span class="chip">Router → Rewriter → Retrieval → Reranker → Generator → Evaluator → Corrector</span></div></div>
+  <div class="layer"><div class="lname">AI / Inference</div><div class="lbody"><span class="chip">Ollama · qwen3:8b</span><span class="chip">nomic-embed-text · 768-d</span><span class="chip">Gemini 2.5 (fallback)</span></div></div>
+  <div class="layer obs"><div class="lname">Observability</div><div class="lbody"><span class="chip">Trace engine</span><span class="chip">Evaluation store</span><span class="chip">Prometheus + Grafana</span><span class="chip">RAGOps API</span></div></div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> A clean, layered system — and observability is its own first-class layer, not an afterthought.</p>
+    <p><b>🎤 SAY:</b> "The whole platform is seven layers. I want to draw your eye to two highlighted ones: orchestration — where the agentic pipeline lives — and observability at the bottom, which is a peer layer to everything else. In most projects observability is bolted on; here it was designed in from day one. A request enters at the top, flows down through the agents, and emits trace + metric data into the observability layer at every step."</p>
+    <p><b>❓ Q: Why split orchestration from inference?</b><br><b>A:</b> So the LLM provider is swappable. The orchestration layer is provider-agnostic; switching Ollama→Gemini is a config change because both implement the same provider interface.</p>
+    <p><b>❓ Q: Is this microservices or monolith?</b><br><b>A:</b> A modular monolith for the API with an async worker tier (Celery). Deliberate: it gives clean module boundaries without premature distributed-systems complexity for a single-team project.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 9 — TECH STACK ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">03 · Stack</span><h2>Technology stack</h2></div>
+  <div class="grid g4">
+    <div class="card"><h3 style="color:var(--brand)">Backend</h3>
+      <p style="margin-top:8px"><span class="tag">FastAPI</span> <span class="tag">Python 3.11</span> <span class="tag">SQLAlchemy 2.0 async</span> <span class="tag">Alembic</span> <span class="tag">Celery 5</span> <span class="tag">Pydantic</span></p></div>
+    <div class="card"><h3 style="color:var(--brand)">Frontend</h3>
+      <p style="margin-top:8px"><span class="tag">Next.js 15</span> <span class="tag">React 19</span> <span class="tag">React Query v5</span> <span class="tag">Tailwind</span> <span class="tag">Framer Motion</span> <span class="tag">Recharts</span> <span class="tag">XYFlow</span></p></div>
+    <div class="card"><h3 style="color:var(--brand)">Data</h3>
+      <p style="margin-top:8px"><span class="tag">PostgreSQL 16</span> <span class="tag">Qdrant 1.12</span> <span class="tag">Redis 7</span> <span class="tag">asyncpg</span></p></div>
+    <div class="card"><h3 style="color:var(--brand)">AI</h3>
+      <p style="margin-top:8px"><span class="tag">Ollama</span> <span class="tag">qwen3:8b</span> <span class="tag">nomic-embed-text</span> <span class="tag">Gemini 2.5</span> <span class="tag">tiktoken</span></p></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card soft"><h3 style="color:var(--accent)">Infrastructure &amp; Ops</h3>
+      <p style="margin-top:8px"><span class="tag">Docker Compose</span> <span class="tag">Prometheus</span> <span class="tag">Grafana</span> <span class="tag">structured JSON logs</span> <span class="tag">request-ID correlation</span></p></div>
+    <div class="card soft"><h3 style="color:var(--accent)">Quality &amp; Tooling</h3>
+      <p style="margin-top:8px"><span class="tag">pytest · pytest-asyncio</span> <span class="tag">Vitest</span> <span class="tag">Ruff</span> <span class="tag">ESLint</span> <span class="tag">coverage</span></p></div>
+  </div>
+  <p class="small faint" style="margin-top:14px">Selection criteria: async-first, self-hostable, swappable AI providers, production observability out of the box.</p>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Every choice is modern, async-first and self-hostable.</p>
+    <p><b>🎤 SAY:</b> "The stack is deliberately current and production-grade: FastAPI async all the way down, Next.js 15 with React 19 on the front, Postgres for relational data, Qdrant for vectors, Redis behind Celery for async ingestion, and Ollama so the models run locally with no data leaving the machine."</p>
+    <p><b>❓ Q: Why Qdrant over pgvector?</b><br><b>A:</b> Qdrant gives a purpose-built HNSW index, payload filtering and horizontal scaling. pgvector would reduce moving parts but couples vector load to the transactional DB; I chose separation of concerns.</p>
+    <p><b>❓ Q: Why Ollama and not OpenAI?</b><br><b>A:</b> Data residency. The whole value proposition is self-hosted private AI. The provider is abstracted, so cloud models (Gemini) plug in for benchmarking.</p>
+    <p><b>❓ Q: Why qwen3:8b?</b><br><b>A:</b> Best quality/latency tradeoff that runs on a single dev GPU; a smaller quantized qwen2.5 variant is used in dev for speed.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 10 — RAG PIPELINE ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">04 · RAG Engine</span><h2>The RAG pipeline, end to end</h2></div>
+  <div class="flow" style="margin-bottom:14px">
+    <div class="node">Upload<span class="s">PDF · TXT · MD</span></div><div class="arr">›</div>
+    <div class="node">Extract<span class="s">pypdf</span></div><div class="arr">›</div>
+    <div class="node">Chunk<span class="s">800 / 150 tok</span></div><div class="arr">›</div>
+    <div class="node">Embed<span class="s">768-d</span></div><div class="arr">›</div>
+    <div class="node">Index<span class="s">Qdrant</span></div>
+  </div>
+  <div class="flow">
+    <div class="node" style="border-color:#c9d3f0; background:#f6f8ff">Vector search<span class="s">cosine</span></div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0; background:#f6f8ff">Retrieve<span class="s">15 candidates</span></div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0; background:#f6f8ff">Rerank<span class="s">top-5</span></div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0; background:#f6f8ff">Prompt<span class="s">≤6k chars ctx</span></div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0; background:#f6f8ff">Generate<span class="s">+ citations</span></div>
+  </div>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="callout t"><strong>Chunking:</strong> 800-token windows, 150-token overlap, token-accurate via tiktoken <span class="mono tiny">cl100k_base</span>.</div>
+    <div class="callout t"><strong>Retrieval:</strong> semantic, keyword, or <em>hybrid (RRF, k=60)</em> — chosen per question by the router.</div>
+    <div class="callout t"><strong>Citations enforced:</strong> generator must cite; a guard adds a citation if the model forgets.</div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> A real, tuned pipeline — every stage has concrete, defensible parameters.</p>
+    <p><b>🎤 SAY:</b> "The top row is the ingestion path, the bottom row is the query path. The numbers are real and tuned: 800-token chunks with 150 overlap, 15 candidates retrieved, reranked down to the 5 best, context capped at 6,000 characters. And critically — the system enforces citations; if the model produces an answer without one, a guard injects the source."</p>
+    <p><b>❓ Q: Why 800/150 chunking?</b><br><b>A:</b> Large enough to preserve a coherent idea, small enough that the top-5 fit the context budget; 150 overlap (~19%) prevents losing facts that straddle a boundary. Tuned empirically.</p>
+    <p><b>❓ Q: What is RRF?</b><br><b>A:</b> Reciprocal Rank Fusion — merges semantic and keyword rankings by summing 1/(k+rank). It's robust because it needs no score calibration between the two systems.</p>
+    <p><b>❓ Q: What does the reranker use?</b><br><b>A:</b> Default is a heuristic (keyword overlap, exact-term match, original score, rank prior); an optional LLM reranker can be enabled. I'll detail this on the agents slide.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 11 — INGESTION ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">04 · Ingestion</span><h2>Asynchronous ingestion pipeline</h2></div>
+  <div class="grid g-12" style="align-items:start">
+    <div>
+      <ol class="steps">
+        <li><strong>Upload</strong> → <span class="mono tiny">POST /workspaces/{id}/upload</span>; file stored, row created with status <span class="mono tiny">uploaded</span>, task enqueued.</li>
+        <li><strong>Celery picks it up</strong> from Redis — the API stays non-blocking and returns instantly.</li>
+        <li><strong>Extract → clean → chunk</strong> (800/150) → token count per chunk.</li>
+        <li><strong>Embed in batches</strong> of 4 via Ollama <span class="mono tiny">nomic-embed-text</span> (768-d).</li>
+        <li><strong>Upsert to Qdrant</strong> (<span class="mono tiny">devpilot_chunks</span>, cosine) and persist chunk rows; status → <span class="mono tiny">indexed</span>.</li>
+      </ol>
+    </div>
+    <div>
+      <div class="card soft">
+        <h3 style="color:var(--brand)">Status lifecycle</h3>
+        <div class="flow col" style="margin-top:10px">
+          <div class="node">uploaded</div>
+          <div class="node">processing</div>
+          <div class="node" style="border-color:#bfe3df; background:#f0faf8; color:var(--accent)">indexed ✓</div>
+          <div class="node" style="border-color:#f3c7c7; background:#fdf2f2; color:var(--rose)">failed ✗ → ret​ryable</div>
+        </div>
+        <p class="small faint" style="margin-top:10px">Every transition is observable in the RAGOps pipeline view; failed docs can be re-queued from the dashboard.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Ingestion is async, fault-tolerant and fully observable — not a blocking upload handler.</p>
+    <p><b>🎤 SAY:</b> "Ingestion was an early engineering decision. Embedding a large PDF takes seconds to minutes, so I never do it in the request. The upload endpoint just stores the file and drops a task on Redis; Celery workers do the heavy lifting. The document moves through an explicit status machine — uploaded, processing, indexed, or failed — and every state is visible in RAGOps, with one-click retry for failures."</p>
+    <p><b>❓ Q: What happens if a worker crashes mid-document?</b><br><b>A:</b> The doc stays in 'processing'/'failed'; it's idempotent on re-run (chunks keyed by document_id+chunk_index, unique constraint), and RAGOps exposes a retry that re-queues it.</p>
+    <p><b>❓ Q: Why batch size 4 for embeddings?</b><br><b>A:</b> Throughput vs. local GPU memory on Ollama — 4 saturated the model without OOM in my environment; it's configurable.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 12 — QA FLOW / AGENTS ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">04 · Agentic RAG</span><h2>Question answering — a 7-agent workflow</h2></div>
+  <div class="grid g2" style="gap:10px 28px">
+    <div class="fb"><span class="dot"></span><p><strong>1 · Router</strong> — classifies the question (factual / summary / comparison / technical) and picks the retrieval strategy.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>2 · Query Rewriter</strong> — normalizes short or vague queries into full questions for better recall.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>3 · Retrieval</strong> — semantic / keyword / hybrid (RRF) search → 15 candidates, with a Postgres fallback.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>4 · Reranker</strong> — heuristic or LLM scoring → keeps the top 5 most relevant chunks.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>5 · Generator</strong> — builds the grounded prompt, calls the LLM, enforces citations.</p></div>
+    <div class="fb"><span class="dot a"></span><p><strong>6 · Evaluator</strong> — scores faithfulness, relevance, context precision, hallucination.</p></div>
+    <div class="fb" style="grid-column:span 2"><span class="dot r"></span><p><strong>7 · Corrector</strong> — applies policy: if scores fail or context is missing, it withholds or replaces the answer instead of hallucinating ("I could not find this information…").</p></div>
+  </div>
+  <div class="callout a" style="margin-top:14px">The corrector is the <em>safety valve</em>: the system would rather say "I don't know" than fabricate — and it records <em>why</em>.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Answering is a pipeline of specialized agents, each one logged — and the last two are about trust, not fluency.</p>
+    <p><b>🎤 SAY:</b> "A naive RAG does retrieve-then-generate. Mine runs seven agents. The first five improve the answer; the last two protect it. The evaluator scores every answer on four axes, and the corrector enforces a policy — if faithfulness is too low or there's no supporting context, it refuses rather than inventing. Each agent's input, output and latency is persisted as an AgentRun, which is exactly what makes the whole thing traceable later."</p>
+    <p><b>❓ Q: Aren't 7 agents slow?</b><br><b>A:</b> Router/rewriter/reranker/corrector are lightweight (heuristics or short LLM calls); only retrieval, generation and the optional LLM-evaluation are heavy. The agentic structure costs latency but buys explainability and a measurable quality floor.</p>
+    <p><b>❓ Q: Is the evaluator reliable (LLM judging LLM)?</b><br><b>A:</b> It's a signal, not ground truth. I combine an LLM judge with deterministic heuristics (overlap, exact-match, length) so there's always a non-circular baseline; I treat scores as monitoring, not certification.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 13 — STREAMING ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">04 · Streaming</span><h2>Real-time streaming over SSE</h2></div>
+  <div class="grid g-12" style="align-items:start">
+    <div>
+      <p class="lead">A single <span class="mono tiny">/chat/stream</span> endpoint streams the <em>whole pipeline</em> — not just tokens — as Server-Sent Events.</p>
+      <div class="code" style="margin-top:10px">
+<span class="c">// event stream the client consumes</span><br>
+<span class="k">event:</span> start          <span class="c"># conversation + strategy</span><br>
+<span class="k">event:</span> trace          <span class="c"># router → retrieval → rerank …</span><br>
+<span class="k">event:</span> token          <span class="c"># answer streams in live</span><br>
+<span class="k">event:</span> citations      <span class="c"># grounded sources</span><br>
+<span class="k">event:</span> evaluation     <span class="c"># faithfulness, hallucination…</span><br>
+<span class="k">event:</span> correction     <span class="c"># if policy triggered</span><br>
+<span class="k">event:</span> complete       <span class="c"># message_id → trace</span>
+      </div>
+    </div>
+    <div>
+      <div class="card"><h3 style="color:var(--brand)">Why it matters</h3>
+        <div class="fb"><span class="dot"></span><p><strong>Perceived latency ↓</strong> — first token in ~1s vs. waiting for the full answer.</p></div>
+        <div class="fb"><span class="dot"></span><p><strong>Transparency</strong> — the user watches the pipeline reason in real time.</p></div>
+        <div class="fb"><span class="dot"></span><p><strong>Cancellable</strong> — client disconnect aborts work &amp; rolls back the transaction.</p></div>
+        <div class="fb"><span class="dot"></span><p><strong>Powers the Studio</strong> — the same stream drives the AI Execution Studio (slide 19).</p></div>
+      </div>
+      <p class="small faint" style="margin-top:10px">Custom SSE parser on the client; automatic fallback to a non-streaming request if the stream fails before the first event.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The stream carries the whole pipeline's reasoning, not just text — and it's the backbone of the flagship feature.</p>
+    <p><b>🎤 SAY:</b> "Most chatbots stream tokens. Mine streams the entire pipeline as structured events: when each agent starts and finishes, the tokens, the citations, the evaluation scores. That's a deliberate design choice — because this same event stream is what powers the live visualization I'll show you in a few slides. And it's cancellable: if the user closes the tab, the backend detects the disconnect and rolls back."</p>
+    <p><b>❓ Q: Why SSE and not WebSockets?</b><br><b>A:</b> The flow is one-directional server→client; SSE is simpler, works over plain HTTP, auto-reconnects, and needs no extra protocol. WebSockets would be over-engineering here.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 14 — DATABASE / ERD ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">05 · Data Model</span><h2>Database architecture — the trace is first-class</h2></div>
+  <div class="grid g3">
+    <div class="card"><h3 style="color:var(--brand)">Tenancy &amp; access</h3>
+      <p class="mono tiny" style="line-height:1.9; color:var(--ink-soft)">User<br>Workspace<br>WorkspaceMember<br>AuditLog</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Knowledge</h3>
+      <p class="mono tiny" style="line-height:1.9; color:var(--ink-soft)">Document<br>Chunk → (vector_id → Qdrant)<br>Conversation<br>Message</p></div>
+    <div class="card soft" style="border-color:#bfe3df"><h3 style="color:var(--accent)">Trace &amp; evaluation</h3>
+      <p class="mono tiny" style="line-height:1.9; color:var(--ink-soft)">RetrievedChunk (score, rank)<br>AgentRun (input/output/latency)<br>Evaluation (4 metrics)<br>LLMUsage (tokens, cost)</p></div>
+  </div>
+  <div class="callout" style="margin-top:18px">Every <strong>Message</strong> fans out to its <em>retrieved chunks, agent runs, evaluation and token usage</em> — so any answer can be fully reconstructed months later. The trace is stored, not logged-and-lost.</div>
+  <p class="small faint" style="margin-top:10px">~14 entities · UUID keys · JSONB for agent payloads · cascade deletes · Alembic-migrated · async SQLAlchemy 2.0.</p>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The schema treats the execution trace as durable, queryable data — that's what enables forensic debugging and analytics.</p>
+    <p><b>🎤 SAY:</b> "There are roughly fourteen entities in three families: tenancy, knowledge, and — the interesting one — trace and evaluation. When the system answers, it doesn't just store the message; it stores which chunks were retrieved and their scores, every agent run with timing, the four evaluation metrics, and token usage. That means six months later I can pull up any answer and reconstruct exactly how it was produced. The trace is a first-class citizen of the data model."</p>
+    <p><b>❓ Q: Doesn't storing every trace explode the DB?</b><br><b>A:</b> Trace rows are small and bounded per message; JSONB keeps agent payloads compact. For scale you'd add retention/archival — the schema already isolates trace tables so they can be partitioned or rolled off independently.</p>
+    <p><b>❓ Q: Why keep vectors in Qdrant but metadata in Postgres?</b><br><b>A:</b> Chunk text/metadata is relational and transactional (Postgres); the embedding is an ANN-search concern (Qdrant). The Chunk row links them via vector_id.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 15 — BACKEND ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">05 · Backend</span><h2>Backend architecture</h2></div>
+  <div class="grid g2" style="gap:16px 24px">
+    <div class="card"><h3 style="color:var(--brand)">FastAPI — the gateway</h3><p>Async REST + SSE. Routers grouped by domain: <span class="mono tiny">auth · documents · chat · retrieval · workspaces · admin · ragops · rag-traces · system · health</span>. Request-ID correlation + Prometheus on every call.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Celery — the workers</h3><p>Off-request ingestion: extract, chunk, embed, index. Decouples slow AI work from the API; horizontally scalable by adding workers.</p></div>
+    <div class="card"><h3 style="color:var(--accent)">Redis — broker &amp; cache</h3><p>Message broker + result backend for Celery; low-latency coordination between API and worker tiers.</p></div>
+    <div class="card"><h3 style="color:var(--accent)">Qdrant — vector engine</h3><p>HNSW + cosine over the <span class="mono tiny">devpilot_chunks</span> collection; payload-filtered by workspace for tenant isolation.</p></div>
+    <div class="card" style="grid-column:span 2; border-color:#c9d3f0; background:#f6f8ff"><h3 style="color:var(--brand)">Ollama — local inference</h3><p>Generation (<span class="mono tiny">qwen3:8b</span>) + embeddings (<span class="mono tiny">nomic-embed-text</span>) run on-prem. Behind a provider interface, so Gemini / OpenAI drop in without touching the orchestration layer.</p></div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Clean separation: a thin async gateway, a scalable worker tier, and a provider-abstracted inference layer.</p>
+    <p><b>🎤 SAY:</b> "The backend is three tiers. FastAPI is a thin async gateway with domain-grouped routers and metrics on every endpoint. Celery is the muscle — all the slow embedding work. Redis brokers between them. Qdrant serves vectors, isolated per workspace. And Ollama runs the models locally behind a provider interface, which is the seam that lets me swap to a cloud model for benchmarking without changing a line of orchestration code."</p>
+    <p><b>❓ Q: How do you scale this?</b><br><b>A:</b> API tier scales horizontally (stateless + JWT); worker tier scales by adding Celery workers; Qdrant and Postgres scale independently. The bottleneck is GPU inference, addressed by the Ollama abstraction (route to a bigger pool or cloud).</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 16 — FRONTEND ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">05 · Frontend</span><h2>Frontend architecture</h2></div>
+  <div class="grid g3">
+    <div class="card"><h3 style="color:var(--brand)">Next.js 15 · React 19</h3><p>App Router, server components where useful, feature-sliced structure (<span class="mono tiny">features/*</span>): ai-execution-studio, architecture-explorer, ragops, trace-observatory, trace-inspector, dashboard.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">React Query v5</h3><p>All server state via TanStack Query — caching, parallel fetches, background refetch (RAGOps auto-refreshes every 60s). A custom <span class="mono tiny">useChatStream</span> hook handles SSE.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Tailwind + design system</h3><p>"Horizon" semantic-token system, Framer Motion for the Studio, Recharts for analytics, XYFlow for the architecture graph.</p></div>
+  </div>
+  <div class="callout" style="margin-top:18px">The frontend isn't a thin chat box — it's <em>six analytical applications</em> sharing one design system: chat, studio, architecture map, RAGOps, trace observatory and trace inspector.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The frontend is a real application suite, organized feature-first, with disciplined server-state management.</p>
+    <p><b>🎤 SAY:</b> "The frontend is Next.js 15 with React 19, organized feature-first — each major capability is its own self-contained module. Server state is entirely managed by React Query, including a 60-second background refresh for the ops dashboard, and a custom hook consumes the SSE stream. This isn't a chat box bolted onto an API; it's six analytical UIs sharing one design system."</p>
+    <p><b>❓ Q: Why React Query instead of Redux?</b><br><b>A:</b> The state is almost entirely server state — caching, refetch, invalidation. React Query is purpose-built for that; Redux would add boilerplate for client state I mostly don't have.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 17 — RAGOPS (MAJOR) ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">06 · Innovation · RAGOps</span><h2>RAGOps Control Tower — observability for AI</h2></div>
+  <div class="grid g4" style="gap:12px">
+    <div class="card"><div class="ic">❤️</div><h3>Health monitoring</h3><p>Live platform status + Qdrant / Redis / Celery subsystem health.</p></div>
+    <div class="card"><div class="ic">🧬</div><h3>Embedding analytics</h3><p>Vector coverage %, Qdrant sync status per workspace.</p></div>
+    <div class="card"><div class="ic">🔎</div><h3>Retrieval analytics</h3><p>Latency percentiles, throughput, retrieval readiness.</p></div>
+    <div class="card soft"><div class="ic">📊</div><h3>Evaluation intelligence</h3><p>Faithfulness, hallucination, relevance, context-precision gauges.</p></div>
+    <div class="card soft"><div class="ic">🚨</div><h3>Failure center</h3><p>Incidents across ingestion / retrieval / evaluation with counts.</p></div>
+    <div class="card soft"><div class="ic">🏢</div><h3>Workspace health</h3><p>Per-tenant health score (0–100), worst-first triage.</p></div>
+    <div class="card"><div class="ic">🤖</div><h3>Agent monitoring</h3><p>Latency distribution by agent type across the pipeline.</p></div>
+    <div class="card" style="border-color:#bfe3df; background:#f0faf8"><div class="ic">🧠</div><h3>AI insight</h3><p>LLM-synthesized findings, risks &amp; recommendations.</p></div>
+  </div>
+  <div class="callout t" style="margin-top:16px"><strong>Why enterprises require this:</strong> you cannot put AI in production if you can't <em>see</em> it. RAGOps is DevOps for the RAG stack — turning "the answers feel worse lately" into a measured, triageable incident.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE (MAJOR SLIDE):</b> RAGOps brings the DevOps/SRE discipline of dashboards, SLOs and incident triage to a RAG system — the operational layer almost no academic project has.</p>
+    <p><b>🎤 SAY:</b> "This is one of the two slides I care most about. RAGOps is a control tower with eleven sections that auto-refreshes every minute. It answers the question every AI team eventually asks in production: 'the answers feel worse this week — why?' Instead of a vague feeling, you get measured signals: retrieval latency is up, embedding coverage dropped on a workspace, faithfulness fell, this agent got slow. It even has an AI-synthesized summary that reads the metrics and flags risks. This is DevOps for AI — and it's the difference between a demo and something you can operate."</p>
+    <p><b>❓ Q: Are these real metrics or mock data?</b><br><b>A:</b> Real — they're computed from the trace/evaluation tables and Prometheus. The pipeline writes AgentRun, Evaluation and LLMUsage on every query; RAGOps aggregates those. (Be honest if any panel is partially sampled.)</p>
+    <p><b>❓ Q: How is a workspace 'health score' computed?</b><br><b>A:</b> A composite of ingestion completeness, retrieval success, and average faithfulness/hallucination for that tenant, normalized 0–100, surfaced worst-first for triage.</p>
+    <p><b>❓ Q: How does this differ from Grafana?</b><br><b>A:</b> Grafana shows infra metrics (which I also expose via Prometheus). RAGOps shows <i>AI-quality</i> metrics — faithfulness, hallucination, reranking, per-agent — which generic dashboards have no concept of.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 18 — TRACES (MAJOR) ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">06 · Innovation · Traceability</span><h2>RAG Trace Explorer — full forensic replay</h2></div>
+  <div class="grid g-12" style="align-items:start">
+    <div>
+      <p class="lead">Pick any answer the platform ever gave. Reconstruct <em>exactly</em> how it was produced.</p>
+      <div style="margin-top:8px">
+        <div class="fb"><span class="dot"></span><p><strong>Agent timeline</strong> — every agent run, in order, with latency.</p></div>
+        <div class="fb"><span class="dot"></span><p><strong>Retrieved chunks</strong> — rank, source file, similarity score, preview.</p></div>
+        <div class="fb"><span class="dot"></span><p><strong>Reranking</strong> — original → final rank, promotions/demotions.</p></div>
+        <div class="fb"><span class="dot"></span><p><strong>Citations</strong> — answer text mapped back to source chunks.</p></div>
+        <div class="fb"><span class="dot a"></span><p><strong>Evaluation center</strong> — four scores + explanation.</p></div>
+        <div class="fb"><span class="dot r"></span><p><strong>Corrector analysis</strong> — original vs. final answer, and why.</p></div>
+      </div>
+    </div>
+    <div>
+      <div class="card soft">
+        <h3 style="color:var(--brand)">From the Observatory…</h3>
+        <p class="small">A filterable grid of <em>all</em> queries — filter by workspace, strategy, faithfulness range, hallucination threshold, corrections, citations, date.</p>
+        <h3 style="color:var(--brand); margin-top:14px">…to the Inspector</h3>
+        <p class="small">One click drills into a 9-section forensic view of a single message — including the raw trace DAG and JSON.</p>
+        <div class="callout" style="margin-top:12px; font-size:.74em"><strong>Auditability · Debugging · Explainability</strong> — the three reasons this exists.</div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE (MAJOR SLIDE):</b> If RAGOps is the aggregate view, the Trace Explorer is the single-request microscope — and together they make every answer auditable.</p>
+    <p><b>🎤 SAY:</b> "RAGOps tells you something is wrong in aggregate. The Trace Explorer lets you open the exact failing answer and see everything: which chunks were retrieved and their scores, how the reranker reordered them, which sources the answer cited, the four evaluation scores with an explanation, and — if the corrector intervened — the original answer versus the final one and the reason. It starts from a filterable observatory of every query and drills into a nine-section forensic view. This is what 'explainable AI' means in practice: not a theory, a replay button. Three drivers: audit, debug, explain."</p>
+    <p><b>❓ Q: Can a regular user see other tenants' traces?</b><br><b>A:</b> No — trace forensics is admin-only, and full chunk content is gated to super-admins; regular views show safe previews. It respects the same workspace isolation as everything else.</p>
+    <p><b>❓ Q: How is this different from just logging?</b><br><b>A:</b> Logs are unstructured and ephemeral. This is structured, queryable, joined data — I can filter 'all corrected answers with faithfulness < 0.5 last week' and open any of them. Logs can't do that.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 19 — AI EXECUTION STUDIO (FLAGSHIP) ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">06 · Innovation · Flagship</span><h2>AI Execution Studio — watch the AI think</h2></div>
+  <div class="flow" style="margin-bottom:14px; font-size:.92em">
+    <div class="node">Question</div><div class="arr">›</div>
+    <div class="node">Embed<span class="s">768-d</span></div><div class="arr">›</div>
+    <div class="node">Vector search</div><div class="arr">›</div>
+    <div class="node">Retrieve</div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0;background:#f6f8ff">Rerank</div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0;background:#f6f8ff">Context</div><div class="arr">›</div>
+    <div class="node" style="border-color:#c9d3f0;background:#f6f8ff">Prompt</div><div class="arr">›</div>
+    <div class="node" style="border-color:#bfe3df;background:#f0faf8">Generate</div><div class="arr">›</div>
+    <div class="node" style="border-color:#bfe3df;background:#f0faf8">Evaluate</div><div class="arr">›</div>
+    <div class="node" style="border-color:#bfe3df;background:#f0faf8">Persist</div>
+  </div>
+  <div class="grid g3">
+    <div class="card"><h3>Live, stage-by-stage</h3><p>The 10-stage pipeline animates as it runs — driven by the real SSE stream, with a 1×/2×/5× timeline scrubber.</p></div>
+    <div class="card"><h3>See the internals</h3><p>Retrieved chunks with score bars · reranking promotions/demotions · tokens streaming in · the four evaluation gauges — all <strong>live</strong>.</p></div>
+    <div class="card soft" style="border-color:#bfe3df"><h3>Educational + observability</h3><p>It teaches <em>how RAG works</em> and doubles as a real-time debugger. One synchronized view links to the Architecture Explorer lighting up in parallel.</p></div>
+  </div>
+  <div class="callout a" style="margin-top:14px"><strong>Why this differentiates DevPilot:</strong> most academic projects show a chat bubble. This shows the <em>machinery behind the bubble</em> — the retrieval, the ranking, the scoring — rendered live from production data. That is rare even in commercial tools.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE (FLAGSHIP SLIDE):</b> The Execution Studio turns the RAG black box into a glass box — live, from real execution data. This is the single most memorable thing in the project.</p>
+    <p><b>🎤 SAY:</b> "This is the slide I want you to remember. Every project here can show you a chat answer. The AI Execution Studio shows you the <i>machine producing it</i>, live. As a question runs, ten stages light up in sequence — you watch the query become a 768-dimensional vector, search the space, pull candidates, watch the reranker promote and demote chunks, see the tokens stream, and see the evaluation scores land. It's driven by the exact same SSE stream the chat uses, with a playback scrubber so I can slow it to 1×. It has two audiences: it teaches a newcomer how RAG actually works, and it gives an engineer a live debugger. If the jury would like, I can run one query live right now."</p>
+    <p><b>❓ Q: Is the visualization real or scripted animation?</b><br><b>A:</b> Real — every stage transition, chunk, score and token comes from live backend SSE events and the trace API. The animation only paces what the backend actually emits. (The deterministic 2-D placement of chunks is the one cosmetic part; the data is real.)</p>
+    <p><b>❓ Q: What's the actual engineering value, beyond looking impressive?</b><br><b>A:</b> Debuggability. When an answer is wrong, I can <i>watch</i> where it went wrong — bad retrieval vs. bad reranking vs. bad generation — instead of guessing. It made my own iteration dramatically faster.</p>
+    <p><b>❓ Q: Did you build the graph yourself?</b><br><b>A:</b> Yes — XYFlow for the node canvas, Framer Motion for the stage choreography, all wired to my SSE hook and trace endpoints.</p>
+    <p><i>💡 If demo allowed: have a workspace pre-loaded, ask one factual question, narrate the stages as they light up. Keep it under 2 minutes.</i></p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 20 — SECURITY ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">07 · Rigor · Security</span><h2>Security &amp; governance</h2></div>
+  <div class="grid g3">
+    <div class="card"><div class="ic">🔑</div><h3>Authentication</h3><p>JWT (HS256), bcrypt-hashed passwords, 30-min expiry, OAuth2 password flow. Deactivated/deleted users can't authenticate.</p></div>
+    <div class="card"><div class="ic">🧱</div><h3>Workspace isolation</h3><p>Every query is scoped by <span class="mono tiny">workspace_id</span> at the service layer <em>and</em> in Qdrant payload filters. One tenant can never read another's data.</p></div>
+    <div class="card"><div class="ic">👤</div><h3>Role-based access</h3><p>user / admin / super_admin (DB-enforced) + per-workspace roles. RAGOps, traces, user mgmt are admin-only; full chunk content is super-admin-only.</p></div>
+  </div>
+  <div class="callout" style="margin-top:18px"><strong>Audit trail:</strong> sensitive actions (admin login, deletions) are written to an <span class="mono tiny">audit_logs</span> table with actor, action, target, IP and user-agent — governance isn't a slogan, it's a table.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Multi-tenant security is enforced in depth — at the app layer, the vector store, and the audit log.</p>
+    <p><b>🎤 SAY:</b> "Governance was an objective, so it's real. Auth is JWT with bcrypt and short-lived tokens. Isolation is defense-in-depth: workspace scoping is enforced both in the service layer and as a payload filter inside Qdrant, so cross-tenant leakage isn't even possible at the vector level. Roles gate the admin tooling, and the most sensitive thing — full source content — is restricted to super-admins. And every sensitive action lands in an audit table with the actor and their IP."</p>
+    <p><b>❓ Q: HS256 — why not RS256?</b><br><b>A:</b> Single-issuer, single-verifier service, so symmetric HS256 is sufficient and simpler. RS256 matters when multiple services verify tokens they don't issue — a clean upgrade path if the platform splits into services.</p>
+    <p><b>❓ Q: Token refresh / revocation?</b><br><b>A:</b> Short 30-min expiry limits exposure; deactivated users are rejected at auth. A refresh-token rotation flow is a documented next step.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 21 — TESTING ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">07 · Rigor · Testing</span><h2>Testing strategy</h2></div>
+  <div class="grid g4" style="margin-bottom:16px">
+    <div class="metric card"><div class="v">~4.5k</div><div class="l">lines of backend tests</div></div>
+    <div class="metric card"><div class="v">20+</div><div class="l">backend test modules</div></div>
+    <div class="metric card"><div class="v">7</div><div class="l">agents covered incl. workflow</div></div>
+    <div class="metric card"><div class="v">2</div><div class="l">runners · pytest + Vitest</div></div>
+  </div>
+  <div class="grid g2" style="gap:12px 24px">
+    <div class="fb"><span class="dot"></span><p><strong>Unit</strong> — chunking, reranking, evaluation, provider factory, models.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>Integration / API</strong> — auth, documents, chat, retrieval, workspaces, admin routes.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>Workflow</strong> — the full 7-agent agentic RAG orchestration end-to-end.</p></div>
+    <div class="fb"><span class="dot"></span><p><strong>Streaming &amp; providers</strong> — SSE behaviour, Ollama &amp; Gemini providers, retrieval fallback.</p></div>
+    <div class="fb"><span class="dot t"></span><p><strong>Frontend</strong> — Vitest + jsdom on helpers &amp; components.</p></div>
+    <div class="fb"><span class="dot t"></span><p><strong>Static quality</strong> — Ruff + ESLint + coverage in the loop.</p></div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Tested like production software — the AI core is covered, not just the CRUD.</p>
+    <p><b>🎤 SAY:</b> "There are roughly 4,500 lines of backend tests across more than twenty modules, plus frontend tests in Vitest. Importantly, the tests cover the hard part — there's a dedicated suite for the full seven-agent workflow, for the retrieval strategies and their fallback, for the providers and for the SSE streaming. The AI is the riskiest code, so it's the most tested."</p>
+    <p><b>❓ Q: How do you test non-deterministic LLM output?</b><br><b>A:</b> I mock the providers for deterministic tests of the <i>orchestration</i> (routing, fallback, citation enforcement, corrector policy), and test the deterministic pieces (chunking, RRF, heuristics) directly. I test the plumbing around the model, not the model's wording.</p>
+    <p><b>❓ Q: What's the coverage number?</b><br><b>A:</b> Be honest with your real figure; if unknown, say "coverage is tracked via pytest-cov; the critical services and routes are covered, UI coverage is lighter."</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 22 — RESULTS ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">07 · Results</span><h2>Results</h2></div>
+  <div class="grid g3" style="margin-bottom:18px">
+    <div class="card"><h3 style="color:var(--brand)">Performance</h3>
+      <div class="fb"><span class="dot"></span><p>First token in ~1s via streaming (perceived latency)</p></div>
+      <div class="fb"><span class="dot"></span><p>Async ingestion keeps the API non-blocking under load</p></div>
+      <div class="fb"><span class="dot"></span><p>Reranking 15→5 cuts the generation context cost</p></div>
+    </div>
+    <div class="card"><h3 style="color:var(--brand)">Scalability</h3>
+      <div class="fb"><span class="dot"></span><p>Stateless API → horizontal scale</p></div>
+      <div class="fb"><span class="dot"></span><p>Add Celery workers to scale ingestion</p></div>
+      <div class="fb"><span class="dot"></span><p>Qdrant / Postgres / Redis scale independently</p></div>
+    </div>
+    <div class="card soft"><h3 style="color:var(--accent)">Quality, measured</h3>
+      <div class="fb"><span class="dot t"></span><p>Every answer scored on 4 axes, stored &amp; trended</p></div>
+      <div class="fb"><span class="dot t"></span><p>Citations enforced → grounded answers</p></div>
+      <div class="fb"><span class="dot t"></span><p>Corrector withholds low-confidence answers</p></div>
+    </div>
+  </div>
+  <div class="callout"><strong>The headline result is architectural:</strong> a working platform where <em>quality is a number you can watch</em>, every answer is grounded and replayable, and the whole thing runs self-hosted. <span class="faint small">(Replace bracketed numbers with your measured latency/throughput before defending.)</span></div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> The deliverable isn't a benchmark score — it's a system where quality is observable and controllable.</p>
+    <p><b>🎤 SAY:</b> "I'll be honest about what 'results' means for a platform project. The headline isn't a single accuracy number — it's that I built a system where answer quality is a measured, trended quantity rather than a vibe. Streaming gives sub-second perceived latency, the architecture scales on every axis independently, and every answer is grounded, scored and replayable. That combination is the result."</p>
+    <p><b>⚠️ ACTION:</b> Fill in your real measured numbers (avg latency, queries tested, faithfulness averages from RAGOps quality summary) before the defense — the jury will ask for concrete figures.</p>
+    <p><b>❓ Q: Give me one hard number.</b><br><b>A:</b> Quote your real RAGOps quality summary (e.g. average faithfulness across N queries) and average end-to-end latency. Have these memorized.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 23 — CHALLENGES ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">08 · Reflection</span><h2>Challenges &amp; key decisions</h2></div>
+  <div class="grid g2" style="gap:14px 24px">
+    <div class="card"><h3 style="color:var(--brand)">Hallucination vs. helpfulness</h3><p class="small"><strong>Tension:</strong> refuse too often and it's useless; refuse too rarely and it lies. <strong>Decision:</strong> measure (evaluator) + policy (corrector) instead of a hard rule.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Sync upload vs. async ingestion</h3><p class="small"><strong>Tension:</strong> simple blocking upload vs. complexity of a worker tier. <strong>Decision:</strong> Celery — non-negotiable for real document sizes.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Local vs. cloud models</h3><p class="small"><strong>Tension:</strong> Ollama quality/latency vs. cloud convenience. <strong>Decision:</strong> provider abstraction — local by default, cloud for benchmarking.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Streaming the whole pipeline</h3><p class="small"><strong>Tension:</strong> stream just tokens (easy) vs. stream structured trace events (hard). <strong>Decision:</strong> the harder path — it unlocked the Studio.</p></div>
+  </div>
+  <div class="callout t" style="margin-top:14px"><strong>Lesson learned:</strong> the hard part of production AI is not the model call — it's everything <em>around</em> it: ingestion, evaluation, isolation, observability.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Show engineering maturity — name real tradeoffs and justify the calls.</p>
+    <p><b>🎤 SAY:</b> "Every interesting decision was a tradeoff. The toughest was hallucination versus helpfulness — and I chose not to solve it with a brittle rule but to measure it and apply a policy. The streaming decision is a good example of investing in the harder path: streaming structured trace events instead of just tokens was significantly more work, but it's what made the Execution Studio possible. The overarching lesson: the model call is the easy 10%; the production-grade 90% is everything around it."</p>
+    <p><b>❓ Q: If you started over, what would you change?</b><br><b>A:</b> I'd introduce evaluation datasets earlier to measure agentic-vs-linear RAG quantitatively from day one, and I'd add retention/partitioning to the trace tables sooner.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 24 — SKILLS ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">08 · Reflection</span><h2>Skills acquired</h2></div>
+  <div class="grid g4" style="gap:12px">
+    <div class="card"><h3>Software Engineering</h3><p>Modular monolith, clean layering, async Python, typed contracts.</p></div>
+    <div class="card"><h3>AI / RAG Engineering</h3><p>Chunking, embeddings, hybrid retrieval, reranking, prompt design.</p></div>
+    <div class="card"><h3>System Design</h3><p>Tiered services, queues, provider abstraction, scaling tradeoffs.</p></div>
+    <div class="card"><h3>Agentic Systems</h3><p>Multi-agent orchestration, evaluation &amp; self-correction loops.</p></div>
+    <div class="card soft"><h3>Backend</h3><p>FastAPI, SQLAlchemy 2.0 async, Celery, Alembic, Postgres, Qdrant.</p></div>
+    <div class="card soft"><h3>Frontend</h3><p>Next.js 15, React 19, React Query, SSE, data-viz, motion.</p></div>
+    <div class="card soft"><h3>DevOps / Observability</h3><p>Docker Compose, Prometheus, Grafana, structured tracing.</p></div>
+    <div class="card soft"><h3>AI Governance</h3><p>RBAC, tenant isolation, audit, evaluation &amp; traceability.</p></div>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Full-spectrum — this project forced depth across the entire stack plus the emerging AI-ops discipline.</p>
+    <p><b>🎤 SAY:</b> "The project was deliberately broad, and it stretched me across the whole spectrum — from async backend internals to React data-visualization, and into the newer disciplines that barely existed a couple of years ago: agentic orchestration and AI observability. The single most valuable thing I learned is how to make an AI system <i>operable</i>, not just functional."</p>
+    <p><b>❓ Q: Which skill are you weakest in / want to grow?</b><br><b>A:</b> Rigorous offline evaluation — building labeled eval sets and statistical comparison of pipeline variants. I have the infrastructure; the next step is the methodology.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 25 — FUTURE WORK ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">09 · Vision</span><h2>Future work</h2></div>
+  <div class="grid g3">
+    <div class="card"><h3 style="color:var(--brand)">GraphRAG</h3><p>Knowledge-graph retrieval for multi-hop reasoning over linked entities.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Multi-agent systems</h3><p>Planner/solver/critic teams beyond the current linear agent chain.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">MCP</h3><p>Model Context Protocol to expose tools &amp; data sources to the agents in a standard way.</p></div>
+    <div class="card soft"><h3 style="color:var(--accent)">Enterprise connectors</h3><p>Confluence, Jira, GitHub, Google Drive ingestion.</p></div>
+    <div class="card soft"><h3 style="color:var(--accent)">Hybrid retrieval ++</h3><p>Learned reranking (cross-encoder) &amp; query-adaptive fusion.</p></div>
+    <div class="card soft"><h3 style="color:var(--accent)">Advanced RAGOps</h3><p>SLOs &amp; alerting, eval datasets, A/B of pipeline variants, drift detection.</p></div>
+  </div>
+  <div class="callout" style="margin-top:16px">The platform was built so these are <em>extensions, not rewrites</em> — provider abstraction, the agent interface, and the trace schema are the extension points.</div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> A credible, sequenced roadmap — and the architecture already anticipates it.</p>
+    <p><b>🎤 SAY:</b> "The roadmap follows the architecture's seams. GraphRAG and richer multi-agent teams plug into the existing agent interface; MCP standardizes how agents reach tools; enterprise connectors extend ingestion; and advanced RAGOps — eval datasets, SLOs, A/B testing of pipeline variants — builds directly on the trace data I already capture. None of these are rewrites; they're extensions the design left room for."</p>
+    <p><b>❓ Q: What's the very next thing you'd build?</b><br><b>A:</b> Evaluation datasets + A/B harness — so I can finally answer 'does agentic beat linear?' with statistics, using trace data I already store.</p>
+    <p><b>❓ Q: What is MCP?</b><br><b>A:</b> Model Context Protocol — an open standard for connecting models to tools and data sources, so agents discover capabilities uniformly instead of bespoke integrations.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 26 — CONCLUSION ============ -->
+<section data-background-color="#ffffff">
+  <div class="shead"><span class="kicker">Conclusion</span><h2>From chatbot to AI platform</h2></div>
+  <div class="grid g3" style="margin-bottom:20px">
+    <div class="card"><h3 style="color:var(--brand)">Impact</h3><p>A self-hosted platform that makes private-knowledge AI <strong>grounded, measurable and governable</strong> — not just fluent.</p></div>
+    <div class="card"><h3 style="color:var(--brand)">Technical maturity</h3><p>Async backend, agentic RAG, full trace model, RBAC &amp; audit, ~4.5k lines of tests, observability by design.</p></div>
+    <div class="card soft"><h3 style="color:var(--accent)">What sets it apart</h3><p>RAGOps + Trace Explorer + the live <strong>AI Execution Studio</strong> — operational depth rare in any project, academic or not.</p></div>
+  </div>
+  <div class="callout" style="font-size:.92em"><strong>In one line:</strong> DevPilot AI answers the question the industry is actually asking in 2026 — <em>not "can the model answer?", but "can you trust, measure and operate the answer in production?"</em></div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Land the thesis one last time — operability over fluency.</p>
+    <p><b>🎤 SAY:</b> "To conclude: I started with the most common AI project — a document chatbot — and asked what it would take to make it production-grade. The answer was an entire platform: agentic RAG for quality, a complete trace model for auditability, RAGOps for operations, governance for safety, and the Execution Studio to make all of it visible. DevPilot answers the question the industry is actually asking right now — not 'can the model answer', but 'can you trust, measure and operate that answer'. Thank you."</p>
+    <p><b>❓ Q: One sentence — what's your single biggest contribution?</b><br><b>A:</b> Bringing the DevOps discipline — observability, tracing, evaluation, governance — to a RAG system, and making it visible end-to-end.</p>
+  </aside>
+</section>
+
+<!-- ============ SLIDE 27 — QUESTIONS ============ -->
+<section data-background-color="#ffffff">
+  <div class="title-wrap qend center" style="align-items:center; text-align:center">
+    <div class="top-rule" style="margin:0 auto 30px"></div>
+    <div class="kicker" style="margin:0 auto .4em">DevPilot AI · ENSIAS PFE</div>
+    <h1>Thank you.</h1>
+    <p class="sub" style="max-width:none">Questions &amp; discussion</p>
+    <p class="muted small" style="margin-top:18px">Oussama Mahi · Supervised by Pr. [Name] · ENSIAS — 2025/2026</p>
+    <p class="faint tiny" style="margin-top:26px">Agentic RAG · RAGOps Observability · Trace Forensics · AI Execution Studio</p>
+  </div>
+  <aside class="notes">
+    <p><b>🎯 KEY MESSAGE:</b> Confident, open, ready. Don't rush off the title.</p>
+    <p><b>🎤 SAY:</b> "Thank you — I'd be glad to take your questions, and I have a live demo of the Execution Studio ready if you'd like to see the platform run."</p>
+    <p><b>🛡️ RAPID-FIRE BACKUP ANSWERS:</b></p>
+    <p>• <b>Biggest weakness?</b> No formal offline eval set yet — quality is monitored live, not benchmarked statistically. Honest and fixable.</p>
+    <p>• <b>Why should we believe it's production-grade?</b> Async ingestion, RBAC + audit, isolation enforced in two layers, observability + tracing, ~4.5k test lines, provider abstraction.</p>
+    <p>• <b>What if the LLM is wrong anyway?</b> Evaluator scores it, corrector can withhold it, trace explains it, RAGOps surfaces the trend — defense in depth around an imperfect model.</p>
+    <p>• <b>Most original part?</b> The Execution Studio — live, real-data RAG visualization — plus RAGOps quality metrics that generic dashboards don't have.</p>
+    <p>• <b>How long did it take / is it solo?</b> [Fill in honestly.]</p>
+  </aside>
+</section>
+
+</div>
+</div>
+
+<div class="brandmark"><b>DevPilot</b> AI · ENSIAS PFE Defense</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+Reveal.initialize({
+  hash:true,
+  slideNumber:'c/t',
+  transition:'fade',
+  transitionSpeed:'fast',
+  width:1280, height:720,
+  margin:0.06,
+  controls:true,
+  progress:true,
+  center:false,
+  plugins:[ RevealNotes ]
+});
+</script>
+</body>
+</html>

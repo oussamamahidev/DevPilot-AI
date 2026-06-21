@@ -1,6 +1,7 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_current_active_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
+from app.models.audit import AuditLog
 from app.models.user import User
 from app.schemas.auth import TokenResponse, UserLogin, UserRegister, UserResponse
 
@@ -56,6 +58,7 @@ async def register_user(
 @router.post("/login", response_model=TokenResponse)
 async def login_user(
     payload: UserLogin,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
     user = await db.scalar(select(User).where(User.email == payload.email))
@@ -65,11 +68,34 @@ async def login_user(
             detail="Invalid email or password",
         )
 
+    if user.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Deleted user",
+        )
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
         )
+
+    user.last_login_at = datetime.now(UTC)
+    if user.role in {"admin", "super_admin"}:
+        ip_address, user_agent = _request_context(request)
+        db.add(
+            AuditLog(
+                actor_user_id=user.id,
+                action="ADMIN_LOGIN",
+                target_type="user",
+                target_id=user.id,
+                reason=None,
+                metadata_={"email": user.email, "role": user.role},
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+        )
+    await db.commit()
 
     token = create_access_token(user_id=user.id, email=user.email, role=user.role)
     return TokenResponse(access_token=token)
@@ -80,3 +106,11 @@ async def read_current_user(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
     return current_user
+
+
+def _request_context(request: Request) -> tuple[str | None, str | None]:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    ip_address = forwarded_for.split(",", 1)[0].strip() if forwarded_for else None
+    if ip_address is None and request.client is not None:
+        ip_address = request.client.host
+    return ip_address, request.headers.get("user-agent")

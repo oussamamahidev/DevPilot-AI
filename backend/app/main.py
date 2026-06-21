@@ -10,6 +10,8 @@ from app.api.routes.health import health_check
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
+from app.core.metrics import initialize_metric_labels
+from app.core.observability import RequestObservabilityMiddleware, metrics_response
 
 
 configure_logging()
@@ -18,16 +20,19 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    initialize_metric_labels(
+        llm_provider=settings.llm_provider,
+        llm_model=settings.active_generation_model,
+    )
     logger.info("Application startup", extra=settings.safe_log_context())
     logger.info(
-        "Backend AI configuration llm_provider=%s embedding_provider=%s ollama_base_url=%s "
-        "ollama_generation_model=%s ollama_embedding_model=%s generation_max_tokens=%s",
+        "Backend AI configuration llm_provider=%s generation_model=%s "
+        "embedding_provider=%s embedding_model=%s generation_max_tokens=%s",
         settings.llm_provider,
+        settings.active_generation_model,
         settings.embedding_provider,
-        settings.ollama_url,
-        settings.ollama_generation_model,
-        settings.ollama_embedding_model,
-        settings.generation_max_tokens,
+        settings.active_embedding_model,
+        settings.active_generation_max_tokens,
         extra=settings.safe_ai_log_context(),
     )
     yield
@@ -50,10 +55,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestObservabilityMiddleware)
 
     register_exception_handlers(app)
     app.include_router(api_router)
     app.add_api_route("/health", health_check, methods=["GET"], tags=["health"])
+    app.add_api_route("/metrics", metrics_response, methods=["GET"], tags=["metrics"])
 
     return app
 

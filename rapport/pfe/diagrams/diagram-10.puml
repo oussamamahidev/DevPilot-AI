@@ -1,0 +1,16 @@
+@startuml
+object Client
+object API
+object Workflow
+object Qdrant
+object Gemini
+
+Client -> API : 1: question
+API -> Workflow : 2: exécuter
+Workflow -> Qdrant : 3: récupérer
+Qdrant -> Workflow : 4: passages
+Workflow -> Gemini : 5: générer
+Gemini -> Workflow : 6: jetons
+Workflow -> API : 7: trace + réponse
+API -> Client : 8: stream + citations
+@enduml

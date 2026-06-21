@@ -78,7 +78,7 @@ async def get_workspace_for_user(
     if workspace is None:
         return None
 
-    if user.role == "admin":
+    if user.role in {"admin", "super_admin"}:
         return workspace
 
     member = await get_workspace_member(db, workspace_id, user.id)

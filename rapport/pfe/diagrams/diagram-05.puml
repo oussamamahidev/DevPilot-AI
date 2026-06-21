@@ -1,0 +1,20 @@
+@startuml
+actor Client
+participant "API (FastAPI)" as API
+participant "Stockage" as ST
+participant "Celery" as CEL
+participant "Qdrant" as QD
+
+Client -> API : POST /documents (fichier)
+activate API
+API -> ST : persister fichier + métadonnées
+API -> CEL : enqueue process_document_task
+API --> Client : 202 Accepted (statut=pending)
+deactivate API
+activate CEL
+CEL -> ST : lire + extraire le texte
+CEL -> CEL : découper + vectoriser (768-d)
+CEL -> QD : upsert vecteurs
+CEL -> ST : statut = indexed
+deactivate CEL
+@enduml

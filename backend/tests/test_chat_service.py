@@ -3,7 +3,14 @@ from uuid import uuid4
 
 import pytest
 
-from app.models.conversation import Conversation, Evaluation, LLMUsage, Message, RetrievedChunk
+from app.models.conversation import (
+    AgentRun,
+    Conversation,
+    Evaluation,
+    LLMUsage,
+    Message,
+    RetrievedChunk,
+)
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.providers.base import LLMResponse
@@ -28,7 +35,7 @@ class FakeChatSession:
                     instance.created_at = now
                 if instance.updated_at is None:
                     instance.updated_at = now
-            if isinstance(instance, (Message, RetrievedChunk, LLMUsage, Evaluation)):
+            if isinstance(instance, (Message, RetrievedChunk, LLMUsage, Evaluation, AgentRun)):
                 if instance.created_at is None:
                     instance.created_at = now
 
@@ -81,10 +88,11 @@ async def test_query_chat_saves_messages_citations_and_usage(
     document_id = uuid4()
     session = FakeChatSession()
 
-    async def fake_retrieve_semantic(**kwargs: object) -> list[dict[str, object]]:
+    async def fake_retrieve_chunks(**kwargs: object) -> list[dict[str, object]]:
         assert kwargs["workspace_id"] == workspace.id
         assert kwargs["query"] == "What technologies does DevPilot AI use?"
-        assert kwargs["top_k"] == 5
+        assert kwargs["top_k"] == 15
+        assert kwargs["strategy"] == "hybrid"
         return [
             {
                 "chunk_id": chunk_id,
@@ -97,8 +105,16 @@ async def test_query_chat_saves_messages_citations_and_usage(
             }
         ]
 
-    monkeypatch.setattr(chat_service, "retrieve_semantic", fake_retrieve_semantic)
-    monkeypatch.setattr(chat_service, "OllamaLLMProvider", lambda: FakeLLMProvider())
+    monkeypatch.setattr(chat_service, "retrieve_chunks", fake_retrieve_chunks)
+
+    async def fake_rerank(**kwargs: object) -> list[dict[str, object]]:
+        assert kwargs["query"] == "What technologies does DevPilot AI use?"
+        assert kwargs["top_k"] == 5
+        assert len(kwargs["contexts"]) == 1  # type: ignore[arg-type]
+        return list(kwargs["contexts"])  # type: ignore[arg-type]
+
+    monkeypatch.setattr(chat_service, "rerank", fake_rerank)
+    monkeypatch.setattr(chat_service, "get_llm_provider", lambda: FakeLLMProvider())
 
     async def fake_evaluate_answer(**kwargs: object) -> dict[str, object]:
         assert kwargs["question"] == "What technologies does DevPilot AI use?"
@@ -127,6 +143,7 @@ async def test_query_chat_saves_messages_citations_and_usage(
     retrieved_chunks = [item for item in session.added if isinstance(item, RetrievedChunk)]
     usages = [item for item in session.added if isinstance(item, LLMUsage)]
     evaluations = [item for item in session.added if isinstance(item, Evaluation)]
+    agent_runs = [item for item in session.added if isinstance(item, AgentRun)]
 
     assert response["answer"].endswith("[1].")
     assert response["citations"] == [
@@ -154,6 +171,17 @@ async def test_query_chat_saves_messages_citations_and_usage(
     assert evaluations[0].message_id == messages[1].id
     assert evaluations[0].faithfulness == 0.9
     assert evaluations[0].explanation == "Answer is grounded in the retrieved context."
+    assert [agent_run.agent_type for agent_run in agent_runs] == [
+        "router",
+        "query_rewriter",
+        "retrieval",
+        "reranker",
+        "generator",
+        "evaluator",
+        "corrector",
+    ]
+    assert all(agent_run.message_id == messages[1].id for agent_run in agent_runs)
+    assert all(agent_run.status == "completed" for agent_run in agent_runs)
     assert usages[0].message_id == messages[1].id
     assert usages[0].provider == "ollama"
     assert usages[0].model == "qwen3:8b"

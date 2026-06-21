@@ -1,0 +1,125 @@
+%====================== FRONT MATTER ======================
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+\markboth{Remerciements}{Remerciements}
+
+Au terme de ce projet de fin d'études, je tiens à exprimer ma sincère gratitude
+à mon encadrant pédagogique [\textit{à compléter}] pour son suivi rigoureux et
+ses conseils déterminants, ainsi qu'à mon encadrant professionnel
+[\textit{à compléter}] pour son expertise et sa disponibilité. Je remercie
+l'ensemble du corps professoral de l'ENSIAS pour la qualité de la formation
+d'ingénieur, et les membres du jury qui ont accepté d'évaluer ce travail. Je
+dédie enfin ce travail à ma famille, dont le soutien a rendu ce parcours possible.
+
+%====================== RÉSUMÉ ======================
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+\markboth{Résumé}{Résumé}
+
+Les équipes d'ingénierie logicielle accumulent une connaissance technique
+volumineuse et fragmentée — spécifications, documents d'architecture, comptes
+rendus et directives internes. La recherche par mots-clés en capture mal
+l'intention sémantique, tandis que les assistants génératifs généralistes
+produisent des réponses fluides mais \emph{non fondées} : hallucinations, absence
+de citations et opacité du raisonnement.
+
+\devpilot{} est une plateforme agentique de \emph{Génération Augmentée par
+Récupération} (RAG) de qualité production qui répond à ces limites. Chaque
+réponse est ancrée dans les documents propres à l'organisation, étayée par des
+citations, évaluée automatiquement (fidélité, pertinence, risque d'hallucination)
+et entièrement traçable. La génération repose sur un flux agentique de sept
+agents coopérants, chacun persisté comme une exécution inspectable.
+
+Au-delà du moteur RAG, le projet apporte trois contributions distinctives : une
+tour de contrôle d'exploitation (\textbf{RAGOps}) pour l'observabilité du système
+d'IA, un sous-système de \textbf{traçabilité} reconstruisant le cycle de vie
+complet de chaque requête, et un \textbf{AI Execution Studio} qui visualise le
+pipeline en temps réel. La plateforme est bâtie sur FastAPI, PostgreSQL, Redis,
+Celery, Qdrant, Ollama et Gemini côté serveur, et Next.js côté client, le tout
+orchestré par Docker Compose. Ce mémoire détaille la démarche d'ingénierie, la
+conception, l'architecture et la validation du système.
+
+\noindent\textbf{Mots-clés :} RAG agentique, grands modèles de langage, recherche
+vectorielle, observabilité de l'IA, traçabilité, évaluation, FastAPI, Qdrant,
+Next.js.
+
+%====================== ABSTRACT ======================
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\markboth{Abstract}{Abstract}
+
+Software engineering teams accumulate large, fragmented technical knowledge.
+Keyword search misses semantic intent, while general-purpose generative
+assistants produce fluent but \emph{ungrounded} answers — hallucinations, no
+citations, no visibility into the reasoning.
+
+\devpilot{} is a production-grade \emph{agentic Retrieval-Augmented Generation}
+(RAG) platform that closes this gap. Every answer is grounded in the
+organization's own documents, supported by citations, automatically evaluated
+(faithfulness, relevance, hallucination risk) and fully traceable. Generation is
+an agentic workflow of seven cooperating agents, each persisted as an inspectable
+run.
+
+Beyond the RAG engine, the project contributes three distinctive elements: an
+operational control tower (\textbf{RAGOps}) for AI-system observability, a
+\textbf{traceability} subsystem that reconstructs each query's full life cycle,
+and an \textbf{AI Execution Studio} that visualizes the pipeline in real time.
+The platform is built on FastAPI, PostgreSQL, Redis, Celery, Qdrant, Ollama and
+Gemini on the server, with Next.js on the client, orchestrated by Docker Compose.
+This report details the engineering process, design, architecture and validation.
+
+\noindent\textbf{Keywords:} Agentic RAG, Large Language Models, Vector Search, AI
+Observability, Traceability, Evaluation, FastAPI, Qdrant, Next.js.
+
+%====================== INTRODUCTION GÉNÉRALE ======================
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+
+\section*{Contexte}
+L'intelligence artificielle générative a transformé l'accès à l'information, mais
+son adoption en entreprise se heurte à une exigence non satisfaite par les
+modèles généralistes : répondre à partir du patrimoine documentaire
+\emph{propre} à l'organisation, avec des garanties de véracité et de
+transparence. Pour une équipe d'ingénierie, une réponse plausible mais fausse
+constitue un risque opérationnel, non une simple imperfection.
+
+\section*{Motivation}
+La promesse du RAG est de réconcilier la puissance générative des grands modèles
+de langage avec la connaissance vérifiable de l'organisation~\cite{lewis2020}.
+Transformer cette promesse en \emph{système de production} suppose toutefois de
+résoudre des problèmes d'ingénierie concrets : ingestion asynchrone, recherche
+vectorielle, ancrage et citation des sources, mesure de la qualité et, surtout,
+observabilité et traçabilité de bout en bout.
+
+\section*{Problématique}
+Comment concevoir et réaliser une plateforme d'IA capable de centraliser les
+connaissances d'une équipe, d'en récupérer l'information pertinente, de générer
+des réponses fondées et citées, d'en mesurer la qualité, et d'offrir une
+traçabilité et une observabilité permettant d'auditer et d'exploiter le système
+comme tout service critique d'entreprise~?
+
+\section*{Objectifs}
+Le projet vise à concevoir et implémenter \devpilot{}, plateforme RAG agentique
+multi-espaces offrant : espaces de travail isolés, ingestion documentaire
+asynchrone, récupération hybride avec reclassement, génération agentique ancrée
+et citée, évaluation automatique, \emph{streaming} temps réel, et un sous-système
+d'observabilité (RAGOps, explorateur et inspecteur de traces, AI Execution
+Studio).
+
+\section*{Méthodologie}
+La démarche est itérative et orientée production : elle s'est déroulée en
+\textbf{vingt-trois phases} incrémentales, de la fondation conteneurisée jusqu'aux
+fonctionnalités phares de visualisation. Chaque phase fixe un objectif vérifiable,
+introduit des fonctionnalités, justifie ses choix techniques et est validée par
+des tests. Le chapitre~\ref{chap:archi} (architecture et réalisation) constitue
+le c{\oe}ur du travail.
+
+\section*{Organisation du rapport}
+Le chapitre~\ref{chap:contexte} pose le contexte, l'analyse de l'existant et le
+cahier des charges. Le chapitre~\ref{chap:conception} présente l'analyse et la
+conception (UML, modèle de données). Le chapitre~\ref{chap:archi} détaille
+l'architecture et la réalisation. Le chapitre~\ref{chap:techno} justifie les
+technologies et l'implémentation. Le chapitre~\ref{chap:validation} traite de la
+validation et des résultats. Le rapport se clôt par une conclusion générale et
+des perspectives.

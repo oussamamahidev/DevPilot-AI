@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.models.workspace import Workspace
 from app.providers.base import EmbeddingProviderError
 from app.schemas.retrieval import RetrievalRequest, RetrievedChunkResponse
-from app.services.retrieval_service import retrieve_semantic
+from app.services.retrieval_service import retrieve_chunks
 from app.services.vector_store_service import VectorStoreError
 
 
@@ -29,11 +29,12 @@ async def search_retrieval(
 ) -> list[dict[str, object]]:
     _ = workspace_id
     try:
-        return await retrieve_semantic(
+        return await retrieve_chunks(
             db=db,
             workspace_id=workspace.id,
             query=payload.query,
             top_k=payload.top_k,
+            strategy=payload.strategy,
         )
     except (EmbeddingProviderError, VectorStoreError) as exc:
         raise AppException(

@@ -1,0 +1,195 @@
+%==============================================================================
+%  DevPilot AI — Rapport de Projet de Fin d'Études (ENSIAS)
+%  Plateforme agentique de RAG de qualité production.
+%
+%  Compilation : pdflatex main.tex  (x2 pour TOC/refs).  Pas de shell-escape.
+%  Les diagrammes UML sont fournis en code PlantUML (listings) + emplacement
+%  d'image à rendre séparément :  plantuml diagrams/*.puml
+%  Les captures d'écran sont des emplacements [CAPTURE D'ÉCRAN] à insérer.
+%==============================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+%------------------------------------------------------------------ Langue / encodage
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{csquotes}
+
+%------------------------------------------------------------------ Mise en page
+\usepackage[a4paper,margin=2.5cm,headheight=15pt]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{float}
+
+%------------------------------------------------------------------ Tableaux / figures
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+%------------------------------------------------------------------ Couleurs
+\usepackage{xcolor}
+\definecolor{brand}{HTML}{6A35F0}
+\definecolor{brandDark}{HTML}{4C1FB3}
+\definecolor{slate}{HTML}{475569}
+\definecolor{codeBg}{HTML}{F6F8FA}
+\definecolor{codeKw}{HTML}{8B2FB3}
+\definecolor{codeStr}{HTML}{0A7E3D}
+\definecolor{codeCom}{HTML}{6B7280}
+\definecolor{lineGray}{HTML}{C7CDD6}
+
+%------------------------------------------------------------------ Listings
+\usepackage{listings}
+\lstdefinestyle{code}{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codeKw}\bfseries,
+  stringstyle=\color{codeStr},
+  commentstyle=\color{codeCom}\itshape,
+  numberstyle=\tiny\color{codeCom},
+  backgroundcolor=\color{codeBg},
+  frame=single, rulecolor=\color{lineGray},
+  numbers=left, numbersep=8pt, tabsize=2,
+  breaklines=true, breakatwhitespace=true, showstringspaces=false,
+  columns=fullflexible, keepspaces=true, captionpos=b,
+  xleftmargin=14pt, framexleftmargin=14pt,
+}
+\lstdefinestyle{plantuml}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{codeBg},
+  frame=single, rulecolor=\color{lineGray},
+  breaklines=true, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, captionpos=b, xleftmargin=10pt,
+}
+\lstdefinestyle{eraser}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{codeBg},
+  frame=single, rulecolor=\color{lineGray},
+  breaklines=true, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, captionpos=b, xleftmargin=10pt,
+}
+\lstset{style=code}
+
+%------------------------------------------------------------------ Hyperref
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=brandDark, citecolor=brandDark, urlcolor=brandDark,
+  pdftitle={DevPilot AI - Rapport PFE ENSIAS}, pdfauthor={DevPilot AI}}
+
+%------------------------------------------------------------------ En-têtes
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small\textbf{DevPilot AI}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+%------------------------------------------------------------------ Macros
+% Emplacement d'un diagramme PlantUML (le code figure dans le listing au-dessus).
+\newcommand{\plantumlfig}[2]{%
+  \begin{figure}[H]\centering
+  \fbox{\parbox[c][3.6cm][c]{0.85\textwidth}{\centering\itshape\small\color{slate}%
+  [DIAGRAMME PLANTUML]\\[3pt]#1\\[3pt]\footnotesize Rendre le code PlantUML ci-dessus (\texttt{plantuml}).}}%
+  \caption{#1}\label{#2}\end{figure}}
+% Emplacement d'un diagramme Eraser (le code figure dans le listing au-dessus).
+\newcommand{\eraserfig}[2]{%
+  \begin{figure}[H]\centering
+  \fbox{\parbox[c][3.6cm][c]{0.85\textwidth}{\centering\itshape\small\color{slate}%
+  [DIAGRAMME ERASER]\\[3pt]#1\\[3pt]\footnotesize Rendre le code Eraser ci-dessus sur \texttt{app.eraser.io}.}}%
+  \caption{#1}\label{#2}\end{figure}}
+% Emplacement d'une capture d'écran.
+\newcommand{\screenshotfig}[2]{%
+  \begin{figure}[H]\centering
+  \fbox{\parbox[c][3.6cm][c]{0.82\textwidth}{\centering\itshape\small\color{slate}%
+  [CAPTURE D'ÉCRAN]\\[3pt]#1}}%
+  \caption{#1}\label{#2}\end{figure}}
+\newcommand{\devpilot}{\textsc{DevPilot AI}}
+
+%==============================================================================
+\begin{document}
+%==============================================================================
+
+%------------------------------------------------------------------ Page de garde
+\begin{titlepage}
+\centering\thispagestyle{empty}
+{\small\scshape Royaume du Maroc\\ Université Mohammed V de Rabat\\
+École Nationale Supérieure d'Informatique et d'Analyse des Systèmes (ENSIAS)\par}
+\vspace{0.8cm}{\color{lineGray}\rule{\textwidth}{0.5pt}}\vspace{1.0cm}
+
+{\small\itshape Rapport de Projet de Fin d'Études\par}
+\vspace{0.3cm}{\small en vue de l'obtention du diplôme d'Ingénieur d'État\par}
+\vspace{0.2cm}{\small\textit{Filière : Génie Logiciel / Intelligence Artificielle}\par}
+
+\vspace{1.4cm}
+{\color{brand}\Huge\bfseries DevPilot AI\par}
+\vspace{0.5cm}
+{\LARGE\bfseries Conception et réalisation d'une plateforme\\[4pt]
+agentique de RAG avec observabilité,\\[4pt]
+traçabilité et visualisation d'exécution\par}
+
+\vspace{1.6cm}{\color{lineGray}\rule{0.6\textwidth}{0.5pt}}\vspace{0.5cm}
+\begin{minipage}{0.46\textwidth}\begin{flushleft}\large
+\textbf{Réalisé par :}\\[2pt][Nom et prénom de l'étudiant]\end{flushleft}\end{minipage}\hfill
+\begin{minipage}{0.46\textwidth}\begin{flushright}\large
+\textbf{Encadré par :}\\[2pt][Encadrant ENSIAS]\\{[Encadrant professionnel]}\end{flushright}\end{minipage}
+
+\vspace{1.2cm}\textbf{Membres du jury :}\\[4pt]
+\begin{tabular}{ll}
+[Président] & \textit{Président}\\ [Examinateur] & \textit{Examinateur}\\ [Encadrant] & \textit{Encadrant}\\
+\end{tabular}
+
+\vfill{\color{lineGray}\rule{\textwidth}{0.5pt}}\vspace{0.3cm}
+{\small Année universitaire 2025--2026\par}
+\end{titlepage}
+
+%------------------------------------------------------------------ Front matter
+\input{chapters/front-matter}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+%------------------------------------------------------------------ Chapitres
+\input{chapters/chapter1}
+\input{chapters/chapter2}
+\input{chapters/chapter3}
+\input{chapters/chapter4}
+\input{chapters/chapter5}
+\input{chapters/conclusion}
+
+%------------------------------------------------------------------ Bibliographie
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{Bibliographie}
+
+\bibitem{vaswani2017} A.~Vaswani \emph{et al.}, « Attention Is All You Need », \emph{NeurIPS}, 2017.
+\bibitem{lewis2020} P.~Lewis \emph{et al.}, « Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks », \emph{NeurIPS}, 2020.
+\bibitem{karpukhin2020} V.~Karpukhin \emph{et al.}, « Dense Passage Retrieval for Open-Domain Question Answering », \emph{EMNLP}, 2020.
+\bibitem{robertson2009} S.~Robertson, H.~Zaragoza, « The Probabilistic Relevance Framework: BM25 and Beyond », \emph{Found. Trends IR}, 2009.
+\bibitem{malkov2018} Y.~Malkov, D.~Yashunin, « Efficient and Robust ANN Search Using HNSW Graphs », \emph{IEEE TPAMI}, 2018.
+\bibitem{reimers2019} N.~Reimers, I.~Gurevych, « Sentence-BERT », \emph{EMNLP}, 2019.
+\bibitem{nogueira2019} R.~Nogueira, K.~Cho, « Passage Re-ranking with BERT », \emph{arXiv:1901.04085}, 2019.
+\bibitem{es2023} S.~Es \emph{et al.}, « RAGAS: Automated Evaluation of Retrieval Augmented Generation », \emph{arXiv:2309.15217}, 2023.
+\bibitem{fastapi} S.~Ramírez, \emph{FastAPI Documentation}, \url{https://fastapi.tiangolo.com}, 2026.
+\bibitem{postgres} \emph{PostgreSQL 16 Documentation}, \url{https://www.postgresql.org/docs/16}, 2026.
+\bibitem{qdrant} \emph{Qdrant Vector Database Documentation}, \url{https://qdrant.tech/documentation}, 2026.
+\bibitem{celery} \emph{Celery — Distributed Task Queue}, \url{https://docs.celeryq.dev}, 2026.
+\bibitem{redis} \emph{Redis Documentation}, \url{https://redis.io/docs}, 2026.
+\bibitem{nextjs} \emph{Next.js Documentation}, \url{https://nextjs.org/docs}, 2026.
+\bibitem{docker} \emph{Docker Documentation}, \url{https://docs.docker.com}, 2026.
+\bibitem{gemini} Google DeepMind, \emph{Gemini API Documentation}, \url{https://ai.google.dev}, 2026.
+\bibitem{ollama} \emph{Ollama Documentation}, \url{https://ollama.com}, 2026.
+\bibitem{langsmith} LangChain, \emph{LangSmith — LLM Application Observability}, \url{https://docs.smith.langchain.com}, 2026.
+\bibitem{llamaindex} \emph{LlamaIndex Documentation}, \url{https://docs.llamaindex.ai}, 2026.
+\bibitem{haystack} deepset, \emph{Haystack Documentation}, \url{https://haystack.deepset.ai}, 2026.
+
+\end{thebibliography}
+
+\end{document}
